@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import Calendar from "@/components/calendar/Calendar";
+import RegistrationModal from "@/components/booking/RegistrationModal";
 
 /* ── 走讀旅行假資料（from DB04）── */
 const tourStats = {
@@ -51,6 +53,8 @@ const typeIcons: Record<string, string> = {
 
 export default function SpaceBookingPage() {
   const [activeRegion, setActiveRegion] = useState<string>("溪北");
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [showBooking, setShowBooking] = useState(false);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
@@ -190,6 +194,33 @@ export default function SpaceBookingPage() {
           ))}
         </div>
       </section>
+
+      {/* ── 3. 空間租借行事曆 ── */}
+      <section className="py-8 pb-16" style={{ borderTop: "1px solid var(--color-dust)" }}>
+        <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "var(--color-ink)" }}>
+          空間租借
+        </h2>
+        <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
+          點選可預約的日期，進入租借表單
+        </p>
+        <Calendar
+          mode="space"
+          selectedDate={selectedDate}
+          onDateClick={(date) => {
+            setSelectedDate(date);
+            setShowBooking(true);
+          }}
+        />
+      </section>
+
+      {/* 空間租借彈出表單 */}
+      <RegistrationModal
+        isOpen={showBooking}
+        onClose={() => setShowBooking(false)}
+        formType="空間"
+        eventTitle="空間租借"
+        ticketSummary={selectedDate ? `預約日期：${selectedDate}` : ""}
+      />
     </div>
   );
 }

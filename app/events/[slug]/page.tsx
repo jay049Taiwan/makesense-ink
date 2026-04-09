@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
+import RegistrationModal from "@/components/booking/RegistrationModal";
 
 // metadata moved to layout or generateMetadata in future
 
@@ -18,6 +19,7 @@ export default function EventPage({
   params: Promise<{ slug: string }>;
 }) {
   const [popupIndex, setPopupIndex] = useState<number | null>(null);
+  const [showRegistration, setShowRegistration] = useState(false);
   const slug = "sample-event";
 
   return (
@@ -200,7 +202,9 @@ export default function EventPage({
                   <span className="text-sm" style={{ color: "var(--color-muted)" }}>合計</span>
                   <span className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>NT$ 0</span>
                 </div>
-                <button className="w-full h-10 rounded text-sm font-medium text-white" style={{ background: "var(--color-moss)" }}>
+                <button
+                  onClick={() => setShowRegistration(true)}
+                  className="w-full h-10 rounded text-sm font-medium text-white" style={{ background: "var(--color-moss)" }}>
                   立即報名
                 </button>
               </div>
@@ -214,6 +218,15 @@ export default function EventPage({
           <MightAlsoLike />
         </div>
       </div>
+
+      {/* 報名彈出表單 */}
+      <RegistrationModal
+        isOpen={showRegistration}
+        onClose={() => setShowRegistration(false)}
+        formType="走讀"
+        eventTitle="活動名稱（sample-event）"
+        ticketSummary="成人票 ×1"
+      />
     </div>
   );
 }

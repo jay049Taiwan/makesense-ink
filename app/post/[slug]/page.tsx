@@ -56,6 +56,24 @@ export default async function PostPage({
         </p>
       </div>
 
+      {/* 付費內容區塊（有付費牆時顯示） */}
+      <div
+        className="rounded-xl p-6 text-center my-8"
+        style={{ background: "var(--color-warm-white)", border: "1.5px solid var(--color-teal)" }}
+      >
+        <p className="text-lg mb-2" style={{ color: "var(--color-ink)" }}>📖 以下為付費內容</p>
+        <p className="text-sm mb-4" style={{ color: "var(--color-mist)" }}>
+          購買後即可閱讀完整文章，付款完成將自動跳回本頁。
+        </p>
+        <a
+          href={`/checkout?type=article&slug=sample-article&redirect=/post/sample-article`}
+          className="inline-block px-6 py-2.5 rounded-lg text-sm font-medium text-white"
+          style={{ background: "var(--color-teal)" }}
+        >
+          購買閱讀 NT$ 50
+        </a>
+      </div>
+
       {/* Keywords */}
       <div className="flex flex-wrap gap-2 mt-8 pt-6" style={{ borderTop: "1px solid var(--color-dust)" }}>
         {["宜蘭文化", "清明節", "祭祀"].map((kw) => (
