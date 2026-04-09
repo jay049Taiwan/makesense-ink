@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 
 export const metadata: Metadata = {
   title: "文章",
@@ -15,23 +16,16 @@ export default async function PostPage({
     <article className="mx-auto px-4 py-12" style={{ maxWidth: 780 }}>
       {/* SP-A1: Article header */}
       <header className="mb-8">
-        <div className="flex flex-wrap gap-2 mb-4">
-          <span
-            className="px-2.5 py-1 rounded-full text-xs"
-            style={{ background: "var(--color-badge-article-bg)", color: "var(--color-badge-article-text)" }}
-          >
-            文章
-          </span>
-        </div>
         <h1
           className="text-3xl font-semibold leading-tight mb-3"
           style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
         >
           文章標題（{slug}）
         </h1>
-        <p className="text-sm" style={{ color: "var(--color-mist)" }}>
-          2026 年 4 月 5 日
-        </p>
+        <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-mist)" }}>
+          <span>2026 年 4 月 5 日</span>
+          <span>作者：<span style={{ color: "var(--color-bark)" }}>作者名稱</span>（from DB08）</span>
+        </div>
       </header>
 
       {/* Cover image */}
@@ -75,42 +69,9 @@ export default async function PostPage({
         ))}
       </div>
 
-      {/* Share buttons */}
-      <div className="flex gap-3 mt-6">
-        {["Facebook", "LINE", "複製連結"].map((label) => (
-          <button
-            key={label}
-            className="px-4 py-2 rounded-full text-xs font-medium transition-colors"
-            style={{ background: "var(--color-warm-white)", color: "var(--color-bark)", border: "1px solid var(--color-dust)" }}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-
-      {/* Related articles */}
-      <section className="mt-12">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-          延伸閱讀
-        </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {[1, 2].map((i) => (
-            <div
-              key={i}
-              className="rounded-lg overflow-hidden"
-              style={{ border: "1px solid var(--color-dust)" }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-2xl opacity-20">📄</span>
-              </div>
-              <div className="p-3">
-                <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>延伸閱讀文章 {i}</h3>
-                <p className="text-[0.75em] mt-1" style={{ color: "var(--color-muted)" }}>2026-03-28</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
+      {/* 導購區 */}
+      <AlsoWantToKnow />
+      <MightAlsoLike />
     </article>
   );
 }

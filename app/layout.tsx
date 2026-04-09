@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="zh-TW" className="h-full antialiased">
       <head>
         <link
-          href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
       </head>

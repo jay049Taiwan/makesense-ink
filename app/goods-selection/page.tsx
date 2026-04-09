@@ -56,6 +56,16 @@ export default function GoodsSelectionPage() {
         ))}
       </div>
 
+      {/* Gs-S3: Brand row */}
+      <div className="hscroll-track mb-6">
+        {brands.filter(b => b !== "不分品牌").map((b) => (
+          <span key={b} className="flex-shrink-0 px-3 py-1 rounded-full text-xs"
+            style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}>
+            {b}
+          </span>
+        ))}
+      </div>
+
       <div className="flex gap-6">
         {/* Gs-S4: Category sidebar */}
         <aside className="hidden lg:block w-[160px] flex-shrink-0">

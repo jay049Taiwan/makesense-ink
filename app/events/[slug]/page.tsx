@@ -1,15 +1,24 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "活動",
-};
+import { useState } from "react";
+import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 
-export default async function EventPage({
+// metadata moved to layout or generateMetadata in future
+
+const routeStops = [
+  { name: "旅人書店", desc: "宜蘭在地文化書店，走讀行旅的起點。", photo: null },
+  { name: "羅東鎮", desc: "蘭陽平原南方的商業重鎮，夜市聞名全台。", photo: null },
+  { name: "城隍廟", desc: "羅東鎮歷史悠久的信仰中心，見證地方發展。", photo: null },
+  { name: "頭城老街", desc: "宜蘭最早開發的地區，保留清代街屋風貌。", photo: null },
+];
+
+export default function EventPage({
   params,
 }: {
   params: Promise<{ slug: string }>;
 }) {
-  const { slug } = await params;
+  const [popupIndex, setPopupIndex] = useState<number | null>(null);
+  const slug = "sample-event";
 
   return (
     <div>
@@ -32,7 +41,12 @@ export default async function EventPage({
           >
             活動名稱（{slug}）
           </h1>
-          <p className="text-sm text-white/70">2026 年 5 月 1 日（四）09:00–17:00</p>
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70 mt-1">
+            <span>2026 年 5 月 1 日（四）09:00–17:00</span>
+            <span>地點：宜蘭縣羅東鎮</span>
+            <span>帶路人：<span className="text-white font-medium">帶路人名稱</span></span>
+          </div>
+          <p className="text-[0.7em] mt-2" style={{ color: "rgba(255,255,255,0.4)" }}>以上資訊來自 DB04</p>
         </div>
       </div>
 
@@ -51,17 +65,67 @@ export default async function EventPage({
               </p>
             </section>
 
-            {/* Route */}
-            <section className="mb-8">
+            {/* Route — 每個地點可點擊彈出 DB08 觀點介紹 */}
+            <section className="mb-8 relative">
               <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--color-bark)", fontFamily: "var(--font-serif)" }}>
                 活動路線
               </h2>
-              <ol className="list-decimal pl-5 space-y-2 text-sm" style={{ color: "var(--color-ink)" }}>
-                <li>集合點：旅人書店</li>
-                <li>第一站：頭城老街</li>
-                <li>第二站：蘭陽博物館</li>
-                <li>解散：頭城車站</li>
-              </ol>
+              <div className="flex items-center flex-wrap gap-y-2">
+                {routeStops.map((stop, i) => (
+                  <div key={i} className="flex items-center">
+                    {i > 0 && (
+                      <span className="mx-2 text-sm" style={{ color: "var(--color-dust)" }}>→</span>
+                    )}
+                    <button
+                      onClick={() => setPopupIndex(popupIndex === i ? null : i)}
+                      className="relative px-3 py-1.5 rounded-full text-sm font-medium transition-all hover:shadow-sm"
+                      style={{
+                        background: popupIndex === i ? "var(--color-teal)" : "var(--color-parchment)",
+                        color: popupIndex === i ? "#fff" : "var(--color-bark)",
+                        border: `1px solid ${popupIndex === i ? "var(--color-teal)" : "var(--color-dust)"}`,
+                      }}
+                    >
+                      {stop.name}
+                    </button>
+                  </div>
+                ))}
+              </div>
+
+              {/* Popup */}
+              {popupIndex !== null && (
+                <div
+                  className="mt-3 rounded-lg overflow-hidden shadow-lg animate-in fade-in"
+                  style={{ border: "1px solid var(--color-dust)", background: "#fff", maxWidth: 400 }}
+                >
+                  {/* Photo placeholder */}
+                  <div
+                    className="h-[160px] flex items-center justify-center"
+                    style={{ background: "var(--color-parchment)" }}
+                  >
+                    <span className="text-3xl opacity-20">📷</span>
+                  </div>
+                  <div className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="text-sm font-semibold" style={{ color: "var(--color-ink)" }}>
+                        {routeStops[popupIndex].name}
+                      </h4>
+                      <button
+                        onClick={() => setPopupIndex(null)}
+                        className="text-xs px-2 py-1 rounded"
+                        style={{ color: "var(--color-mist)" }}
+                      >
+                        ✕
+                      </button>
+                    </div>
+                    <p className="text-xs leading-relaxed" style={{ color: "var(--color-bark)" }}>
+                      {routeStops[popupIndex].desc}
+                    </p>
+                    <p className="text-[0.7em] mt-2" style={{ color: "var(--color-mist)" }}>
+                      資料來源：Notion DB08
+                    </p>
+                  </div>
+                </div>
+              )}
             </section>
 
             {/* Full content */}
@@ -88,57 +152,66 @@ export default async function EventPage({
             </div>
           </div>
 
-          {/* Right: Ticket sidebar (sticky) */}
+          {/* Right: Ticket + Add-ons sidebar (sticky, compact) */}
           <aside className="lg:sticky lg:top-6">
             <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
-              <div className="p-5" style={{ background: "var(--color-warm-white)" }}>
-                <h3 className="text-lg font-semibold mb-1" style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
-                  票價
-                </h3>
-                <p className="text-xs mb-4" style={{ color: "var(--color-mist)" }}>選擇票種與數量</p>
+              <div className="p-4" style={{ background: "var(--color-warm-white)" }}>
+                {/* 票券一列 */}
+                <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>票券</p>
+                <div className="grid grid-cols-2 gap-2 mb-4">
+                  {[
+                    { name: "成人票", price: "$500" },
+                    { name: "兒童票", price: "$250" },
+                  ].map((t) => (
+                    <div key={t.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                      <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{t.name}</p>
+                      <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{t.price}</p>
+                      <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
+                        <button className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
+                        <span className="w-5 h-6 flex items-center justify-center text-xs">0</span>
+                        <button className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
 
-                {/* Ticket types */}
-                {[
-                  { name: "成人票", price: 500 },
-                  { name: "兒童票", price: 250 },
-                  { name: "0元體驗票", price: 0 },
-                ].map((ticket) => (
-                  <div
-                    key={ticket.name}
-                    className="flex items-center justify-between py-3"
-                    style={{ borderBottom: "1px solid var(--color-dust)" }}
-                  >
-                    <div>
-                      <p className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>{ticket.name}</p>
-                      <p className="text-sm" style={{ color: "var(--color-rust)" }}>
-                        {ticket.price === 0 ? "免費" : `NT$ ${ticket.price}`}
-                      </p>
+                {/* 加購一列 */}
+                <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>加購</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {[
+                    { name: "午餐便當", price: "$120" },
+                    { name: "導覽手冊", price: "$50" },
+                  ].map((a) => (
+                    <div key={a.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                      <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{a.name}</p>
+                      <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{a.price}</p>
+                      <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
+                        <button className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
+                        <span className="w-5 h-6 flex items-center justify-center text-xs">0</span>
+                        <button className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
+                      </div>
                     </div>
-                    <div className="flex items-center border rounded" style={{ borderColor: "var(--color-dust)" }}>
-                      <button className="w-8 h-8 text-sm" style={{ color: "var(--color-bark)" }}>−</button>
-                      <span className="w-8 h-8 flex items-center justify-center text-xs">0</span>
-                      <button className="w-8 h-8 text-sm" style={{ color: "var(--color-bark)" }}>+</button>
-                    </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
 
-              <div className="p-5">
-                <div className="flex justify-between mb-4">
+              <div className="p-4">
+                <div className="flex justify-between mb-3">
                   <span className="text-sm" style={{ color: "var(--color-muted)" }}>合計</span>
-                  <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>
-                    NT$ 0
-                  </span>
+                  <span className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>NT$ 0</span>
                 </div>
-                <button
-                  className="w-full h-11 rounded text-sm font-medium text-white transition-colors"
-                  style={{ background: "var(--color-moss)" }}
-                >
+                <button className="w-full h-10 rounded text-sm font-medium text-white" style={{ background: "var(--color-moss)" }}>
                   立即報名
                 </button>
               </div>
             </div>
           </aside>
+        </div>
+
+        {/* 導購區 */}
+        <div className="mx-auto px-10" style={{ maxWidth: 1160 }}>
+          <AlsoWantToKnow />
+          <MightAlsoLike />
         </div>
       </div>
     </div>

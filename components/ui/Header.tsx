@@ -7,49 +7,86 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-border">
-      <div className="mx-auto max-w-[1140px] px-4">
+    <header
+      className="sticky top-0 z-50"
+      style={{ background: "#fff", borderBottom: "1px solid #e8e0d4" }}
+    >
+      <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
         {/* Desktop */}
-        <div className="flex items-baseline gap-4 h-16">
-          {/* Brand: 旅人書店 */}
+        <div className="flex items-center gap-4 h-16">
+          {/* 旅人書店 */}
           <Link
             href="/bookstore"
-            className="text-[22px] font-semibold text-brand-brown whitespace-nowrap leading-10 hover:opacity-80 transition-opacity"
+            className="whitespace-nowrap hover:opacity-80 transition-opacity"
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: "#7a5c40",
+              lineHeight: "40px",
+              textDecoration: "none",
+            }}
           >
             旅人書店
           </Link>
 
-          {/* Brand: 宜蘭文化俱樂部 */}
+          {/* 宜蘭文化俱樂部 */}
           <Link
             href="/cultureclub"
-            className="text-[22px] font-semibold text-brand-teal whitespace-nowrap leading-10 hover:opacity-80 transition-opacity"
+            className="whitespace-nowrap hover:opacity-80 transition-opacity"
+            style={{
+              fontSize: 22,
+              fontWeight: 600,
+              color: "#4ECDC4",
+              lineHeight: "40px",
+              textDecoration: "none",
+            }}
           >
             宜蘭文化俱樂部
           </Link>
 
           {/* Search bar */}
-          <div className="flex-1 min-w-[100px] self-center hidden sm:block">
-            <div className="max-w-[680px] mx-auto">
-              <input
-                type="text"
-                placeholder="搜尋..."
-                className="w-full h-9 px-4 rounded-full border border-border bg-brand-cream text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal transition-all"
-              />
+          <div className="flex-1 min-w-[100px] hidden sm:block">
+            <div className="mx-auto" style={{ maxWidth: 600 }}>
+              <div
+                className="flex items-center h-10 px-4 rounded-full"
+                style={{ border: "2px solid #ddd", background: "#fff" }}
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="#999"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <circle cx="11" cy="11" r="8" />
+                  <path d="m21 21-4.35-4.35" />
+                </svg>
+                <input
+                  type="text"
+                  placeholder="搜尋書籍、活動、文章..."
+                  className="flex-1 ml-2 text-sm outline-none bg-transparent"
+                  style={{ color: "#333" }}
+                />
+              </div>
             </div>
           </div>
 
-          {/* Member login */}
+          {/* 註冊/登入 */}
           <Link
-            href="/dashboard"
-            className="ml-auto whitespace-nowrap self-center text-sm font-medium text-brand-brown hover:text-brand-teal transition-colors"
+            href="/login"
+            className="ml-auto whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: "#4ECDC4", textDecoration: "none" }}
           >
-            會員登入
+            註冊/登入
           </Link>
 
           {/* Mobile menu toggle */}
           <button
             onClick={() => setMenuOpen(!menuOpen)}
-            className="sm:hidden ml-2 self-center p-2"
+            className="sm:hidden ml-1 p-2"
             aria-label="開啟選單"
           >
             <svg
@@ -57,20 +94,12 @@ export default function Header() {
               fill="none"
               viewBox="0 0 24 24"
               strokeWidth={1.5}
-              stroke="currentColor"
+              stroke="#333"
             >
               {menuOpen ? (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M6 18L18 6M6 6l12 12"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
               ) : (
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5"
-                />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
               )}
             </svg>
           </button>
@@ -78,46 +107,38 @@ export default function Header() {
 
         {/* Mobile menu */}
         {menuOpen && (
-          <nav className="sm:hidden pb-4 border-t border-border pt-3 flex flex-col gap-3">
-            <input
-              type="text"
-              placeholder="搜尋..."
-              className="w-full h-9 px-4 rounded-full border border-border bg-brand-cream text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/30"
-            />
-            <Link
-              href="/bookstore"
-              onClick={() => setMenuOpen(false)}
-              className="text-brand-brown font-medium"
+          <nav
+            className="sm:hidden pb-4 pt-3 flex flex-col gap-3"
+            style={{ borderTop: "1px solid #e8e0d4" }}
+          >
+            <div
+              className="flex items-center h-10 px-4 rounded-full"
+              style={{ border: "2px solid #ddd" }}
             >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2">
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.35-4.35" />
+              </svg>
+              <input
+                type="text"
+                placeholder="搜尋..."
+                className="flex-1 ml-2 text-sm outline-none bg-transparent"
+              />
+            </div>
+            <Link href="/bookstore" onClick={() => setMenuOpen(false)} style={{ color: "#7a5c40", fontWeight: 500 }}>
               旅人書店
             </Link>
-            <Link
-              href="/bookstore/market-booking"
-              onClick={() => setMenuOpen(false)}
-              className="text-muted pl-3"
-            >
+            <Link href="/market-booking" onClick={() => setMenuOpen(false)} className="pl-3" style={{ color: "#666" }}>
               展售合作
             </Link>
-            <Link
-              href="/bookstore/space-booking"
-              onClick={() => setMenuOpen(false)}
-              className="text-muted pl-3"
-            >
-              空間體驗
+            <Link href="/space-booking" onClick={() => setMenuOpen(false)} className="pl-3" style={{ color: "#666" }}>
+              空間租借
             </Link>
-            <Link
-              href="/cultureclub"
-              onClick={() => setMenuOpen(false)}
-              className="text-brand-teal font-medium"
-            >
+            <Link href="/cultureclub" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>
               宜蘭文化俱樂部
             </Link>
-            <Link
-              href="/dashboard"
-              onClick={() => setMenuOpen(false)}
-              className="text-brand-brown font-medium"
-            >
-              會員中心
+            <Link href="/login" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>
+              註冊/登入
             </Link>
           </nav>
         )}

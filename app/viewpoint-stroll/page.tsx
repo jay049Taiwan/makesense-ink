@@ -160,21 +160,20 @@ export default function ViewpointStrollPage() {
                     <span className="text-2xl opacity-30">📄</span>
                   </div>
                   <div className="p-3">
-                    <span
-                      className="inline-block text-[0.75em] px-2 py-0.5 rounded-[3px] mb-1"
-                      style={{ background: badge.bg, color: badge.text }}
-                    >
-                      {item.type}
-                    </span>
-                    <h3
-                      className="text-[0.9em] line-clamp-2"
-                      style={{ color: "var(--color-ink)" }}
-                    >
-                      {item.title}
-                    </h3>
-                    <p className="text-[0.75em] mt-1" style={{ color: "var(--color-muted)" }}>
-                      {item.date}
-                    </p>
+                    <div className="flex items-center gap-1.5">
+                      <span
+                        className="flex-shrink-0 text-[0.7em] px-1.5 py-0.5 rounded-[3px]"
+                        style={{ background: badge.bg, color: badge.text }}
+                      >
+                        {item.type}
+                      </span>
+                      <h3
+                        className="text-[0.85em] line-clamp-1"
+                        style={{ color: "var(--color-ink)" }}
+                      >
+                        {item.title}
+                      </h3>
+                    </div>
                   </div>
                 </div>
               );
@@ -182,6 +181,7 @@ export default function ViewpointStrollPage() {
           </div>
         </div>
       </div>
+
     </div>
   );
 }
