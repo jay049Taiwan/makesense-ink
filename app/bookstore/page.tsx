@@ -1,54 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchProducts, fetchActivities } from "@/lib/fetch-bookstore";
 
 export const metadata: Metadata = {
   title: "旅人書店",
   description: "旅人書店 — 宜蘭在地文化書店，提供展售合作、空間租借、文化活動。",
 };
 
-/* ── 假資料（之後全部接 Notion API / WC API）── */
-
-const sampleBooks = [
-  { id: 1, title: "宜蘭散步地圖", price: 380 },
-  { id: 2, title: "蘭陽風土誌", price: 450 },
-  { id: 3, title: "旅人書店選書：山與海之間", price: 320 },
-  { id: 4, title: "宜蘭老街巡禮", price: 280 },
-  { id: 5, title: "太平山手記", price: 360 },
-  { id: 6, title: "冬山河畔散策", price: 290 },
-];
-
-const sampleGoods = [
-  { id: 1, title: "宜蘭手工皂禮盒", price: 580 },
-  { id: 2, title: "龜山島明信片組", price: 150 },
-  { id: 3, title: "蘭陽平原藺草杯墊", price: 220 },
-  { id: 4, title: "旅人書店帆布袋", price: 350 },
-  { id: 5, title: "宜蘭在地蜂蜜", price: 480 },
-  { id: 6, title: "手繪宜蘭地圖海報", price: 260 },
-];
+// 啟用 ISR：每 300 秒（5 分鐘）重新驗證
+export const revalidate = 300;
 
 const sampleCuration = [
   { title: "你可能會喜歡的", items: ["散步指南", "老街故事", "溫泉文化", "宜蘭食記"] },
   { title: "宜蘭人都在看", items: ["蘭陽博物館", "頭城搶孤", "龜山島傳說", "三星蔥農事"] },
   { title: "端午節會想到的", items: ["划龍舟", "粽子文化", "艾草香包", "河岸風光"] },
-  { title: "雨天適合做的事", items: ["泡溫泉", "讀一本書", "逛博物館", "品茶"] },
-  { title: "帶小孩去的好地方", items: ["親水公園", "幾米廣場", "傳藝中心", "梅花湖"] },
-];
-
-const sampleNews = [
-  { id: 1, date: "2026-04-08", type: "活動" as const, title: "森本集市 第02場｜五月春日篇" },
-  { id: 2, date: "2026-04-05", type: "文章" as const, title: "清明時節：宜蘭的祭祀文化與地方記憶" },
-  { id: 3, date: "2026-04-01", type: "商品" as const, title: "新書上架：《蘭陽平原的水路地景》" },
-  { id: 4, date: "2026-03-28", type: "活動" as const, title: "走讀行旅：頭城老街人文散步" },
-  { id: 5, date: "2026-03-25", type: "文章" as const, title: "宜蘭線鐵路的百年故事" },
-];
-
-const samplePerspectives = [
-  { id: 1, name: "黃春明", count: 12 },
-  { id: 2, name: "林美吟", count: 8 },
-  { id: 3, name: "陳阿土", count: 5 },
-  { id: 4, name: "旅人選書", count: 23 },
-  { id: 5, name: "簡媜", count: 15 },
-  { id: 6, name: "吳明益", count: 9 },
 ];
 
 const newsTypeStyles: Record<string, { bg: string; text: string }> = {
@@ -63,18 +28,22 @@ const yilanTowns = [
 ];
 
 /* ── 共用卡片元件 ── */
-function ProductCard({ id, title, price, icon }: { id: number; title: string; price: number; icon: string }) {
+function ProductCard({ id, name, price, photo, icon }: { id: string; name: string; price: number; photo?: string | null; icon: string }) {
   return (
     <Link
-      href={`/product/${id}`}
+      href={`/product/${id.replace(/-/g, "")}`}
       className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
       style={{ border: "1px solid #e8e0d4", background: "#fff" }}
     >
-      <div className="aspect-square flex items-center justify-center" style={{ background: "#f2ede6" }}>
-        <span className="text-3xl opacity-30">{icon}</span>
+      <div className="aspect-square flex items-center justify-center overflow-hidden" style={{ background: "#f2ede6" }}>
+        {photo ? (
+          <img src={photo} alt={name} className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-3xl opacity-30">{icon}</span>
+        )}
       </div>
       <div className="p-2.5">
-        <h3 className="text-[0.85em] line-clamp-2" style={{ color: "#1a1612" }}>{title}</h3>
+        <h3 className="text-[0.85em] line-clamp-2" style={{ color: "#1a1612" }}>{name}</h3>
         <p className="text-[0.8em] font-medium mt-0.5" style={{ color: "#b5522a" }}>NT$ {price}</p>
       </div>
     </Link>
@@ -112,7 +81,14 @@ function CurationRow({ title, items }: { title: string; items: string[] }) {
   );
 }
 
-export default function BookstorePage() {
+export default async function BookstorePage() {
+  // 從 Notion 抓取真實資料
+  const [books, goods, activities] = await Promise.all([
+    fetchProducts("書籍", 12),
+    fetchProducts("選物", 12),
+    fetchActivities(5),
+  ]);
+
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
@@ -133,9 +109,10 @@ export default function BookstorePage() {
           <Link href="/themed-selection" className="text-sm" style={{ color: "#4ECDC4" }}>查看全部 →</Link>
         </div>
         <div className="hscroll-track">
-          {sampleBooks.map((book) => (
-            <ProductCard key={book.id} {...book} icon="📖" />
+          {books.map((book) => (
+            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} photo={book.photo} icon="📖" />
           ))}
+          {books.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的書籍</p>}
         </div>
       </section>
 
@@ -146,9 +123,10 @@ export default function BookstorePage() {
           <Link href="/goods-selection" className="text-sm" style={{ color: "#4ECDC4" }}>查看全部 →</Link>
         </div>
         <div className="hscroll-track">
-          {sampleGoods.map((good) => (
-            <ProductCard key={good.id} {...good} icon="🎁" />
+          {goods.map((good) => (
+            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} photo={good.photo} icon="🎁" />
           ))}
+          {goods.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的商品</p>}
         </div>
       </section>
 
@@ -164,30 +142,32 @@ export default function BookstorePage() {
       <section className="py-6">
         <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>最新消息</h2>
         <div>
-          {sampleNews.map((news) => {
-            const style = newsTypeStyles[news.type] || newsTypeStyles["文章"];
+          {activities.map((activity) => {
+            const typeLabel = activity.type || "活動";
+            const style = newsTypeStyles[typeLabel] || newsTypeStyles["活動"];
             return (
               <Link
-                key={news.id}
-                href={`/post/${news.id}`}
+                key={activity.id}
+                href={`/events/${activity.slug}`}
                 className="flex items-start gap-4 py-4 px-2 -mx-2 rounded transition-colors hover:bg-[#faf8f5]"
                 style={{ borderBottom: "1px solid #f0f0f0" }}
               >
                 <div className="flex-shrink-0 min-w-[140px]">
-                  <span className="text-[0.8em]" style={{ color: "#999" }}>{news.date}</span>
+                  <span className="text-[0.8em]" style={{ color: "#999" }}>{activity.date || ""}</span>
                   <span
                     className="inline-block ml-2 text-[0.85em] px-2 py-0.5 rounded-[3px]"
                     style={{ background: style.bg, color: style.text }}
                   >
-                    {news.type}
+                    {typeLabel}
                   </span>
                 </div>
                 <span className="text-[0.95em]" style={{ color: "#1a1612" }}>
-                  {news.title}
+                  {activity.title}
                 </span>
               </Link>
             );
           })}
+          {activities.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有近期活動</p>}
         </div>
       </section>
 
