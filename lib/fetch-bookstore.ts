@@ -12,16 +12,18 @@ export interface Product {
   slug: string;
 }
 
-export async function fetchProducts(category: "書籍" | "選物", limit = 12): Promise<Product[]> {
-  // 書籍：選書備項有值 / 選物：選物備項有值
-  const filterProp = category === "書籍" ? "選書備項" : "選物備項";
+export async function fetchProducts(category: string, limit = 12): Promise<Product[]> {
+  // 書籍刊物 → 選書備項；商品 → 庫存類型
+  const isBook = category === "書籍刊物" || category === "書籍";
+  const filterProp = isBook ? "選書備項" : "庫存類型";
+  const filterValue = isBook ? "書籍刊物" : "商品";
 
   const results = await queryDatabase(
     DB.DB07_INVENTORY,
     {
       and: [
         { property: "庫存售價", number: { greater_than: 0 } },
-        { property: filterProp, select: { is_not_empty: true } },
+        { property: filterProp, select: { equals: filterValue } },
       ],
     },
     [{ property: "更新時間", direction: "descending" as const }],

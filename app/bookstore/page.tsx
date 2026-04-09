@@ -82,12 +82,19 @@ function CurationRow({ title, items }: { title: string; items: string[] }) {
 }
 
 export default async function BookstorePage() {
-  // 從 Notion 抓取真實資料
-  const [books, goods, activities] = await Promise.all([
-    fetchProducts("書籍", 12),
-    fetchProducts("選物", 12),
-    fetchActivities(5),
-  ]);
+  // 從 Notion 抓取真實資料（失敗時 fallback 空陣列）
+  let books: any[] = [];
+  let goods: any[] = [];
+  let activities: any[] = [];
+  try {
+    [books, goods, activities] = await Promise.all([
+      fetchProducts("書籍刊物", 12),
+      fetchProducts("商品", 12),
+      fetchActivities(5),
+    ]);
+  } catch (e) {
+    console.error("Notion fetch failed:", e);
+  }
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
