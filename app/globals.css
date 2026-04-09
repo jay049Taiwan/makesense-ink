@@ -1,26 +1,68 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
+  /* ── Brand tokens (from SP-P0, SP-E0, dashboard-styles) ── */
+  --color-ink: #1a1612;
+  --color-warm-white: #faf8f5;
+  --color-parchment: #f2ede6;
+  --color-dust: #e8e0d4;
+  --color-bark: #8b7355;
+  --color-moss: #5c6b4a;
+  --color-rust: #b5522a;
+  --color-mist: #9ba8a0;
+  --color-sky: #3a5c78;
+  --color-gold: #b8943c;
+  --color-teal: #4ECDC4;
+  --color-teal-hover: #3dbdb5;
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* ── Semantic aliases ── */
+  --color-background: #ffffff;
+  --color-foreground: #1a1612;
+  --color-muted: #6b7280;
+  --color-border: #e8e0d4;
+
+  /* ── Calendar (from CAL-CORE) ── */
+  --color-cal-saturday: #fdf8f7;
+  --color-cal-sunday: #fdf6f5;
+  --color-cal-weekend-text: #c87060;
+  --color-cal-holiday-bg: #f4fbf4;
+  --color-cal-holiday-text: #2e7d32;
+  --color-cal-today: #f0fffe;
+  --color-cal-market: #fff3e0;
+  --color-cal-blocked: #f5f0e8;
+
+  /* ── Badge colors (from CC-S3, news lists) ── */
+  --color-badge-article-bg: #E8F5E9;
+  --color-badge-article-text: #2E7D32;
+  --color-badge-event-bg: #FFF3E0;
+  --color-badge-event-text: #E65100;
+  --color-badge-product-bg: #E3F2FD;
+  --color-badge-product-text: #1565C0;
+  --color-badge-experience-bg: #FCE4EC;
+  --color-badge-experience-text: #C62828;
+
+  /* ── Fonts ── */
+  --font-sans: "Noto Sans TC", sans-serif;
+  --font-serif: "Noto Serif TC", Georgia, serif;
+  --font-display: "Playfair Display", "Noto Serif TC", serif;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-foreground);
+  font-family: var(--font-sans);
+}
+
+/* ── Shared utility: horizontal scroll track (from CC-S3) ── */
+.hscroll-track {
+  display: flex;
+  gap: 16px;
+  overflow-x: auto;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  padding: 4px 0 8px;
+  -ms-overflow-style: none;
+}
+.hscroll-track::-webkit-scrollbar {
+  display: none;
 }
