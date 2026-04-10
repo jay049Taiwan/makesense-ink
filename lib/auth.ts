@@ -12,7 +12,7 @@ function LINE(): OAuthConfig<any> {
     type: "oauth",
     clientId: process.env.AUTH_LINE_ID,
     clientSecret: process.env.AUTH_LINE_SECRET,
-    checks: ["state"],
+    checks: ["none"],
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
       params: {
@@ -20,9 +20,62 @@ function LINE(): OAuthConfig<any> {
         response_type: "code",
       },
     },
-    // LINE 要求 client_id/client_secret 放在 POST body（不是 Basic Auth）
-    client: { token_endpoint_auth_method: "client_secret_post" },
-    token: "https://api.line.me/oauth2/v2.1/token",
+    token: {
+      url: "https://api.line.me/oauth2/v2.1/token",
+      async request(context: any) {
+        // 從 context 中取得所需資訊
+        const { params, provider } = context;
+        const code = params?.code ?? params?.get?.("code");
+        const callbackUrl = provider?.callbackUrl ?? provider?.redirect_uri;
+        const clientId = provider?.clientId ?? provider?.client_id;
+        const clientSecret = provider?.clientSecret ?? provider?.client_secret;
+
+        // 記錄 debug 資訊（可透過 /api/debug-line?check=token 查看）
+        const debugInfo = {
+          hasCode: !!code,
+          codePrefix: code ? String(code).slice(0, 8) + "..." : "MISSING",
+          callbackUrl: callbackUrl ?? "MISSING",
+          clientId: clientId ? String(clientId).slice(0, 6) + "..." : "MISSING",
+          hasClientSecret: !!clientSecret,
+          paramsType: typeof params,
+          paramsKeys: params ? Object.keys(params).slice(0, 10) : [],
+          providerKeys: provider ? Object.keys(provider).filter((k: string) => !k.startsWith("_")).slice(0, 15) : [],
+        };
+        (globalThis as any).__lineDebug = debugInfo;
+
+        if (!code || !callbackUrl || !clientId || !clientSecret) {
+          throw new Error(`LINE token exchange missing params: ${JSON.stringify(debugInfo)}`);
+        }
+
+        const body = new URLSearchParams({
+          grant_type: "authorization_code",
+          code: String(code),
+          redirect_uri: String(callbackUrl),
+          client_id: String(clientId),
+          client_secret: String(clientSecret),
+        });
+
+        const res = await fetch("https://api.line.me/oauth2/v2.1/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+
+        const json = await res.json();
+        (globalThis as any).__lineTokenResponse = {
+          status: res.status,
+          hasAccessToken: !!json.access_token,
+          error: json.error,
+          errorDescription: json.error_description,
+        };
+
+        if (!res.ok || json.error) {
+          throw new Error(`LINE token error: ${json.error} - ${json.error_description}`);
+        }
+
+        return { tokens: json };
+      },
+    },
     userinfo: {
       url: "https://api.line.me/v2/profile",
       async request({ tokens }: any) {
