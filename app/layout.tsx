@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
+import { GoogleAnalytics } from "@next/third-parties/google";
+import Script from "next/script";
 
 export const metadata: Metadata = {
   title: {
@@ -32,6 +34,25 @@ export default function RootLayout({
         <Header />
         <main className="flex-1">{children}</main>
         <Footer />
+        <GoogleAnalytics gaId="G-51MHE2BT74" />
+        <Script id="ga4-cross-domain" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('config', 'G-51MHE2BT74', {
+              linker: {
+                domains: [
+                  'makesense.ink',
+                  'www.makesense.ink',
+                  'bookstore.makesense.ink',
+                  'cultureclub.makesense.ink',
+                  'sense.makesense.ink',
+                  'insight.makesense.ink'
+                ]
+              }
+            });
+          `}
+        </Script>
       </body>
     </html>
   );
