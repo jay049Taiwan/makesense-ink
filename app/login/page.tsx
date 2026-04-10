@@ -51,16 +51,23 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <button
-              disabled
-              className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2.5 text-white opacity-60 cursor-not-allowed"
-              style={{ background: "#06C755" }}
+            <form
+              action={async () => {
+                "use server";
+                await signIn("line", { redirectTo: "/dashboard" });
+              }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
-                <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.39.084.922.258 1.057.592.121.303.079.778.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967C23.176 14.393 24 12.458 24 10.304" />
-              </svg>
-              LINE 登入（即將開放）
-            </button>
+              <button
+                type="submit"
+                className="w-full h-11 rounded-lg text-sm font-medium flex items-center justify-center gap-2.5 text-white transition-all hover:shadow-md"
+                style={{ background: "#06C755" }}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+                  <path d="M24 10.304c0-5.369-5.383-9.738-12-9.738-6.616 0-12 4.369-12 9.738 0 4.814 4.269 8.846 10.036 9.608.39.084.922.258 1.057.592.121.303.079.778.039 1.085l-.171 1.027c-.053.303-.242 1.186 1.039.647 1.281-.54 6.911-4.069 9.428-6.967C23.176 14.393 24 12.458 24 10.304" />
+                </svg>
+                LINE 登入
+              </button>
+            </form>
           </div>
 
           <div className="mt-6 pt-4" style={{ borderTop: "1px solid var(--color-dust)" }}>

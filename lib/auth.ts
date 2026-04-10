@@ -1,7 +1,31 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
+import type { OAuthConfig } from "next-auth/providers";
 import { fetchPersonByEmail, checkIsStaff } from "./fetch-all";
 import { createPage, DB } from "./notion";
+
+// LINE Login provider（NextAuth 沒有內建，自定義）
+function LINE(): OAuthConfig<any> {
+  return {
+    id: "line",
+    name: "LINE",
+    type: "oidc",
+    issuer: "https://access.line.me",
+    clientId: process.env.AUTH_LINE_ID!,
+    clientSecret: process.env.AUTH_LINE_SECRET!,
+    authorization: {
+      params: { scope: "profile openid email" },
+    },
+    profile(profile) {
+      return {
+        id: profile.sub,
+        name: profile.name,
+        email: profile.email,
+        image: profile.picture,
+      };
+    },
+  };
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -9,7 +33,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       clientId: process.env.AUTH_GOOGLE_ID!,
       clientSecret: process.env.AUTH_GOOGLE_SECRET!,
     }),
-    // LINE provider 之後加
+    LINE(),
   ],
 
   callbacks: {
