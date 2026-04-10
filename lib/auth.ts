@@ -9,19 +9,21 @@ function LINE(): OAuthConfig<any> {
   return {
     id: "line",
     name: "LINE",
-    type: "oidc",
-    issuer: "https://access.line.me",
+    type: "oauth",
     clientId: process.env.AUTH_LINE_ID!,
     clientSecret: process.env.AUTH_LINE_SECRET!,
     authorization: {
-      params: { scope: "profile openid email" },
+      url: "https://access.line.me/oauth2/v2.1/authorize",
+      params: { scope: "profile openid email", response_type: "code" },
     },
+    token: "https://api.line.me/oauth2/v2.1/token",
+    userinfo: "https://api.line.me/v2/profile",
     profile(profile) {
       return {
-        id: profile.sub,
-        name: profile.name,
-        email: profile.email,
-        image: profile.picture,
+        id: profile.userId,
+        name: profile.displayName,
+        email: null, // LINE profile API 不回傳 email，要從 id_token 解
+        image: profile.pictureUrl,
       };
     },
   };
