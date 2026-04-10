@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useSession, signOut } from "next-auth/react";
 import SearchDropdown from "./SearchDropdown";
+import type { SearchResults } from "./SearchDropdown";
 
 function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + "..." : str;
@@ -13,30 +14,35 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: session } = useSession();
 
-  // 搜尋狀態
+  // 搜尋狀態：索引載入一次，之後純本地搜尋
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<any>(null);
-  const [loading, setLoading] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [index, setIndex] = useState<any>(null);
   const searchRef = useRef<HTMLDivElement>(null);
-  const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
-  const doSearch = useCallback(async (q: string) => {
-    if (q.length < 2) { setResults(null); setShowDropdown(false); return; }
-    setLoading(true);
-    try {
-      const res = await fetch(`/api/search?q=${encodeURIComponent(q)}`);
-      const data = await res.json();
-      setResults(data);
-      setShowDropdown(true);
-    } catch { setResults(null); }
-    setLoading(false);
+  // 載入搜尋索引（只載一次，CDN 快取 5 分鐘）
+  useEffect(() => {
+    fetch("/api/search-index")
+      .then((r) => r.json())
+      .then(setIndex)
+      .catch(() => {});
   }, []);
+
+  // 純客戶端即時搜尋 — 零延遲
+  const results: SearchResults | null = useMemo(() => {
+    if (!index || query.length < 2) return null;
+    const q = query.toLowerCase();
+    return {
+      products: index.products?.filter((p: any) => p.n.toLowerCase().includes(q)).slice(0, 5).map((p: any) => ({ name: p.n, category: p.c, slug: p.s, photo: p.p })) || [],
+      activities: index.activities?.filter((a: any) => a.n.toLowerCase().includes(q)).slice(0, 5).map((a: any) => ({ title: a.n, date: a.d, type: a.t, slug: a.s })) || [],
+      articles: index.articles?.filter((a: any) => a.n.toLowerCase().includes(q)).slice(0, 5).map((a: any) => ({ title: a.n, type: a.t, date: a.d, slug: a.s })) || [],
+      keywords: index.keywords?.filter((k: any) => k.n.toLowerCase().includes(q)).slice(0, 5).map((k: any) => ({ name: k.n, slug: k.s })) || [],
+    };
+  }, [index, query]);
 
   const handleInput = (value: string) => {
     setQuery(value);
-    if (debounceRef.current) clearTimeout(debounceRef.current);
-    debounceRef.current = setTimeout(() => doSearch(value), 300);
+    setShowDropdown(value.length >= 2);
   };
 
   // 點擊外部關閉
@@ -93,12 +99,11 @@ export default function Header() {
                   type="text"
                   value={query}
                   onChange={(e) => handleInput(e.target.value)}
-                  onFocus={() => results && setShowDropdown(true)}
+                  onFocus={() => query.length >= 2 && setShowDropdown(true)}
                   placeholder="搜尋書籍、活動、文章..."
                   className="flex-1 ml-2 text-sm outline-none bg-transparent"
                   style={{ color: "#333" }}
                 />
-                {loading && <span className="text-xs mr-1" style={{ color: "#999" }}>...</span>}
                 {clearBtn}
               </div>
               {showDropdown && results && (

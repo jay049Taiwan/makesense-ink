@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 
-interface SearchResults {
+export interface SearchResults {
   keywords: { name: string; slug: string }[];
-  products: { name: string; category: string; slug: string }[];
+  products: { name: string; category: string; slug: string; photo?: string | null }[];
   activities: { title: string; date: string | null; type: string; slug: string }[];
   articles: { title: string; type: string; date: string | null; slug: string }[];
 }
@@ -45,7 +45,7 @@ export default function SearchDropdown({
       {results.products.length > 0 && (
         <Section icon="📚" title="商品">
           {results.products.map((p) => (
-            <ResultRow key={p.slug} href={`/product/${p.slug}`} onClose={onClose} icon="📚" iconBg="var(--color-parchment, #f5f0e8)" title={p.name} subtitle={p.category} />
+            <ResultRow key={p.slug} href={`/product/${p.slug}`} onClose={onClose} icon="📚" iconBg="var(--color-parchment, #f5f0e8)" title={p.name} subtitle={p.category} photo={p.photo} />
           ))}
         </Section>
       )}
@@ -108,12 +108,16 @@ function Section({ icon, title, children }: { icon: string; title: string; child
   );
 }
 
-function ResultRow({ href, onClose, icon, iconBg, title, subtitle }: {
-  href: string; onClose: () => void; icon: string; iconBg: string; title: string; subtitle: string;
+function ResultRow({ href, onClose, icon, iconBg, title, subtitle, photo }: {
+  href: string; onClose: () => void; icon: string; iconBg: string; title: string; subtitle: string; photo?: string | null;
 }) {
   return (
     <Link href={href} onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors">
-      <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: iconBg }}>{icon}</span>
+      {photo ? (
+        <img src={photo} alt="" className="w-9 h-9 rounded-lg object-cover flex-shrink-0" />
+      ) : (
+        <span className="w-9 h-9 rounded-lg flex items-center justify-center text-lg flex-shrink-0" style={{ background: iconBg }}>{icon}</span>
+      )}
       <div className="min-w-0">
         <p className="text-sm font-medium truncate" style={{ color: "var(--color-ink, #1a1a2e)" }}>{title}</p>
         <p className="text-xs" style={{ color: "var(--color-mist, #999)" }}>{subtitle}</p>
