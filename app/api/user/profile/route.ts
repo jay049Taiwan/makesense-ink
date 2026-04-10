@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { auth } from "@/lib/auth";
 import { queryDatabase, updatePage, extractTitle, extractText, extractSelect, DB } from "@/lib/notion";
 import { NextResponse } from "next/server";
@@ -54,7 +55,7 @@ export async function PATCH(req: Request) {
   const page = await getNotionPage(email);
   if (!page) return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
 
-  const { name, phone, summary, notifyLine, notifyEmail } = await req.json();
+  const { name, phone, summary, notifyLine, notifyEmail } = await req.json() as any;
 
   const properties: Record<string, any> = {};
   if (name !== undefined)

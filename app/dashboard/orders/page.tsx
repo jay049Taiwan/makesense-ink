@@ -22,7 +22,7 @@ export default function OrdersPage() {
   useEffect(() => {
     fetch("/api/user/orders")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         setRegistrations(data.registrations || []);
       })
       .catch(() => setRegistrations([]))

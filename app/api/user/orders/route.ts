@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { auth } from "@/lib/auth";
 import { fetchRegistrationsByNotionId } from "@/lib/fetch-all";
 import { NextResponse } from "next/server";

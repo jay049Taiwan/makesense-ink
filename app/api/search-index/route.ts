@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { queryDatabase, extractTitle, extractSelect, DB } from "@/lib/notion";
 
-// ISR：每 60 秒重新產生，CDN 快取給用戶秒回
-export const revalidate = 60;
+// 不在 build 時預渲染，運行時 CDN 快取 60 秒
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   const [productResults, activityResults, articleResults, keywordResults] = await Promise.all([
@@ -15,7 +15,7 @@ export async function GET() {
     }, [{ property: "執行時間", direction: "descending" as const }], 100).catch(() => []),
 
     queryDatabase(DB.DB05_REGISTRATION, {
-      property: "明細類型", select: { equals: "圖文影音" },
+      property: "表單類型", select: { equals: "圖文影音" },
     }, [{ property: "建立時間", direction: "descending" as const }], 100).catch(() => []),
 
     queryDatabase(DB.DB08_RELATIONSHIP, {
@@ -48,7 +48,7 @@ export async function GET() {
       const props = p.properties;
       return {
         n: extractTitle(props["明細名稱"]?.title),
-        t: extractSelect(props["明細類型"]?.select) || "文章",
+        t: extractSelect(props["表單類型"]?.select) || "文章",
         d: p.created_time?.substring(0, 10) || null,
         s: p.id.replace(/-/g, ""),
       };

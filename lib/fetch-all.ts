@@ -106,7 +106,7 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "明細類型", select: { equals: "圖文影音" } },
+          { property: "表單類型", select: { equals: "圖文影音" } },
         ],
       },
       [{ property: "建立時間", direction: "descending" as const }],
@@ -119,7 +119,7 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
         title: extractTitle(props["明細名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
-        type: extractSelect(props["明細類型"]?.select) || "",
+        type: extractSelect(props["表單類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),
@@ -134,7 +134,7 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "明細類型", select: { equals: "報名登記" } },
+          { property: "表單類型", select: { equals: "報名登記" } },
           // 實際上要用 relation 或 rollup 比對 email，這裡先用標題包含 email 做 fallback
         ],
       },
@@ -148,7 +148,7 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
         title: extractTitle(props["明細名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: "",
-        type: extractSelect(props["明細類型"]?.select) || "",
+        type: extractSelect(props["表單類型"]?.select) || "",
         summary: "",
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),
@@ -164,7 +164,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "明細類型", select: { equals: "報名登記" } },
+          { property: "表單類型", select: { equals: "報名登記" } },
           { property: "對應標籤對象", relation: { contains: notionId } },
         ],
       },
@@ -178,7 +178,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
         title: extractTitle(props["明細名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
-        type: extractSelect(props["明細類型"]?.select) || "",
+        type: extractSelect(props["表單類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),

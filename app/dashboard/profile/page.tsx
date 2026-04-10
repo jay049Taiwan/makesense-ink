@@ -32,7 +32,7 @@ export default function ProfilePage() {
   useEffect(() => {
     fetch("/api/user/profile")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         if (data.error) {
           setError(data.error);
         } else {
@@ -57,7 +57,7 @@ export default function ProfilePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name, phone, notifyLine, notifyEmail }),
       });
-      const data = await res.json();
+      const data = await res.json() as any;
       if (data.ok) {
         setSaved(true);
         setTimeout(() => setSaved(false), 3000);
@@ -135,7 +135,7 @@ export default function ProfilePage() {
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e: any) => setName(e.target.value)}
             placeholder="你的名稱"
             className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal"
           />
@@ -148,7 +148,7 @@ export default function ProfilePage() {
           <input
             type="tel"
             value={phone}
-            onChange={(e) => setPhone(e.target.value)}
+            onChange={(e: any) => setPhone(e.target.value)}
             placeholder="0912-345-678"
             className="w-full h-10 px-3 rounded-lg border border-border bg-white text-sm focus:outline-none focus:ring-2 focus:ring-brand-teal/30 focus:border-brand-teal"
           />
@@ -163,7 +163,7 @@ export default function ProfilePage() {
               <input
                 type="checkbox"
                 checked={notifyLine}
-                onChange={(e) => setNotifyLine(e.target.checked)}
+                onChange={(e: any) => setNotifyLine(e.target.checked)}
                 className="rounded border-border text-brand-teal focus:ring-brand-teal"
               />
               LINE 官方帳號通知
@@ -172,7 +172,7 @@ export default function ProfilePage() {
               <input
                 type="checkbox"
                 checked={notifyEmail}
-                onChange={(e) => setNotifyEmail(e.target.checked)}
+                onChange={(e: any) => setNotifyEmail(e.target.checked)}
                 className="rounded border-border text-brand-teal focus:ring-brand-teal"
               />
               Email 通知

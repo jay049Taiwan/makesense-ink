@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { fetchVendorProfile } from "@/lib/fetch-all";
@@ -12,7 +13,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "未授權" }, { status: 403 });
   }
 
-  const { title, type, content, fileUrl } = await req.json();
+  const { title, type, content, fileUrl } = await req.json() as any;
 
   if (!title?.trim()) {
     return NextResponse.json({ error: "請輸入提案名稱" }, { status: 400 });

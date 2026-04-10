@@ -213,14 +213,14 @@ export default function CheckoutPage() {
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-ink)" }}>付款方式</label>
                   <select className="w-full h-10 px-3 rounded-lg text-sm" style={{ border: "1px solid var(--color-dust)" }}
-                    value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}>
+                    value={paymentMethod} onChange={(e: any) => setPaymentMethod(e.target.value)}>
                     <option value="credit">信用卡</option><option value="atm">ATM 轉帳</option><option value="cvs">超商代碼</option>
                   </select>
                 </div>
                 <div>
                   <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-ink)" }}>發票類型</label>
                   <select className="w-full h-10 px-3 rounded-lg text-sm" style={{ border: "1px solid var(--color-dust)" }}
-                    value={invoiceType} onChange={(e) => setInvoiceType(e.target.value)}>
+                    value={invoiceType} onChange={(e: any) => setInvoiceType(e.target.value)}>
                     <option value="">個人發票（電子發票）</option><option value="公司抬頭">公司抬頭（需填統編）</option>
                   </select>
                 </div>

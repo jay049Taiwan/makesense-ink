@@ -11,7 +11,7 @@ function StaffWorkbench() {
   useEffect(() => {
     fetch("/api/staff/bridge-token")
       .then((res) => res.json())
-      .then((data) => {
+      .then((data: any) => {
         if (data.bridgeUrl) setBridgeUrl(data.bridgeUrl);
         else setError(data.error || "無法載入工作台");
       })
@@ -57,7 +57,7 @@ function MemberOverview() {
   useEffect(() => {
     fetch("/api/user/orders")
       .then((res) => res.json())
-      .then((data) => setRegistrationCount((data.registrations || []).length))
+      .then((data: any) => setRegistrationCount((data.registrations || []).length))
       .catch(() => setRegistrationCount(0));
   }, []);
 

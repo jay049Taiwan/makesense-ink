@@ -48,7 +48,7 @@ export default function Header() {
   // 點擊外部關閉
   useEffect(() => {
     const handler = (e: MouseEvent) => {
-      if (searchRef.current && !searchRef.current.contains(e.target as Node)) {
+      if (searchRef.current && !(searchRef.current as any).contains(e.target)) {
         setShowDropdown(false);
       }
     };

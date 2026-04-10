@@ -1,9 +1,10 @@
+export const dynamic = "force-dynamic";
 import { NextRequest, NextResponse } from "next/server";
 import { createPage, DB } from "@/lib/notion";
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
+    const body = await request.json() as Record<string, any>;
 
     // Validate required fields
     const required = ["marketDate", "boothType", "brandName", "brandUrl", "brandIntro", "products", "contactName", "contactPhone", "contactEmail"];
@@ -24,7 +25,7 @@ export async function POST(request: NextRequest) {
       "明細內容": {
         rich_text: [{ text: { content: JSON.stringify(body, null, 2).slice(0, 2000) } }],
       },
-      "明細類型": {
+      "表單類型": {
         select: { name: "報名登記" },
       },
     });

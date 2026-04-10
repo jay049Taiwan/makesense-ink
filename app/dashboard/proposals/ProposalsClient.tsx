@@ -39,7 +39,7 @@ export default function ProposalsClient({ proposals: initial, supplierName }: Pr
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ title: title.trim(), type, content, fileUrl }),
     });
-    const data = await res.json();
+    const data = await res.json() as any;
 
     if (res.ok && data.id) {
       setMsg({ type: "ok", text: "✅ 提案已送出！" });
@@ -88,7 +88,7 @@ export default function ProposalsClient({ proposals: initial, supplierName }: Pr
               <input
                 type="text"
                 value={title}
-                onChange={(e) => setTitle(e.target.value)}
+                onChange={(e: any) => setTitle(e.target.value)}
                 placeholder="例：2026 夏季聯名活動提案"
                 className="w-full px-3 py-2 rounded-lg text-sm"
                 style={{ border: "1px solid #ddd", outline: "none" }}
@@ -99,7 +99,7 @@ export default function ProposalsClient({ proposals: initial, supplierName }: Pr
               <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-mist)" }}>提案類型</label>
               <select
                 value={type}
-                onChange={(e) => setType(e.target.value)}
+                onChange={(e: any) => setType(e.target.value)}
                 className="w-full px-3 py-2 rounded-lg text-sm"
                 style={{ border: "1px solid #ddd", outline: "none", background: "#fff" }}
               >
@@ -112,7 +112,7 @@ export default function ProposalsClient({ proposals: initial, supplierName }: Pr
               <label className="block text-xs font-medium mb-1" style={{ color: "var(--color-mist)" }}>說明內容</label>
               <textarea
                 value={content}
-                onChange={(e) => setContent(e.target.value)}
+                onChange={(e: any) => setContent(e.target.value)}
                 rows={4}
                 placeholder="簡述提案內容、合作方式、預期目標…"
                 className="w-full px-3 py-2 rounded-lg text-sm resize-y"
@@ -125,7 +125,7 @@ export default function ProposalsClient({ proposals: initial, supplierName }: Pr
               <input
                 type="url"
                 value={fileUrl}
-                onChange={(e) => setFileUrl(e.target.value)}
+                onChange={(e: any) => setFileUrl(e.target.value)}
                 placeholder="https://…"
                 className="w-full px-3 py-2 rounded-lg text-sm"
                 style={{ border: "1px solid #ddd", outline: "none" }}
