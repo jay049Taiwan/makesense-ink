@@ -227,6 +227,27 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
   } catch (e) { console.error("fetchPersonByEmail error:", e); return null; }
 }
 
+export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem | null> {
+  try {
+    const results = await queryDatabase(
+      DB.DB08_RELATIONSHIP,
+      { property: "LINE_UID", rich_text: { equals: lineUid.trim() } },
+      undefined,
+      1
+    );
+    if (results.length === 0) return null;
+    const page = results[0] as any;
+    const props = page.properties;
+    return {
+      id: page.id,
+      name: extractTitle(props["經營名稱"]?.title),
+      type: extractSelect(props["標籤選項"]?.select) || "",
+      summary: extractText(props["簡介摘要"]?.rich_text),
+      slug: page.id.replace(/-/g, ""),
+    };
+  } catch (e) { console.error("fetchPersonByLineUid error:", e); return null; }
+}
+
 // 判斷是否為工作人員（DB08 有「個人細項」欄位）
 export async function checkIsStaff(email: string): Promise<boolean> {
   try {

@@ -1,8 +1,8 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import LINE from "next-auth/providers/line";
-import { fetchPersonByEmail, checkIsStaff } from "./fetch-all";
-import { createPage, DB } from "./notion";
+import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff } from "./fetch-all";
+import { createPage, updatePage, DB } from "./notion";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -40,23 +40,30 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             console.error("Failed to create DB08 entry:", e);
           }
         } else if (lineUid) {
-          // 已存在的用戶，補上 LINE_UID（如果還沒有的話）
-          // TODO: updatePage 補寫 LINE_UID
+          // 已存在的用戶，補上 LINE_UID
+          try {
+            await updatePage(person.id, {
+              "LINE_UID": { rich_text: [{ text: { content: lineUid } }] },
+            });
+          } catch (e) {
+            console.error("Failed to update LINE_UID:", e);
+          }
         }
         return true;
       }
 
       // 沒有 email（LINE 用戶未提供）→ 用 LINE_UID 比對
       if (lineUid) {
-        // TODO: 查 DB08 的 LINE_UID 欄位
-        // 目前先直接建立新用戶
-        try {
-          await createPage(DB.DB08_RELATIONSHIP, {
-            "經營名稱": { title: [{ text: { content: displayName } }] },
-            "LINE_UID": { rich_text: [{ text: { content: lineUid } }] },
-          });
-        } catch (e) {
-          console.error("Failed to create DB08 entry for LINE user:", e);
+        const existingPerson = await fetchPersonByLineUid(lineUid);
+        if (!existingPerson) {
+          try {
+            await createPage(DB.DB08_RELATIONSHIP, {
+              "經營名稱": { title: [{ text: { content: displayName } }] },
+              "LINE_UID": { rich_text: [{ text: { content: lineUid } }] },
+            });
+          } catch (e) {
+            console.error("Failed to create DB08 entry for LINE user:", e);
+          }
         }
         return true;
       }
