@@ -2,6 +2,7 @@
 
 import { useSession } from "next-auth/react";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 function StaffWorkbench() {
   const [bridgeUrl, setBridgeUrl] = useState<string | null>(null);
@@ -49,18 +50,33 @@ function StaffWorkbench() {
 }
 
 function MemberOverview() {
+  const { data: session } = useSession();
+  const displayName = (session as any)?.displayName || session?.user?.name || "會員";
+  const [registrationCount, setRegistrationCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    fetch("/api/user/orders")
+      .then((res) => res.json())
+      .then((data) => setRegistrationCount((data.registrations || []).length))
+      .catch(() => setRegistrationCount(0));
+  }, []);
+
   return (
     <div>
-      <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--color-ink)" }}>歡迎回來</h2>
+      <h2 className="text-xl font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
+        歡迎回來，{displayName}
+      </h2>
       <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-4 mb-8">
         <div className="rounded-xl p-5" style={{ background: "#fff", border: "1.5px solid var(--color-teal)" }}>
           <p className="text-sm mb-1" style={{ color: "var(--color-mist)" }}>我的點數</p>
           <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>0</p>
         </div>
-        <div className="rounded-xl p-5" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
-          <p className="text-sm mb-1" style={{ color: "var(--color-mist)" }}>進行中的報名</p>
-          <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-rust)" }}>0</p>
-        </div>
+        <Link href="/dashboard/orders" className="rounded-xl p-5 block hover:shadow-sm transition-shadow" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
+          <p className="text-sm mb-1" style={{ color: "var(--color-mist)" }}>活動報名紀錄</p>
+          <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-rust)" }}>
+            {registrationCount === null ? "—" : registrationCount}
+          </p>
+        </Link>
         <div className="rounded-xl p-5" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
           <p className="text-sm mb-1" style={{ color: "var(--color-mist)" }}>我的等級</p>
           <p className="text-3xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-teal)" }}>Lv.1</p>

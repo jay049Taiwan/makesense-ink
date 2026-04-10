@@ -1,4 +1,5 @@
-import { queryDatabase, extractTitle, extractText, extractSelect, extractNumber, extractUrl, extractDate, DB } from "./notion";
+import { queryDatabase, extractTitle, extractText, extractSelect, extractNumber, extractUrl, extractDate, extractRelation, DB } from "./notion";
+import { resolveRelationNames } from "./fetch-all";
 
 // ── DB07: 商品（主題選書 + 風格選物）──
 export interface Product {
