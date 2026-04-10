@@ -9,27 +9,55 @@ function LINE(): OAuthConfig<any> {
   return {
     id: "line",
     name: "LINE",
-    type: "oidc",
-    issuer: "https://access.line.me",
+    type: "oauth",
     clientId: process.env.AUTH_LINE_ID!,
     clientSecret: process.env.AUTH_LINE_SECRET!,
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
       params: { scope: "profile openid email" },
     },
-    token: {
-      url: "https://api.line.me/oauth2/v2.1/token",
+    token: "https://api.line.me/oauth2/v2.1/token",
+    userinfo: {
+      url: "https://api.line.me/oauth2/v2.1/verify",
+      async request({ tokens }: any) {
+        // LINE doesn't have a standard userinfo endpoint
+        // Use the profile API + id_token for email
+        const profileRes = await fetch("https://api.line.me/v2/profile", {
+          headers: { Authorization: `Bearer ${tokens.access_token}` },
+        });
+        const profile = await profileRes.json();
+
+        // Try to get email from id_token verify endpoint
+        let email = null;
+        if (tokens.id_token) {
+          try {
+            const verifyRes = await fetch("https://api.line.me/oauth2/v2.1/verify", {
+              method: "POST",
+              headers: { "Content-Type": "application/x-www-form-urlencoded" },
+              body: `id_token=${tokens.id_token}&client_id=${process.env.AUTH_LINE_ID}`,
+            });
+            const verified = await verifyRes.json();
+            email = verified.email || null;
+          } catch {}
+        }
+
+        return {
+          id: profile.userId,
+          name: profile.displayName,
+          email,
+          image: profile.pictureUrl,
+        };
+      },
     },
     client: {
       token_endpoint_auth_method: "client_secret_post",
     },
-    checks: ["state"],
-    profile(profile) {
+    profile(profile: any) {
       return {
-        id: profile.sub,
-        name: profile.name || profile.displayName,
-        email: profile.email || null,
-        image: profile.picture,
+        id: profile.id,
+        name: profile.name,
+        email: profile.email,
+        image: profile.image,
       };
     },
   };
