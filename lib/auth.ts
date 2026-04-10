@@ -104,6 +104,4 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     signIn: "/login",
   },
 
-  // 暫時開啟 debug 看 Vercel log 中的詳細錯誤
-  debug: true,
 });
