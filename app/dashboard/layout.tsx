@@ -2,9 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useSession } from "next-auth/react";
 
-// 模擬角色（之後接 NextAuth + DB08 判斷）
 type Role = "member" | "vendor" | "staff";
 
 const roleTabs: Record<Role, { href: string; label: string; exact: boolean }[]> = {
@@ -40,8 +39,11 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   const pathname = usePathname();
-  // 模擬角色切換（開發用，之後移除）
-  const [role, setRole] = useState<Role>("member");
+  const { data: session } = useSession();
+
+  // 從 session 取得角色和顯示名稱
+  const role: Role = ((session as any)?.role as Role) || "member";
+  const displayName = (session as any)?.displayName || session?.user?.name || "會員";
 
   const tabs = roleTabs[role];
 
@@ -54,25 +56,8 @@ export default function DashboardLayout({
             會員中心
           </h1>
           <p className="text-sm mt-0.5" style={{ color: "var(--color-mist)" }}>
-            Hi, 使用者名稱 ・ {roleLabels[role]}
+            Hi, {displayName} ・ {roleLabels[role]}
           </p>
-        </div>
-
-        {/* 開發用角色切換器（之後移除） */}
-        <div className="flex gap-1 p-1 rounded-lg" style={{ background: "var(--color-parchment)" }}>
-          {(Object.keys(roleTabs) as Role[]).map((r) => (
-            <button
-              key={r}
-              onClick={() => setRole(r)}
-              className="px-3 py-1.5 rounded-md text-xs font-medium transition-all"
-              style={{
-                background: role === r ? "var(--color-teal)" : "transparent",
-                color: role === r ? "#fff" : "var(--color-mist)",
-              }}
-            >
-              {roleLabels[r]}
-            </button>
-          ))}
         </div>
       </div>
 
