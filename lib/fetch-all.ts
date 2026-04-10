@@ -1,4 +1,19 @@
-import { queryDatabase, extractTitle, extractText, extractSelect, extractNumber, extractDate, extractStatus, extractRelation, DB } from "./notion";
+import { queryDatabase, getPage, extractTitle, extractText, extractSelect, extractNumber, extractDate, extractStatus, extractRelation, DB } from "./notion";
+
+// 批次解析 relation IDs → DB08 經營名稱
+export async function resolveRelationNames(ids: string[]): Promise<Record<string, string>> {
+  if (!ids.length) return {};
+  const entries = await Promise.all(
+    ids.map(async (id) => {
+      try {
+        const page = await getPage(id) as any;
+        const name = extractTitle(page.properties["經營名稱"]?.title);
+        return [id, name] as const;
+      } catch { return [id, ""] as const; }
+    })
+  );
+  return Object.fromEntries(entries);
+}
 
 // ══════════════════════════════════════════
 // DB01: 資源提案（合作單位用）
@@ -142,6 +157,36 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
   } catch (e) { console.error("fetchRegistrationsByEmail error:", e); return []; }
 }
 
+// 用 notionId（DB08 page ID）查詢該會員在 DB05 的所有報名紀錄
+export async function fetchRegistrationsByNotionId(notionId: string, limit = 50): Promise<Registration[]> {
+  try {
+    const results = await queryDatabase(
+      DB.DB05_REGISTRATION,
+      {
+        and: [
+          { property: "明細類型", select: { equals: "報名登記" } },
+          { property: "對應標籤對象", relation: { contains: notionId } },
+        ],
+      },
+      [{ property: "建立時間", direction: "descending" as const }],
+      limit
+    );
+    return results.map((page: any) => {
+      const props = page.properties;
+      return {
+        id: page.id,
+        title: extractTitle(props["明細名稱"]?.title),
+        topicTitle: extractText(props["主題名稱"]?.rich_text),
+        content: extractText(props["明細內容"]?.rich_text),
+        type: extractSelect(props["明細類型"]?.select) || "",
+        summary: extractText(props["簡介摘要"]?.rich_text),
+        date: page.created_time?.substring(0, 10) || null,
+        slug: page.id.replace(/-/g, ""),
+      };
+    });
+  } catch (e) { console.error("fetchRegistrationsByNotionId error:", e); return []; }
+}
+
 // ══════════════════════════════════════════
 // DB06: 進銷明細（訂單明細）
 // ══════════════════════════════════════════
@@ -248,6 +293,56 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
   } catch (e) { console.error("fetchPersonByLineUid error:", e); return null; }
 }
 
+// 判斷是否為合作單位（DB08 對象選項 = 合作單位）
+export async function checkIsVendor(email: string): Promise<boolean> {
+  try {
+    const results = await queryDatabase(
+      DB.DB08_RELATIONSHIP,
+      {
+        and: [
+          { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+          { property: "對象選項", select: { equals: "合作單位" } },
+        ],
+      },
+      undefined,
+      1
+    );
+    return results.length > 0;
+  } catch (e) { console.error("checkIsVendor error:", e); return false; }
+}
+
+export interface VendorProfile {
+  id: string;
+  name: string;
+  email: string;
+  since: string;
+  phone: string;
+  summary: string;
+}
+
+// 取得合作單位完整資料（DB08）
+export async function fetchVendorProfile(email: string): Promise<VendorProfile | null> {
+  try {
+    const results = await queryDatabase(
+      DB.DB08_RELATIONSHIP,
+      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+      undefined,
+      1
+    );
+    if (results.length === 0) return null;
+    const page = results[0] as any;
+    const props = page.properties;
+    return {
+      id: page.id,
+      name: extractTitle(props["經營名稱"]?.title),
+      email: extractText(props["Email"]?.rich_text),
+      since: extractDate(props["建立時間"]?.date) || page.created_time?.substring(0, 10) || "",
+      phone: extractText(props["聯繫電話"]?.rich_text) || extractText(props["電話"]?.rich_text) || "",
+      summary: extractText(props["簡介摘要"]?.rich_text),
+    };
+  } catch (e) { console.error("fetchVendorProfile error:", e); return null; }
+}
+
 // 判斷是否為工作人員（DB08 對象選項 = 工作團隊）
 export async function checkIsStaff(email: string): Promise<boolean> {
   try {
@@ -264,6 +359,46 @@ export async function checkIsStaff(email: string): Promise<boolean> {
     );
     return results.length > 0;
   } catch (e) { console.error("checkIsStaff error:", e); return false; }
+}
+
+// ══════════════════════════════════════════
+// DB07: 庫存資產（合作廠商的商品）
+// ══════════════════════════════════════════
+export interface VendorInventoryItem {
+  id: string;
+  name: string;
+  price: number;
+  stock: number | null;
+  category: string;
+  photo: string | null;
+  status: string;
+  slug: string;
+}
+
+export async function fetchVendorInventory(vendorId: string, limit = 50): Promise<VendorInventoryItem[]> {
+  try {
+    const results = await queryDatabase(
+      DB.DB07_INVENTORY,
+      { property: "對應進貨", relation: { contains: vendorId } },
+      [{ property: "更新時間", direction: "descending" as const }],
+      limit
+    );
+    return results.map((page: any) => {
+      const props = page.properties;
+      const photoFile = props["產品照片"]?.files?.[0];
+      const photoUrl = photoFile?.file?.url || photoFile?.external?.url || null;
+      return {
+        id: page.id,
+        name: extractTitle(props["庫存名稱"]?.title),
+        price: extractNumber(props["庫存售價"]?.number) || 0,
+        stock: props["庫存數量"]?.number ?? null,
+        category: extractSelect(props["庫存類型"]?.select) || extractSelect(props["選書備項"]?.select) || "",
+        photo: photoUrl,
+        status: extractSelect(props["庫存狀態"]?.select) || extractStatus(props["執行狀態"]?.status) || "",
+        slug: page.id.replace(/-/g, ""),
+      };
+    });
+  } catch (e) { console.error("fetchVendorInventory error:", e); return []; }
 }
 
 // ══════════════════════════════════════════

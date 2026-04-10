@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import LINE from "next-auth/providers/line";
-import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff } from "./fetch-all";
+import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff, checkIsVendor } from "./fetch-all";
 import { createPage, updatePage, DB } from "./notion";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -76,10 +76,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       const email = session.user?.email;
 
       if (email) {
-        // 有 email → 用 email 查角色
+        // 有 email → 用 email 查角色（staff > vendor > member）
         const person = await fetchPersonByEmail(email);
         const isStaff = await checkIsStaff(email);
-        (session as any).role = isStaff ? "staff" : "member";
+        const isVendor = !isStaff && await checkIsVendor(email);
+        (session as any).role = isStaff ? "staff" : isVendor ? "vendor" : "member";
         (session as any).notionId = person?.id || null;
         (session as any).displayName = person?.name || session.user?.name;
       } else {

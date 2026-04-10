@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { queryDatabase, extractTitle, extractSelect, DB } from "@/lib/notion";
 
-// ISR：每 5 分鐘重新產生靜態 JSON
-export const revalidate = 300;
+// ISR：每 60 秒重新產生，CDN 快取給用戶秒回
+export const revalidate = 60;
 
 export async function GET() {
   const [productResults, activityResults, articleResults, keywordResults] = await Promise.all([
@@ -60,6 +60,6 @@ export async function GET() {
   };
 
   return NextResponse.json(data, {
-    headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600" },
+    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
   });
 }
