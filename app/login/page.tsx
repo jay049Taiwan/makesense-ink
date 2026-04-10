@@ -11,8 +11,8 @@ export default function LoginPage() {
   return (
     <div className="flex-1 flex items-center justify-center py-12 px-4">
       <div
-        className="w-full grid grid-cols-1 md:grid-cols-[280px_1fr] rounded-2xl overflow-hidden"
-        style={{ maxWidth: 780, border: "1px solid var(--color-dust)", background: "#fff" }}
+        className="w-full grid grid-cols-1 md:grid-cols-[360px_1fr] rounded-2xl overflow-hidden"
+        style={{ maxWidth: 1100, border: "1px solid var(--color-dust)", background: "#fff" }}
       >
         {/* ── 左欄：登入按鈕（窄）── */}
         <div
