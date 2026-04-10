@@ -20,7 +20,7 @@ const roleTabs: Record<Role, { href: string; label: string; exact: boolean }[]> 
     { href: "/dashboard/profile", label: "個人資料", exact: false },
   ],
   staff: [
-    { href: "/dashboard", label: "工作台", exact: true },
+    { href: "/dashboard", label: "總覽", exact: true },
     { href: "/dashboard/profile", label: "個人資料", exact: false },
     { href: "/dashboard/orders", label: "訂單紀錄", exact: false },
     { href: "/dashboard/yilan-map", label: "我的宜蘭", exact: false },

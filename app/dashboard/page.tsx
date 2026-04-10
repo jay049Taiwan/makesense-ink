@@ -240,7 +240,7 @@ export default function DashboardPage() {
     return <MemberOverview />;
   }
 
-  if (role === "staff") return <StaffWorkbench />;
-  if (role === "vendor") return <VendorOverview />;
+  // 所有角色都先看到會員總覽
+  // 工作台和合作概覽之後放到子頁面
   return <MemberOverview />;
 }
