@@ -248,7 +248,7 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
   } catch (e) { console.error("fetchPersonByLineUid error:", e); return null; }
 }
 
-// 判斷是否為工作人員（DB08 有「個人細項」欄位）
+// 判斷是否為工作人員（DB08 對象選項 = 工作團隊）
 export async function checkIsStaff(email: string): Promise<boolean> {
   try {
     const results = await queryDatabase(
@@ -256,7 +256,7 @@ export async function checkIsStaff(email: string): Promise<boolean> {
       {
         and: [
           { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
-          { property: "個人細項", select: { is_not_empty: true } },
+          { property: "對象選項", select: { equals: "工作團隊" } },
         ],
       },
       undefined,
