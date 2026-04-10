@@ -35,6 +35,12 @@ export function middleware(request: NextRequest) {
   const targetPath = subdomainMap[subdomain];
   const url = request.nextUrl.clone();
 
+  // 全站共用路徑 — 不加子網域前綴，直接通過
+  const globalPaths = ["/login", "/dashboard", "/checkout", "/terms", "/privacy", "/api/"];
+  if (globalPaths.some((p) => url.pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
   // 子網域根路徑 → 重寫到對應路徑
   if (url.pathname === "/" || url.pathname === "") {
     url.pathname = targetPath;

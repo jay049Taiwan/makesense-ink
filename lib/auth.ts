@@ -16,13 +16,22 @@ function LINE(): OAuthConfig<any> {
       url: "https://access.line.me/oauth2/v2.1/authorize",
       params: { scope: "profile openid email", response_type: "code" },
     },
-    token: "https://api.line.me/oauth2/v2.1/token",
+    token: {
+      url: "https://api.line.me/oauth2/v2.1/token",
+      conform: async (response: Response) => {
+        // LINE requires client credentials in the body
+        return response;
+      },
+    },
     userinfo: "https://api.line.me/v2/profile",
+    client: {
+      token_endpoint_auth_method: "client_secret_post",
+    },
     profile(profile) {
       return {
         id: profile.userId,
         name: profile.displayName,
-        email: null, // LINE profile API 不回傳 email，要從 id_token 解
+        email: null,
         image: profile.pictureUrl,
       };
     },
