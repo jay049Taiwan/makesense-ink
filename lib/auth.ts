@@ -10,24 +10,42 @@ function LINE(): OAuthConfig<any> {
     id: "line",
     name: "LINE",
     type: "oauth",
-    clientId: process.env.AUTH_LINE_ID!,
-    clientSecret: process.env.AUTH_LINE_SECRET!,
+    clientId: process.env.AUTH_LINE_ID,
+    clientSecret: process.env.AUTH_LINE_SECRET,
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
-      params: { scope: "profile openid email" },
+      params: {
+        scope: "profile openid email",
+        response_type: "code",
+      },
     },
-    token: "https://api.line.me/oauth2/v2.1/token",
+    token: {
+      url: "https://api.line.me/oauth2/v2.1/token",
+      async request({ params, provider }: any) {
+        const body = new URLSearchParams({
+          grant_type: "authorization_code",
+          code: params.code as string,
+          redirect_uri: provider.callbackUrl,
+          client_id: provider.clientId as string,
+          client_secret: provider.clientSecret as string,
+        });
+        const res = await fetch("https://api.line.me/oauth2/v2.1/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        return { tokens: await res.json() };
+      },
+    },
     userinfo: {
-      url: "https://api.line.me/oauth2/v2.1/verify",
+      url: "https://api.line.me/v2/profile",
       async request({ tokens }: any) {
-        // LINE doesn't have a standard userinfo endpoint
-        // Use the profile API + id_token for email
-        const profileRes = await fetch("https://api.line.me/v2/profile", {
+        const res = await fetch("https://api.line.me/v2/profile", {
           headers: { Authorization: `Bearer ${tokens.access_token}` },
         });
-        const profile = await profileRes.json();
+        const profile = await res.json();
 
-        // Try to get email from id_token verify endpoint
+        // Get email from id_token
         let email = null;
         if (tokens.id_token) {
           try {
@@ -41,24 +59,11 @@ function LINE(): OAuthConfig<any> {
           } catch {}
         }
 
-        return {
-          id: profile.userId,
-          name: profile.displayName,
-          email,
-          image: profile.pictureUrl,
-        };
+        return { id: profile.userId, name: profile.displayName, email, image: profile.pictureUrl };
       },
     },
-    client: {
-      token_endpoint_auth_method: "client_secret_post",
-    },
     profile(profile: any) {
-      return {
-        id: profile.id,
-        name: profile.name,
-        email: profile.email,
-        image: profile.image,
-      };
+      return { id: profile.id, name: profile.name, email: profile.email, image: profile.image };
     },
   };
 }
