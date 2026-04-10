@@ -12,8 +12,8 @@ function LINE(): OAuthConfig<any> {
     type: "oauth",
     clientId: process.env.AUTH_LINE_ID,
     clientSecret: process.env.AUTH_LINE_SECRET,
-    // 關閉 PKCE，用 state 驗證即可
-    checks: ["state"],
+    // 暫時關閉所有 checks 以排除 state/PKCE 問題
+    checks: ["none"],
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
       params: {
@@ -167,4 +167,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
   pages: {
     signIn: "/login",
   },
+
+  // 暫時開啟 debug 看 Vercel log 中的詳細錯誤
+  debug: true,
 });
