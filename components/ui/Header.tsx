@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { useSession, signOut } from "next-auth/react";
+
+function truncate(str: string, max: number) {
+  return str.length > max ? str.slice(0, max) + "..." : str;
+}
 
 export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const { data: session } = useSession();
 
   return (
     <header
@@ -74,14 +80,38 @@ export default function Header() {
             </div>
           </div>
 
-          {/* 註冊/登入 */}
-          <Link
-            href="/login"
-            className="ml-auto whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
-            style={{ background: "#4ECDC4", textDecoration: "none" }}
-          >
-            註冊/登入
-          </Link>
+          {/* 登入狀態 */}
+          {session?.user ? (
+            <div className="ml-auto relative group">
+              <Link
+                href="/dashboard"
+                className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
+                style={{ background: "#b89e7a", textDecoration: "none" }}
+              >
+                {truncate(session.user.email || session.user.name || "會員", 15)}，你好
+              </Link>
+              <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-white rounded shadow-lg border py-1 min-w-[120px] z-50">
+                <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>
+                  會員中心
+                </Link>
+                <button
+                  onClick={() => signOut({ callbackUrl: "/" })}
+                  className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50"
+                  style={{ color: "#999" }}
+                >
+                  登出
+                </button>
+              </div>
+            </div>
+          ) : (
+            <Link
+              href="/login"
+              className="ml-auto whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
+              style={{ background: "#4ECDC4", textDecoration: "none" }}
+            >
+              註冊/登入
+            </Link>
+          )}
 
           {/* Mobile menu toggle */}
           <button
@@ -137,9 +167,24 @@ export default function Header() {
             <Link href="/cultureclub" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>
               宜蘭文化俱樂部
             </Link>
-            <Link href="/login" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>
-              註冊/登入
-            </Link>
+            {session?.user ? (
+              <>
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)} style={{ color: "#b89e7a", fontWeight: 500 }}>
+                  會員中心
+                </Link>
+                <button
+                  onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }}
+                  className="text-left"
+                  style={{ color: "#999" }}
+                >
+                  登出
+                </button>
+              </>
+            ) : (
+              <Link href="/login" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>
+                註冊/登入
+              </Link>
+            )}
           </nav>
         )}
       </div>
