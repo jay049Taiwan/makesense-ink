@@ -12,7 +12,7 @@ function LINE(): OAuthConfig<any> {
     type: "oauth",
     clientId: process.env.AUTH_LINE_ID,
     clientSecret: process.env.AUTH_LINE_SECRET,
-    // 關閉 PKCE，LINE token endpoint 不需要 code_verifier
+    // 關閉 PKCE，用 state 驗證即可
     checks: ["state"],
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
@@ -21,10 +21,24 @@ function LINE(): OAuthConfig<any> {
         response_type: "code",
       },
     },
-    // LINE 要求 client_id/client_secret 放在 POST body（不是 Basic Auth）
-    client: { token_endpoint_auth_method: "client_secret_post" },
     token: {
       url: "https://api.line.me/oauth2/v2.1/token",
+      // LINE 要求 client_id/client_secret 放在 POST body（不是 Basic Auth）
+      async request({ params, provider }: any) {
+        const body = new URLSearchParams({
+          grant_type: "authorization_code",
+          code: params.code as string,
+          redirect_uri: provider.callbackUrl,
+          client_id: provider.clientId as string,
+          client_secret: provider.clientSecret as string,
+        });
+        const res = await fetch("https://api.line.me/oauth2/v2.1/token", {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body: body.toString(),
+        });
+        return { tokens: await res.json() };
+      },
     },
     userinfo: {
       url: "https://api.line.me/v2/profile",
