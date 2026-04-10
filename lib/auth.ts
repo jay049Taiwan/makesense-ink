@@ -9,30 +9,27 @@ function LINE(): OAuthConfig<any> {
   return {
     id: "line",
     name: "LINE",
-    type: "oauth",
+    type: "oidc",
+    issuer: "https://access.line.me",
     clientId: process.env.AUTH_LINE_ID!,
     clientSecret: process.env.AUTH_LINE_SECRET!,
     authorization: {
       url: "https://access.line.me/oauth2/v2.1/authorize",
-      params: { scope: "profile openid email", response_type: "code" },
+      params: { scope: "profile openid email" },
     },
     token: {
       url: "https://api.line.me/oauth2/v2.1/token",
-      conform: async (response: Response) => {
-        // LINE requires client credentials in the body
-        return response;
-      },
     },
-    userinfo: "https://api.line.me/v2/profile",
     client: {
       token_endpoint_auth_method: "client_secret_post",
     },
+    checks: ["state"],
     profile(profile) {
       return {
-        id: profile.userId,
-        name: profile.displayName,
-        email: null,
-        image: profile.pictureUrl,
+        id: profile.sub,
+        name: profile.name || profile.displayName,
+        email: profile.email || null,
+        image: profile.picture,
       };
     },
   };
