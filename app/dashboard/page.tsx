@@ -4,26 +4,31 @@ import { useSession } from "next-auth/react";
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useDevRole } from "@/components/providers/DevRoleProvider";
+import { MOCK_MEMBER_PURCHASES, MOCK_MEMBER_REGISTRATIONS, getMemberStats } from "@/lib/mock-data";
 
 // ═══════════════════════════════════════════
 // 一般會員總覽
 // ═══════════════════════════════════════════
 function MemberOverview() {
   const { data: session } = useSession();
-  const displayName = (session as any)?.displayName || session?.user?.name || "會員";
-  const email = session?.user?.email || "—";
+  const devRole = useDevRole();
+  const isDev = process.env.NODE_ENV === "development";
+  const displayName = isDev ? devRole.displayName : ((session as any)?.displayName || session?.user?.name || "會員");
+  const email = isDev ? devRole.email : (session?.user?.email || "—");
+  const phone = isDev ? devRole.phone : "—";
+  const lineConnected = isDev ? devRole.lineConnected : false;
+  const stats = isDev ? getMemberStats() : { points: 0, level: "Lv.1", totalSpent: 0, totalItems: 0, totalEvents: 0 };
 
-  // 模擬已購商品資料（之後接 API）
-  const [purchases] = useState([
-    { id: "1", name: "市集攤位費｜旅人書店", qty: 1, author: "—", publisher: "旅人書店", date: "2026/04/06", rating: 0, comment: "", category: "市集", topics: ["在地市集"] },
-    { id: "2", name: "走讀收費", qty: 2, author: "—", publisher: "旅人書店", date: "2026/04/06", rating: 0, comment: "", category: "走讀", topics: ["文化走讀", "宜蘭故事"] },
-    { id: "3", name: "加購宜蘭街散步圖", qty: 1, author: "旅人書店", publisher: "旅人書店", date: "2026/04/06", rating: 0, comment: "", category: "商品", topics: ["城鎮散步"] },
-    { id: "4", name: "走讀收費", qty: 3, author: "—", publisher: "旅人書店", date: "2026/04/06", rating: 0, comment: "", category: "走讀", topics: ["文化走讀"] },
-    { id: "5", name: "蘭東案內 04期", qty: 1, author: "旅人書店", publisher: "旅人書店", date: "2026/04/04", rating: 5, comment: "很棒！", category: "書籍", topics: ["蘭東案內", "地方誌"] },
-    { id: "6", name: "宜蘭金牌旅遊王", qty: 1, author: "黃育智", publisher: "玉山社", date: "2026/04/01", rating: 4, comment: "內容豐富", category: "書籍", topics: ["旅遊文學", "宜蘭故事"] },
-    { id: "7", name: "蘭東案內 05期", qty: 1, author: "旅人書店", publisher: "旅人書店", date: "2026/03/28", rating: 0, comment: "", category: "書籍", topics: ["蘭東案內", "地方誌"] },
-    { id: "8", name: "散步宜蘭街貼紙", qty: 2, author: "—", publisher: "旅人書店", date: "2026/03/20", rating: 0, comment: "", category: "商品", topics: ["城鎮散步"] },
-  ]);
+  // 購買紀錄（dev 用 mock data，正式用 API）
+  const allPurchases = isDev ? [
+    ...MOCK_MEMBER_PURCHASES,
+    ...MOCK_MEMBER_REGISTRATIONS.map(r => ({
+      id: r.id, productId: r.activityId, name: r.title, qty: 1, author: "—", publisher: "旅人書店",
+      date: r.date, price: r.price, rating: r.rating, comment: r.comment, category: r.type, topics: ["文化走讀"],
+    })),
+  ] : [];
+  const [purchases] = useState(allPurchases);
 
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
@@ -64,11 +69,11 @@ function MemberOverview() {
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
           <span className="flex items-center gap-1">📧 {email}<EditIcon /></span>
           <Divider />
-          <span className="flex items-center gap-1">💬 LINE 未綁定<EditIcon /></span>
+          <span className="flex items-center gap-1">💬 {lineConnected ? "LINE 已綁定" : "LINE 未綁定"}<EditIcon /></span>
           <Divider />
-          <span className="flex items-center gap-1">📱 —<EditIcon /></span>
+          <span className="flex items-center gap-1">📱 {phone}<EditIcon /></span>
           <Divider />
-          <span>⭐ 積分 <strong style={{ color: "#ffcc00", fontSize: 16 }}>0</strong> / 0</span>
+          <span>⭐ 積分 <strong style={{ color: "#ffcc00", fontSize: 16 }}>{stats.points}</strong></span>
         </div>
       </div>
 
@@ -364,13 +369,15 @@ function Divider() {
 function StaffTabs() {
   const { data: session } = useSession();
   const pathname = usePathname();
-  const role = (session as any)?.role || "member";
-  if (role !== "staff") return null;
+  const devRole = useDevRole();
+  const isDev = process.env.NODE_ENV === "development";
+  const role = isDev ? devRole.role : ((session as any)?.role || "member");
 
-  const tabs = [
-    { href: "/dashboard", label: "會員中心", exact: true },
-    { href: "/dashboard/workbench", label: "工作台", exact: false },
-  ];
+  if (role !== "staff" && role !== "vendor") return null;
+
+  const tabs = role === "staff"
+    ? [{ href: "/dashboard", label: "會員中心", exact: true }, { href: "/dashboard/workbench", label: "工作台", exact: false }]
+    : [{ href: "/dashboard", label: "會員中心", exact: true }, { href: "/dashboard/partner", label: "合作後台", exact: false }];
 
   return (
     <nav className="flex gap-0 mb-6 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
@@ -403,6 +410,11 @@ function VendorOverview() {
 // ═══════════════════════════════════════════
 export default function DashboardPage() {
   const { data: session, status } = useSession();
-  if (status === "loading") return null;
+  const devRole = useDevRole();
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (!isDev && status === "loading") return null;
+
+  // 所有角色都先看會員總覽（staff/vendor 有額外 tab）
   return <MemberOverview />;
 }

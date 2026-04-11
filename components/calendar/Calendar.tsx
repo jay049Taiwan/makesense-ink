@@ -93,7 +93,7 @@ export default function Calendar({
   while (cells.length % 7 !== 0) cells.push(null);
 
   return (
-    <div className="w-full max-w-[940px] mx-auto">
+    <div className="w-full max-w-[1000px] mx-auto">
       {/* Navigation */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">

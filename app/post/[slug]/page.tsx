@@ -13,7 +13,7 @@ export default async function PostPage({
   const { slug } = await params;
 
   return (
-    <article className="mx-auto px-4 py-12" style={{ maxWidth: 780 }}>
+    <article className="mx-auto px-4 py-12" style={{ maxWidth: 1000 }}>
       {/* SP-A1: Article header */}
       <header className="mb-8">
         <h1
@@ -27,6 +27,19 @@ export default async function PostPage({
           <span>作者：<span style={{ color: "var(--color-bark)" }}>作者名稱</span>（from DB08）</span>
         </div>
       </header>
+
+      {/* Keywords */}
+      <div className="flex flex-wrap gap-2 mb-6">
+        {["宜蘭文化", "清明節", "祭祀"].map((kw) => (
+          <span
+            key={kw}
+            className="px-3 py-1 rounded-full text-xs"
+            style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}
+          >
+            {kw}
+          </span>
+        ))}
+      </div>
 
       {/* Cover image */}
       <div
@@ -72,19 +85,6 @@ export default async function PostPage({
         >
           購買閱讀 NT$ 50
         </a>
-      </div>
-
-      {/* Keywords */}
-      <div className="flex flex-wrap gap-2 mt-8 pt-6" style={{ borderTop: "1px solid var(--color-dust)" }}>
-        {["宜蘭文化", "清明節", "祭祀"].map((kw) => (
-          <span
-            key={kw}
-            className="px-3 py-1 rounded-full text-xs"
-            style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}
-          >
-            {kw}
-          </span>
-        ))}
       </div>
 
       {/* 導購區 */}

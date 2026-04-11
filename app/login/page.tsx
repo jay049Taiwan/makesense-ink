@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { signIn } from "@/lib/auth";
+import DevLogin from "./DevLogin";
 
 export const metadata: Metadata = {
   title: "登入",
@@ -78,6 +79,8 @@ export default function LoginPage() {
               <Link href="/privacy" className="underline mx-0.5">隱私政策</Link>
             </p>
           </div>
+
+          <DevLogin />
         </div>
 
         {/* ── 右欄：隱私聲明（寬）── */}

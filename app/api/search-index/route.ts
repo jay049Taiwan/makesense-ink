@@ -5,6 +5,23 @@ import { queryDatabase, extractTitle, extractSelect, DB } from "@/lib/notion";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  // dev 環境用 mock data
+  if (process.env.NODE_ENV === "development") {
+    const { MOCK_PRODUCTS, MOCK_ACTIVITIES } = await import("@/lib/mock-data");
+    return NextResponse.json({
+      products: MOCK_PRODUCTS.map(p => ({ n: p.name, c: p.category, s: p.id, p: p.photo })),
+      activities: MOCK_ACTIVITIES.map(a => ({ n: a.title, d: a.date, t: a.type, s: a.id })),
+      articles: [
+        { n: "moku旅人書店四月營業時間公告", t: "文章", d: "2026/02/25", s: "art1" },
+        { n: "宜蘭老街的前世今生", t: "文章", d: "2026/03/10", s: "art2" },
+      ],
+      keywords: [
+        { n: "蘭東案內", s: "kw1" }, { n: "城鎮散步", s: "kw2" },
+        { n: "文化走讀", s: "kw3" }, { n: "宜蘭故事", s: "kw4" },
+      ],
+    }, { headers: { "Cache-Control": "public, s-maxage=60" } });
+  }
+
   const [productResults, activityResults, articleResults, keywordResults] = await Promise.all([
     queryDatabase(DB.DB07_INVENTORY, {
       property: "庫存售價", number: { greater_than: 0 },

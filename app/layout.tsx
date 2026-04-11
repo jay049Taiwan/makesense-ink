@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/components/ui/Header";
 import Footer from "@/components/ui/Footer";
 import AuthProvider from "@/components/providers/AuthProvider";
+import DevRoleProvider from "@/components/providers/DevRoleProvider";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script";
 
@@ -33,9 +34,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <Header />
-          <main className="flex-1">{children}</main>
-          <Footer />
+          <DevRoleProvider>
+            <Header />
+            <main className="flex-1">{children}</main>
+            <Footer />
+          </DevRoleProvider>
         </AuthProvider>
         <GoogleAnalytics gaId="G-51MHE2BT74" />
         <Script id="ga4-cross-domain" strategy="afterInteractive">

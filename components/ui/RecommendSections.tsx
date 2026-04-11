@@ -23,14 +23,14 @@ function ItemCard({ item }: { item: RecommendItem }) {
       style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
     >
       <div
-        className="aspect-[4/5] flex items-center justify-center"
+        className="aspect-[16/9] flex items-center justify-center"
         style={{ background: "var(--color-parchment)" }}
       >
         <span className="text-2xl opacity-20">{item.icon}</span>
       </div>
       <div className="p-2.5">
         <h3
-          className="text-[0.85em] line-clamp-1"
+          className="text-[0.85em] line-clamp-2"
           style={{ color: "var(--color-ink)" }}
         >
           {item.title}
