@@ -20,10 +20,8 @@ const roleTabs: Record<Role, { href: string; label: string; exact: boolean }[]> 
     { href: "/dashboard/profile", label: "個人資料", exact: false },
   ],
   staff: [
-    { href: "/dashboard", label: "總覽", exact: true },
-    { href: "/dashboard/profile", label: "個人資料", exact: false },
-    { href: "/dashboard/orders", label: "訂單紀錄", exact: false },
-    { href: "/dashboard/yilan-map", label: "我的宜蘭", exact: false },
+    { href: "/dashboard", label: "會員中心", exact: true },
+    { href: "/dashboard/workbench", label: "工作台", exact: false },
   ],
 };
 
@@ -45,50 +43,14 @@ export default function DashboardLayout({
   const role: Role = ((session as any)?.role as Role) || "member";
   const displayName = (session as any)?.displayName || session?.user?.name || "會員";
 
-  const tabs = roleTabs[role];
-  const showTabs = role !== "member"; // 一般會員不顯示分頁
+  // staff 在任何 dashboard 頁面都顯示 tab；workbench 路徑也視為 staff
+  const isStaffUser = role === "staff" || pathname.startsWith("/dashboard/workbench");
+  const effectiveRole: Role = isStaffUser ? "staff" : role;
+  const tabs = roleTabs[effectiveRole];
+  const showTabs = isStaffUser || role === "vendor";
 
   return (
     <div className="mx-auto px-4 py-8" style={{ maxWidth: 1200 }}>
-      {showTabs && (
-        <>
-          {/* 問候列（vendor/staff 才顯示）*/}
-          <div className="flex items-center justify-between mb-6">
-            <div>
-              <h1 className="text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
-                會員中心
-              </h1>
-              <p className="text-sm mt-0.5" style={{ color: "var(--color-mist)" }}>
-                Hi, {displayName} ・ {roleLabels[role]}
-              </p>
-            </div>
-          </div>
-
-          {/* Tab 導航 */}
-          <nav className="flex gap-0 mb-8 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
-            {tabs.map((tab) => {
-              const isActive = tab.exact
-                ? pathname === tab.href
-                : pathname.startsWith(tab.href);
-              return (
-                <Link
-                  key={tab.href}
-                  href={tab.href}
-                  className="flex-shrink-0 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors"
-                  style={{
-                    color: isActive ? "#1a1a2e" : "#888",
-                    borderBottom: `2px solid ${isActive ? "#4ECDC4" : "transparent"}`,
-                    marginBottom: -2,
-                  }}
-                >
-                  {tab.label}
-                </Link>
-              );
-            })}
-          </nav>
-        </>
-      )}
-
       {children}
     </div>
   );

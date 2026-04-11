@@ -3,6 +3,7 @@
 import { useSession } from "next-auth/react";
 import { useState } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 
 // ═══════════════════════════════════════════
 // 一般會員總覽
@@ -56,7 +57,7 @@ function MemberOverview() {
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       {/* ── 問候列 ── */}
-      <div className="rounded-xl p-5 mb-6" style={{ background: "#1a1a2e", color: "#fff" }}>
+      <div className="rounded-xl p-5" style={{ background: "#1a1a2e", color: "#fff" }}>
         <p className="text-xl font-bold mb-2">
           {displayName} <span className="font-normal">您好</span>
         </p>
@@ -70,6 +71,9 @@ function MemberOverview() {
           <span>⭐ 積分 <strong style={{ color: "#ffcc00", fontSize: 16 }}>0</strong> / 0</span>
         </div>
       </div>
+
+      {/* ── Staff 分頁 tab（問候列下方）── */}
+      <StaffTabs />
 
       {/* ── 我的參與分析 ── */}
       <div className="rounded-xl mb-6 overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
@@ -355,6 +359,31 @@ function EditIcon() {
 
 function Divider() {
   return <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>;
+}
+
+function StaffTabs() {
+  const { data: session } = useSession();
+  const pathname = usePathname();
+  const role = (session as any)?.role || "member";
+  if (role !== "staff") return null;
+
+  const tabs = [
+    { href: "/dashboard", label: "會員中心", exact: true },
+    { href: "/dashboard/workbench", label: "工作台", exact: false },
+  ];
+
+  return (
+    <nav className="flex gap-0 mb-6 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
+      {tabs.map((tab) => {
+        const isActive = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
+        return (
+          <Link key={tab.href} href={tab.href} className="flex-shrink-0 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors" style={{ color: isActive ? "#1a1a2e" : "#888", borderBottom: `2px solid ${isActive ? "#4ECDC4" : "transparent"}`, marginBottom: -2 }}>
+            {tab.label}
+          </Link>
+        );
+      })}
+    </nav>
+  );
 }
 
 // ── 保留的元件（之後用）──
