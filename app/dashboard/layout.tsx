@@ -46,44 +46,48 @@ export default function DashboardLayout({
   const displayName = (session as any)?.displayName || session?.user?.name || "會員";
 
   const tabs = roleTabs[role];
+  const showTabs = role !== "member"; // 一般會員不顯示分頁
 
   return (
     <div className="mx-auto px-4 py-8" style={{ maxWidth: 1200 }}>
-      {/* 問候列 */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
-            會員中心
-          </h1>
-          <p className="text-sm mt-0.5" style={{ color: "var(--color-mist)" }}>
-            Hi, {displayName} ・ {roleLabels[role]}
-          </p>
-        </div>
-      </div>
+      {showTabs && (
+        <>
+          {/* 問候列（vendor/staff 才顯示）*/}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold" style={{ color: "var(--color-ink)" }}>
+                會員中心
+              </h1>
+              <p className="text-sm mt-0.5" style={{ color: "var(--color-mist)" }}>
+                Hi, {displayName} ・ {roleLabels[role]}
+              </p>
+            </div>
+          </div>
 
-      {/* Tab 導航 */}
-      <nav className="flex gap-0 mb-8 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
-        {tabs.map((tab) => {
-          const isActive = tab.exact
-            ? pathname === tab.href
-            : pathname.startsWith(tab.href);
-
-          return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className="flex-shrink-0 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors"
-              style={{
-                color: isActive ? "#1a1a2e" : "#888",
-                borderBottom: `2px solid ${isActive ? "#4ECDC4" : "transparent"}`,
-                marginBottom: -2,
-              }}
-            >
-              {tab.label}
-            </Link>
-          );
-        })}
-      </nav>
+          {/* Tab 導航 */}
+          <nav className="flex gap-0 mb-8 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
+            {tabs.map((tab) => {
+              const isActive = tab.exact
+                ? pathname === tab.href
+                : pathname.startsWith(tab.href);
+              return (
+                <Link
+                  key={tab.href}
+                  href={tab.href}
+                  className="flex-shrink-0 px-5 py-3 text-sm font-semibold whitespace-nowrap transition-colors"
+                  style={{
+                    color: isActive ? "#1a1a2e" : "#888",
+                    borderBottom: `2px solid ${isActive ? "#4ECDC4" : "transparent"}`,
+                    marginBottom: -2,
+                  }}
+                >
+                  {tab.label}
+                </Link>
+              );
+            })}
+          </nav>
+        </>
+      )}
 
       {children}
     </div>
