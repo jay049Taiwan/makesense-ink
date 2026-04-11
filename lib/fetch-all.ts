@@ -272,6 +272,20 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
   } catch (e) { console.error("fetchPersonByEmail error:", e); return null; }
 }
 
+export async function checkMemberStatus(email: string): Promise<string | null> {
+  try {
+    const results = await queryDatabase(
+      DB.DB08_RELATIONSHIP,
+      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+      undefined,
+      1
+    );
+    if (results.length === 0) return null;
+    const props = (results[0] as any).properties;
+    return extractStatus(props["會員狀態"]?.status) || null;
+  } catch (e) { console.error("checkMemberStatus error:", e); return null; }
+}
+
 export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem | null> {
   try {
     const results = await queryDatabase(

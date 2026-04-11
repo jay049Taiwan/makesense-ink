@@ -1,7 +1,7 @@
 import NextAuth from "next-auth";
 import Google from "next-auth/providers/google";
 import LINE from "next-auth/providers/line";
-import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff, checkIsVendor } from "./fetch-all";
+import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff, checkIsVendor, checkMemberStatus } from "./fetch-all";
 import { createPage, updatePage, DB } from "./notion";
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
@@ -80,12 +80,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         const person = await fetchPersonByEmail(email);
         const isStaff = await checkIsStaff(email);
         const isVendor = !isStaff && await checkIsVendor(email);
+        const memberStatus = await checkMemberStatus(email);
         (session as any).role = isStaff ? "staff" : isVendor ? "vendor" : "member";
+        (session as any).memberStatus = memberStatus; // "會員" | "非會員" | "無會員" | null
         (session as any).notionId = person?.id || null;
         (session as any).displayName = person?.name || session.user?.name;
       } else {
         // 沒有 email（LINE 用戶）→ 預設一般會員
         (session as any).role = "member";
+        (session as any).memberStatus = "會員"; // LINE 登入自動為會員
         (session as any).notionId = null;
         (session as any).displayName = session.user?.name || "LINE 會員";
       }
