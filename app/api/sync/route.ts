@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
+import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage } from "@/lib/notion";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 300; // Vercel timeout 5 min
@@ -8,6 +8,7 @@ export const maxDuration = 300; // Vercel timeout 5 min
  * POST /api/sync — Notion → Supabase 全量同步
  */
 export async function POST(req: NextRequest) {
+  const doWriteback = req.nextUrl.searchParams.get("writeback") === "true";
   const results: Record<string, { upserted: number; errors: number }> = {};
 
   try {
@@ -16,10 +17,10 @@ export async function POST(req: NextRequest) {
     results.partners = await syncPartners();
     results.members = await syncMembers();
     results.staff = await syncStaff();
-    results.products = await syncProducts();
-    results.events = await syncEvents();
-    results.articles = await syncArticles();
-    return NextResponse.json({ success: true, results });
+    results.products = await syncProducts(doWriteback);
+    results.events = await syncEvents(doWriteback);
+    results.articles = await syncArticles(doWriteback);
+    return NextResponse.json({ success: true, results, writeback: doWriteback });
   } catch (err: any) {
     console.error("Sync error:", err);
     return NextResponse.json({ success: false, error: err.message, results }, { status: 500 });
@@ -46,6 +47,22 @@ function fileUrls(prop: any): string[] {
 function ms(val: string | null, map: Record<string, string>): string {
   if (!val) return "draft";
   return map[val] || "draft";
+}
+
+const SITE_URL = "https://makesense.ink";
+
+/** 回寫 Notion：更新發佈狀態 + 對應連結（只在對應連結為空時才寫） */
+async function writeback(page: any, url: string, statusField: string, statusValue: string, urlField: string) {
+  try {
+    const existingUrl = page.properties?.[urlField]?.url;
+    if (existingUrl) return; // 已有 URL，跳過
+    await updatePage(page.id, {
+      [urlField]: { url },
+      [statusField]: { status: { name: statusValue } },
+    });
+  } catch (e: any) {
+    console.error("writeback err:", page.id, e.message);
+  }
 }
 
 async function lookup(table: string, notionIds: string[]): Promise<Record<string, string>> {
@@ -184,7 +201,7 @@ async function syncStaff() {
 }
 
 // ── DB07 → products ──
-async function syncProducts() {
+async function syncProducts(wb = false) {
   let upserted = 0, errors = 0;
   const pages = await queryDatabase(DB.DB07_INVENTORY, { property: "庫存類型", select: { equals: "商品" } });
 
@@ -221,14 +238,15 @@ async function syncProducts() {
         publisher_id: pNid ? (pMap[pNid] || null) : null,
         status: ms(extractStatus(props["銷售狀態"]?.status), { "已更新": "active", "無販售": "inactive", "維護中": "draft" }),
       }, { onConflict: "notion_id" });
-      if (error) { console.error("products err:", error.message); errors++; } else upserted++;
+      if (error) { console.error("products err:", error.message); errors++; }
+      else { upserted++; if (wb) await writeback(page, `${SITE_URL}/product/${nid(page)}`, "發佈狀態", "已發佈", "對應連結"); }
     } catch (e: any) { console.error("products ex:", e.message); errors++; }
   }
   return { upserted, errors };
 }
 
 // ── DB04 → events ──
-async function syncEvents() {
+async function syncEvents(wb = false) {
   let upserted = 0, errors = 0;
   const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作選項", select: { equals: "活動辦理" } });
 
@@ -247,14 +265,15 @@ async function syncEvents() {
         description: extractText(props["簡介摘要"]?.rich_text) || null,
         status: ms(extractStatus(props["執行狀態"]?.status), { "執行中": "active", "已完成": "completed", "無執行": "draft" }),
       }, { onConflict: "notion_id" });
-      if (error) { console.error("events err:", error.message); errors++; } else upserted++;
+      if (error) { console.error("events err:", error.message); errors++; }
+      else { upserted++; if (wb) await writeback(page, `${SITE_URL}/events/${nid(page)}`, "發佈狀態", "已發佈", "對應連結"); }
     } catch (e: any) { console.error("events ex:", e.message); errors++; }
   }
   return { upserted, errors };
 }
 
 // ── DB05 → articles ──
-async function syncArticles() {
+async function syncArticles(wb = false) {
   let upserted = 0, errors = 0;
   const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "表單類型", select: { equals: "圖文影音" } });
 
@@ -269,6 +288,7 @@ async function syncArticles() {
       const eRel = extractRelation(props["對應協作"]?.relation);
       const eNid = eRel[0]?.replace(/-/g, "");
 
+      const articleUrl = `${SITE_URL}/post/${nid(page)}`;
       const { error } = await supabase.from("articles").upsert({
         notion_id: nid(page),
         title: extractTitle(props["表單名稱"]?.title) || "未命名文章",
@@ -277,7 +297,8 @@ async function syncArticles() {
         status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "草稿": "draft" }),
         published_at: dateInfo.start || null,
       }, { onConflict: "notion_id" });
-      if (error) { console.error("articles err:", error.message); errors++; } else upserted++;
+      if (error) { console.error("articles err:", error.message); errors++; }
+      else { upserted++; if (wb) await writeback(page, articleUrl, "發佈狀態", "已發佈", "對應連結"); }
     } catch (e: any) { console.error("articles ex:", e.message); errors++; }
   }
   return { upserted, errors };
