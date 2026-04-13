@@ -33,38 +33,43 @@ const fallbackEvent: EventData = {
   addons: [],
 };
 
-/** Parse event description text into structured data */
-function parseEventDescription(desc: string | null, event: { title: string; theme: string | null; event_date: string | null; price: number | null; capacity: number | null }): EventData {
-  // Try to extract structured info from description or use defaults
-  const title = event.title || "活動";
-  const dateStr = event.event_date
-    ? new Date(event.event_date).toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })
+/** Map Supabase event row to EventData */
+function mapEventData(row: any): EventData {
+  const title = row.title || "活動";
+  const dateStr = row.event_date
+    ? new Date(row.event_date).toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric", weekday: "short", hour: "2-digit", minute: "2-digit" })
     : "日期待定";
 
-  const type = (event.theme?.includes("走讀") ? "走讀"
-    : event.theme?.includes("講座") ? "講座"
-    : event.theme?.includes("市集") ? "市集"
+  const type = (row.event_type?.includes("走讀") ? "走讀"
+    : row.event_type?.includes("講座") ? "講座"
+    : row.event_type?.includes("市集") ? "市集"
     : "走讀") as EventData["type"];
 
-  const keywords = event.theme ? event.theme.split(/[,、／/]/).map(s => s.trim()).filter(Boolean) : [];
+  // Keywords from DB keywords array, or fallback to theme split
+  const keywords: string[] = row.keywords?.length > 0
+    ? row.keywords
+    : (row.theme ? row.theme.split(/[,、／/]/).map((s: string) => s.trim()).filter(Boolean) : []);
 
-  const tickets: EventData["tickets"] = [];
-  if (event.price) {
-    tickets.push({ name: "成人票", price: `$${event.price}` });
-  }
+  // Tickets from DB jsonb, or fallback to price
+  const tickets: EventData["tickets"] = Array.isArray(row.tickets) && row.tickets.length > 0
+    ? row.tickets
+    : (row.price ? [{ name: "成人票", price: `$${row.price}` }] : []);
+
+  const addons: EventData["addons"] = Array.isArray(row.addons) ? row.addons : [];
+  const routeStops: EventData["routeStops"] = Array.isArray(row.route_stops) ? row.route_stops : [];
 
   return {
     title,
     date: dateStr,
-    location: "",
-    guide: "",
+    location: row.location || "",
+    guide: row.guide || "",
     type,
-    excerpt: desc?.slice(0, 200) || "",
-    content: desc || "",
+    excerpt: row.description?.slice(0, 200) || "",
+    content: row.description || "",
     keywords,
-    routeStops: [],
+    routeStops,
     tickets,
-    addons: [],
+    addons,
   };
 }
 
@@ -89,7 +94,7 @@ export default function EventPage({
         .maybeSingle();
 
       if (data) {
-        setEvent(parseEventDescription(data.description, data));
+        setEvent(mapEventData(data));
       }
       setLoading(false);
     }

@@ -26,13 +26,22 @@ export async function queryDatabase(
   sorts?: object[],
   pageSize: number = 100
 ) {
-  const response = await notion.dataSources.query({
-    data_source_id: databaseId,
-    filter: filter as any,
-    sorts: sorts as any,
-    page_size: pageSize,
-  });
-  return response.results;
+  const allResults: any[] = [];
+  let cursor: string | undefined = undefined;
+
+  do {
+    const response: any = await notion.dataSources.query({
+      data_source_id: databaseId,
+      filter: filter as any,
+      sorts: sorts as any,
+      page_size: pageSize,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+    allResults.push(...response.results);
+    cursor = response.has_more ? response.next_cursor : undefined;
+  } while (cursor);
+
+  return allResults;
 }
 
 // Get a single page by ID

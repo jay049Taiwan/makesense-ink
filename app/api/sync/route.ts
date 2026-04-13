@@ -258,11 +258,14 @@ async function syncEvents(wb = false) {
         notion_id: nid(page),
         title: extractTitle(props["交接名稱"]?.title) || "未命名活動",
         theme: extractSelect(props["活動類型"]?.select) || null,
+        event_type: extractSelect(props["活動類型"]?.select) || null,
         event_date: dateInfo.start || null,
         price: extractNumber(props["實際單價"]?.number) || extractNumber(props["預計單價"]?.number) || 0,
         capacity: extractNumber(props["數量上限"]?.number) || null,
         cover_url: fileUrl(props["上傳檔案"]) || null,
         description: extractText(props["簡介摘要"]?.rich_text) || null,
+        location: extractText(props["活動地點"]?.rich_text) || null,
+        guide: extractText(props["帶路人"]?.rich_text) || null,
         status: ms(extractStatus(props["執行狀態"]?.status), { "執行中": "active", "已完成": "completed", "無執行": "draft" }),
       }, { onConflict: "notion_id" });
       if (error) { console.error("events err:", error.message); errors++; }
