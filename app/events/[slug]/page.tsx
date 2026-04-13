@@ -6,12 +6,46 @@ import RegistrationModal from "@/components/booking/RegistrationModal";
 
 // metadata moved to layout or generateMetadata in future
 
-const routeStops = [
-  { name: "旅人書店", desc: "宜蘭在地文化書店，走讀行旅的起點。", photo: null },
-  { name: "羅東鎮", desc: "蘭陽平原南方的商業重鎮，夜市聞名全台。", photo: null },
-  { name: "城隍廟", desc: "羅東鎮歷史悠久的信仰中心，見證地方發展。", photo: null },
-  { name: "頭城老街", desc: "宜蘭最早開發的地區，保留清代街屋風貌。", photo: null },
-];
+const mockEvents: Record<string, { title: string; date: string; location: string; guide: string; type: "走讀" | "講座" | "市集" | "空間"; excerpt: string; content: string; keywords: string[]; routeStops: { name: string; desc: string }[]; tickets: { name: string; price: string }[]; addons: { name: string; price: string }[] }> = {
+  "yilan-old-town-stroll": {
+    title: "走讀行旅｜宜蘭舊城散步",
+    date: "2026 年 4 月 21 日（一）09:00–12:00",
+    location: "宜蘭市舊城區",
+    guide: "黃育智",
+    type: "走讀",
+    excerpt: "從旅人書店出發，沿著中山路二段走入宜蘭舊城，探訪清代城牆遺跡、日治市街風貌，聽在地文史工作者說宜蘭的前世今生。",
+    content: "宜蘭舊城是蘭陽平原最早發展的市街，保留了從清代到日治、戰後各時期的建築痕跡。這條路線將帶您穿越三百年的時光，從城隍廟的信仰中心，到碧霞宮的武穆信仰，再到昭應宮的媽祖文化，用雙腳感受一座城市的記憶層。",
+    keywords: ["走讀行旅", "宜蘭舊城", "文化資產", "城市散步"],
+    routeStops: [
+      { name: "旅人書店", desc: "宜蘭在地文化書店，走讀行旅的起點。中山路二段上的獨立書店，以宜蘭在地出版品與文化活動為特色。" },
+      { name: "城隍廟", desc: "宜蘭城隍廟創建於清嘉慶十八年（1813），是宜蘭歷史最悠久的廟宇之一，見證了噶瑪蘭開墾的歷史。" },
+      { name: "碧霞宮", desc: "全台唯一以「岳飛」為主祀的寺廟，建於清光緒二十二年（1896），為宜蘭人抗日精神的象徵。" },
+      { name: "宜蘭文學館", desc: "日治時期的宜蘭農林學校校長宿舍，現為文學展覽空間，展示宜蘭在地文學作品與作家故事。" },
+    ],
+    tickets: [{ name: "成人票", price: "$500" }, { name: "兒童票（6-12歲）", price: "$250" }],
+    addons: [{ name: "午餐便當", price: "$120" }, { name: "導覽手冊", price: "$50" }],
+  },
+  "luodong-literary-walk": {
+    title: "走讀行旅｜羅東林場文學散步",
+    date: "2026 年 5 月 5 日（一）14:00–17:00",
+    location: "羅東鎮林場文化園區",
+    guide: "林雅雯",
+    type: "走讀",
+    excerpt: "走進百年林場，在老火車頭旁閱讀太平山的伐木故事，感受羅東從林業小鎮到文化城市的轉變。",
+    content: "羅東林業文化園區前身為太平山林場的貯木池，日治時期是全台最重要的木材集散地之一。園區保留了完整的林業設施遺跡，包括貯木池、運材蒸汽火車、竹林車站等，是認識宜蘭林業歷史的最佳場域。",
+    keywords: ["走讀行旅", "羅東林場", "林業文化", "日治歷史"],
+    routeStops: [
+      { name: "羅東林場入口", desc: "園區大門，展示太平山林場的歷史沿革與園區導覽地圖。" },
+      { name: "貯木池", desc: "日治時期用於浸泡木材的大型水池，現已轉型為生態池，是園區最具代表性的景觀。" },
+      { name: "竹林車站", desc: "昔日運材鐵道的起點站，保留了日治時期的站體建築與蒸汽火車頭。" },
+      { name: "森美館", desc: "園區內的藝文展覽空間，定期舉辦與林業文化、在地藝術相關的展覽。" },
+    ],
+    tickets: [{ name: "成人票", price: "$600" }, { name: "學生票", price: "$400" }],
+    addons: [{ name: "下午茶點心", price: "$100" }, { name: "蘭東案內 06期", price: "$280" }],
+  },
+};
+
+const defaultEvent = mockEvents["yilan-old-town-stroll"];
 
 export default function EventPage({
   params,
@@ -20,7 +54,9 @@ export default function EventPage({
 }) {
   const [popupIndex, setPopupIndex] = useState<number | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
-  const slug = "sample-event";
+
+  // In dev mode, try to match slug; fallback to default
+  const event = defaultEvent; // TODO: use `use(params).slug` to lookup from Notion
 
   return (
     <div>
@@ -41,12 +77,12 @@ export default function EventPage({
             className="text-3xl sm:text-4xl font-semibold text-white mb-2"
             style={{ fontFamily: "var(--font-display)" }}
           >
-            活動名稱（{slug}）
+            {event.title}
           </h1>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70 mt-1">
-            <span>2026 年 5 月 1 日（四）09:00–17:00</span>
-            <span>地點：宜蘭縣羅東鎮</span>
-            <span>帶路人：<span className="text-white font-medium">帶路人名稱</span></span>
+            <span>{event.date}</span>
+            <span>地點：{event.location}</span>
+            <span>帶路人：<span className="text-white font-medium">{event.guide}</span></span>
           </div>
           <p className="text-[0.7em] mt-2" style={{ color: "rgba(255,255,255,0.4)" }}>以上資訊來自 DB04</p>
         </div>
@@ -63,7 +99,7 @@ export default function EventPage({
                 關於這場活動
               </h2>
               <p className="text-sm leading-relaxed" style={{ color: "var(--color-ink)" }}>
-                活動摘要（來自 DB04「簡介摘要」欄位）
+                {event.excerpt}
               </p>
             </section>
 
@@ -73,7 +109,7 @@ export default function EventPage({
                 活動路線
               </h2>
               <div className="flex items-center flex-wrap gap-y-2">
-                {routeStops.map((stop, i) => (
+                {event.routeStops.map((stop, i) => (
                   <div key={i} className="flex items-center">
                     {i > 0 && (
                       <span className="mx-2 text-sm" style={{ color: "var(--color-dust)" }}>→</span>
@@ -109,7 +145,7 @@ export default function EventPage({
                   <div className="p-4">
                     <div className="flex items-center justify-between mb-2">
                       <h4 className="text-sm font-semibold" style={{ color: "var(--color-ink)" }}>
-                        {routeStops[popupIndex].name}
+                        {event.routeStops[popupIndex].name}
                       </h4>
                       <button
                         onClick={() => setPopupIndex(null)}
@@ -120,7 +156,7 @@ export default function EventPage({
                       </button>
                     </div>
                     <p className="text-xs leading-relaxed" style={{ color: "var(--color-bark)" }}>
-                      {routeStops[popupIndex].desc}
+                      {event.routeStops[popupIndex].desc}
                     </p>
                     <p className="text-[0.7em] mt-2" style={{ color: "var(--color-mist)" }}>
                       資料來源：Notion DB08
@@ -136,13 +172,13 @@ export default function EventPage({
                 className="rounded-lg p-6 text-sm leading-relaxed"
                 style={{ background: "var(--color-warm-white)", color: "var(--color-ink)" }}
               >
-                活動正文（來自 DB05 page content → HTML）
+                {event.content}
               </div>
             </section>
 
             {/* Keywords */}
             <div className="flex flex-wrap gap-2">
-              {["走讀行旅", "頭城", "文化資產"].map((kw) => (
+              {event.keywords.map((kw) => (
                 <span
                   key={kw}
                   className="px-3 py-1 rounded-full text-xs"
@@ -161,10 +197,7 @@ export default function EventPage({
                 {/* 票券一列 */}
                 <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>票券</p>
                 <div className="grid grid-cols-2 gap-2 mb-4">
-                  {[
-                    { name: "成人票", price: "$500" },
-                    { name: "兒童票", price: "$250" },
-                  ].map((t) => (
+                  {event.tickets.map((t) => (
                     <div key={t.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                       <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{t.name}</p>
                       <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{t.price}</p>
@@ -180,10 +213,7 @@ export default function EventPage({
                 {/* 加購一列 */}
                 <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>加購</p>
                 <div className="grid grid-cols-2 gap-2">
-                  {[
-                    { name: "午餐便當", price: "$120" },
-                    { name: "導覽手冊", price: "$50" },
-                  ].map((a) => (
+                  {event.addons.map((a) => (
                     <div key={a.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                       <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{a.name}</p>
                       <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{a.price}</p>
@@ -223,8 +253,8 @@ export default function EventPage({
       <RegistrationModal
         isOpen={showRegistration}
         onClose={() => setShowRegistration(false)}
-        formType="走讀"
-        eventTitle="活動名稱（sample-event）"
+        formType={event.type}
+        eventTitle={event.title}
         ticketSummary="成人票 ×1"
       />
     </div>

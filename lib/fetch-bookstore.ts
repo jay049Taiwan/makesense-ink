@@ -31,10 +31,22 @@ export async function fetchProducts(category: string, limit = 12): Promise<Produ
     limit
   );
 
+  // 收集所有 對應作者 / 對應發行 relation IDs，一次批次解析成名稱
+  const allIds = new Set<string>();
+  for (const page of results) {
+    const props = (page as any).properties;
+    extractRelation(props["對應作者"]?.relation).forEach((id: string) => allIds.add(id));
+    extractRelation(props["對應發行"]?.relation).forEach((id: string) => allIds.add(id));
+  }
+  const nameMap = await resolveRelationNames([...allIds]);
+
   return results.map((page: any) => {
     const props = page.properties;
     const photoFile = props["產品照片"]?.files?.[0];
     const photoUrl = photoFile?.file?.url || photoFile?.external?.url || null;
+
+    const authorId = extractRelation(props["對應作者"]?.relation)[0] || "";
+    const publisherId = extractRelation(props["對應發行"]?.relation)[0] || "";
 
     return {
       id: page.id,
@@ -42,8 +54,9 @@ export async function fetchProducts(category: string, limit = 12): Promise<Produ
       price: extractNumber(props["庫存售價"]?.number) || 0,
       category: extractSelect(props["選書備項"]?.select) || extractSelect(props["庫存類型"]?.select) || "",
       photo: photoUrl,
-      author: extractText(props["登記作者"]?.rich_text),
-      publisher: extractText(props["登記發行"]?.rich_text),
+      // relation 欄位優先，fallback 舊版純文字欄位
+      author: nameMap[authorId] || extractText(props["登記作者"]?.rich_text),
+      publisher: nameMap[publisherId] || extractText(props["登記發行"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };
   });

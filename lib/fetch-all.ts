@@ -376,46 +376,6 @@ export async function checkIsStaff(email: string): Promise<boolean> {
 }
 
 // ══════════════════════════════════════════
-// DB07: 庫存資產（合作廠商的商品）
-// ══════════════════════════════════════════
-export interface VendorInventoryItem {
-  id: string;
-  name: string;
-  price: number;
-  stock: number | null;
-  category: string;
-  photo: string | null;
-  status: string;
-  slug: string;
-}
-
-export async function fetchVendorInventory(vendorId: string, limit = 50): Promise<VendorInventoryItem[]> {
-  try {
-    const results = await queryDatabase(
-      DB.DB07_INVENTORY,
-      { property: "對應進貨", relation: { contains: vendorId } },
-      [{ property: "更新時間", direction: "descending" as const }],
-      limit
-    );
-    return results.map((page: any) => {
-      const props = page.properties;
-      const photoFile = props["產品照片"]?.files?.[0];
-      const photoUrl = photoFile?.file?.url || photoFile?.external?.url || null;
-      return {
-        id: page.id,
-        name: extractTitle(props["庫存名稱"]?.title),
-        price: extractNumber(props["庫存售價"]?.number) || 0,
-        stock: props["庫存數量"]?.number ?? null,
-        category: extractSelect(props["庫存類型"]?.select) || extractSelect(props["選書備項"]?.select) || "",
-        photo: photoUrl,
-        status: extractSelect(props["庫存狀態"]?.select) || extractStatus(props["執行狀態"]?.status) || "",
-        slug: page.id.replace(/-/g, ""),
-      };
-    });
-  } catch (e) { console.error("fetchVendorInventory error:", e); return []; }
-}
-
-// ══════════════════════════════════════════
 // DB09: 範圍日期（時間軸、發展歷程）
 // ══════════════════════════════════════════
 export interface DateRangeItem {

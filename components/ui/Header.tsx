@@ -126,7 +126,7 @@ export default function Header() {
                 {truncate(userEmail || userName || "會員", 15)}，你好
               </Link>
               <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-white rounded shadow-lg border py-1 min-w-[120px] z-50">
-                <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>會員中心</Link>
+                <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>個人紀錄</Link>
                 <button onClick={() => signOut({ callbackUrl: "/" })} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#999" }}>登出</button>
               </div>
             </div>
@@ -173,7 +173,7 @@ export default function Header() {
             <Link href="/cultureclub" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>宜蘭文化俱樂部</Link>
             {isLoggedIn ? (
               <>
-                <Link href="/dashboard" onClick={() => setMenuOpen(false)} style={{ color: "#b89e7a", fontWeight: 500 }}>會員中心</Link>
+                <Link href="/dashboard" onClick={() => setMenuOpen(false)} style={{ color: "#b89e7a", fontWeight: 500 }}>個人紀錄</Link>
                 <button onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }} className="text-left" style={{ color: "#999" }}>登出</button>
               </>
             ) : (

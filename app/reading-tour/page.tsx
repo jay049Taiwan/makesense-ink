@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Calendar from "@/components/calendar/Calendar";
-import RegistrationModal from "@/components/booking/RegistrationModal";
 
 /* ── 走讀旅行假資料（from DB04）── */
 const tourStats = {
@@ -51,18 +49,15 @@ const typeIcons: Record<string, string> = {
   水利: "💧", 車站: "🚉", 鐵道: "🚂",
 };
 
-export default function SpaceBookingPage() {
+export default function ReadingTourPage() {
   const [activeRegion, setActiveRegion] = useState<string>("溪北");
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [showBooking, setShowBooking] = useState(false);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
-      {/* ═══ 上半部：Notion page content（佔位）═══ */}
+      {/* ═══ 上半部：文案 ═══ */}
       <section className="py-12">
-        <div className="max-w-[800px] mx-auto">
-          {/* 照片 */}
+        <div className="max-w-[1000px] mx-auto">
           <div
             className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center"
             style={{ background: "var(--color-parchment)" }}
@@ -73,7 +68,7 @@ export default function SpaceBookingPage() {
             className="text-3xl font-semibold mb-2"
             style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
           >
-            空間場域
+            走讀漫遊
           </h1>
           <p className="text-lg mb-6" style={{ color: "var(--color-teal)" }}>
             走進宜蘭的每一個角落
@@ -100,7 +95,6 @@ export default function SpaceBookingPage() {
       {/* ── 1. 走讀旅行總覽 ── */}
       <section className="py-8" style={{ borderTop: "1px solid var(--color-dust)" }}>
         <div className="md:flex md:gap-8 md:items-start">
-          {/* 左：總數大字 */}
           <div
             className="rounded-xl p-6 text-center mb-6 md:mb-0 md:w-[240px] flex-shrink-0"
             style={{ background: "#fff", border: "1.5px solid var(--color-teal)" }}
@@ -115,7 +109,6 @@ export default function SpaceBookingPage() {
             <p className="text-sm" style={{ color: "var(--color-teal)" }}>場・from DB04</p>
           </div>
 
-          {/* 右：相關關鍵字 */}
           <div className="flex-1">
             <h2 className="text-[1.3em] font-bold mb-2" style={{ color: "var(--color-ink)" }}>
               走讀旅行關鍵字
@@ -139,7 +132,7 @@ export default function SpaceBookingPage() {
         </div>
       </section>
 
-      {/* ── 2. 我們去過的地點（分頁 + 橫向滑動 icon）── */}
+      {/* ── 2. 我們去過的地點 ── */}
       <section className="py-8 pb-16" style={{ borderTop: "1px solid var(--color-dust)" }}>
         <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "var(--color-ink)" }}>
           我們去過的地方
@@ -148,7 +141,6 @@ export default function SpaceBookingPage() {
           足跡遍及宜蘭 12 鄉鎮及鄰近縣市・from DB08
         </p>
 
-        {/* 分頁 Tab：溪北 / 溪南 / 縣外 */}
         <div className="flex gap-1 mb-6 p-1 rounded-lg" style={{ background: "var(--color-parchment)", width: "fit-content" }}>
           {regions.map((r) => (
             <button
@@ -166,7 +158,6 @@ export default function SpaceBookingPage() {
           ))}
         </div>
 
-        {/* 地點 icon 橫向滑動 */}
         <div className="hscroll-track">
           {locations[activeRegion].map((loc) => (
             <a
@@ -194,33 +185,6 @@ export default function SpaceBookingPage() {
           ))}
         </div>
       </section>
-
-      {/* ── 3. 空間租借行事曆 ── */}
-      <section className="py-8 pb-16" style={{ borderTop: "1px solid var(--color-dust)" }}>
-        <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "var(--color-ink)" }}>
-          空間租借
-        </h2>
-        <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
-          點選可預約的日期，進入租借表單
-        </p>
-        <Calendar
-          mode="space"
-          selectedDate={selectedDate}
-          onDateClick={(date) => {
-            setSelectedDate(date);
-            setShowBooking(true);
-          }}
-        />
-      </section>
-
-      {/* 空間租借彈出表單 */}
-      <RegistrationModal
-        isOpen={showBooking}
-        onClose={() => setShowBooking(false)}
-        formType="空間"
-        eventTitle="空間租借"
-        ticketSummary={selectedDate ? `預約日期：${selectedDate}` : ""}
-      />
     </div>
   );
 }

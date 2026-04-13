@@ -1,9 +1,12 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import Link from "next/link";
 
 // Day of week headers (Monday start)
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
+
+// ── 介面 ──
 
 export interface CalendarEvent {
   date: string; // YYYY-MM-DD
@@ -12,21 +15,37 @@ export interface CalendarEvent {
   href?: string;
 }
 
+export interface ActivityEvent {
+  date: string;
+  title: string;
+  status: string;
+  href: string | null;
+}
+
+export interface BookingSlot {
+  date: string;
+  timeSlot: "morning" | "afternoon";
+}
+
 interface CalendarProps {
   events?: CalendarEvent[];
+  activityEvents?: ActivityEvent[];
+  bookings?: BookingSlot[];
   holidays?: Set<string>;
-  onDateClick?: (date: string) => void;
+  onDateClick?: (date: string, timeSlot?: "morning" | "afternoon") => void;
   selectedDate?: string | null;
   mode?: "default" | "market" | "space";
+  fetchUrl?: string;
 }
+
+// ── 工具函式 ──
 
 function getDaysInMonth(year: number, month: number): number {
   return new Date(year, month + 1, 0).getDate();
 }
 
-// Get day of week (0=Monday, 6=Sunday)
 function getMondayBasedDay(year: number, month: number, day: number): number {
-  const jsDay = new Date(year, month, day).getDay(); // 0=Sun
+  const jsDay = new Date(year, month, day).getDay();
   return jsDay === 0 ? 6 : jsDay - 1;
 }
 
@@ -34,24 +53,92 @@ function formatDate(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// ── 狀態標籤顏色 ──
+const statusColors: Record<string, { bg: string; text: string }> = {
+  published: { bg: "rgba(78,205,196,0.15)", text: "#3aa89f" },
+  draft: { bg: "#f0f0f0", text: "#999" },
+  unpublished: { bg: "#f0f0f0", text: "#999" },
+  cancelled: { bg: "#fde8e8", text: "#e53e3e" },
+};
+
+// ── 元件 ──
+
 export default function Calendar({
   events = [],
+  activityEvents: propActivityEvents,
+  bookings: propBookings,
   holidays = new Set(),
   onDateClick,
   selectedDate,
   mode = "default",
+  fetchUrl,
 }: CalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
+  const [loadedActivityEvents, setLoadedActivityEvents] = useState<ActivityEvent[]>([]);
+  const [loadedBookings, setLoadedBookings] = useState<BookingSlot[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const todayStr = formatDate(
-    today.getFullYear(),
-    today.getMonth(),
-    today.getDate()
-  );
+  const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // Build event lookup
+  // 自動載入台灣國定假日
+  const [autoHolidays, setAutoHolidays] = useState<Set<string>>(new Set());
+  useEffect(() => {
+    fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${viewYear}.json`)
+      .then((r) => r.json())
+      .then((data: { date: string; isHoliday: boolean; description: string }[]) => {
+        const set = new Set<string>();
+        for (const d of data) {
+          if (d.isHoliday && d.description !== "星期六" && d.description !== "星期日") {
+            set.add(`${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}`);
+          }
+        }
+        setAutoHolidays(set);
+      })
+      .catch(() => {});
+  }, [viewYear]);
+
+  // 合併外部傳入的 holidays 和自動載入的
+  const mergedHolidays = new Set([...holidays, ...autoHolidays]);
+
+  // 自動載入月份資料
+  useEffect(() => {
+    if (!fetchUrl) return;
+    setIsLoading(true);
+    const url = `${fetchUrl}?year=${viewYear}&month=${viewMonth + 1}`;
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        if (mode === "space") {
+          setLoadedBookings(Array.isArray(data) ? data : []);
+        } else {
+          setLoadedActivityEvents(Array.isArray(data) ? data : []);
+        }
+      })
+      .catch(console.error)
+      .finally(() => setIsLoading(false));
+  }, [fetchUrl, viewYear, viewMonth, mode]);
+
+  const allActivityEvents = propActivityEvents || loadedActivityEvents;
+  const allBookings = propBookings || loadedBookings;
+
+  // 建立查詢 Map
+  const activityMap = new Map<string, ActivityEvent[]>();
+  for (const ev of allActivityEvents) {
+    const existing = activityMap.get(ev.date) || [];
+    existing.push(ev);
+    activityMap.set(ev.date, existing);
+  }
+
+  const bookedSlotMap = new Map<string, Set<string>>();
+  for (const b of allBookings) {
+    const existing = bookedSlotMap.get(b.date) || new Set();
+    existing.add(b.timeSlot);
+    bookedSlotMap.set(b.date, existing);
+  }
+
+  // Legacy event map
   const eventMap = new Map<string, CalendarEvent>();
   for (const ev of events) {
     eventMap.set(ev.date, ev);
@@ -63,20 +150,14 @@ export default function Calendar({
   // Navigation
   const prevMonth = useCallback(() => {
     setViewMonth((m) => {
-      if (m === 0) {
-        setViewYear((y) => y - 1);
-        return 11;
-      }
+      if (m === 0) { setViewYear((y) => y - 1); return 11; }
       return m - 1;
     });
   }, []);
 
   const nextMonth = useCallback(() => {
     setViewMonth((m) => {
-      if (m === 11) {
-        setViewYear((y) => y + 1);
-        return 0;
-      }
+      if (m === 11) { setViewYear((y) => y + 1); return 0; }
       return m + 1;
     });
   }, []);
@@ -86,11 +167,18 @@ export default function Calendar({
     setViewMonth(today.getMonth());
   }, [today]);
 
-  // Build grid cells
+  // Grid cells
   const cells: (number | null)[] = [];
   for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
   for (let d = 1; d <= daysInMonth; d++) cells.push(d);
   while (cells.length % 7 !== 0) cells.push(null);
+
+  // 格高
+  const cellHeight = mode === "space"
+    ? "h-[80px] sm:h-[120px]"
+    : mode === "default"
+      ? "h-[70px] sm:h-[110px]"
+      : "h-[60px] sm:h-[90px]";
 
   return (
     <div className="w-full max-w-[1000px] mx-auto">
@@ -98,38 +186,19 @@ export default function Calendar({
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">
           {viewYear} 年 {viewMonth + 1} 月
+          {isLoading && <span className="text-xs ml-2 font-normal" style={{ color: "var(--color-mist)" }}>載入中...</span>}
         </h3>
         <div className="flex gap-1">
-          <button
-            onClick={prevMonth}
-            className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors"
-          >
-            上月
-          </button>
-          <button
-            onClick={goToday}
-            className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors"
-          >
-            本月
-          </button>
-          <button
-            onClick={nextMonth}
-            className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors"
-          >
-            下月
-          </button>
+          <button onClick={prevMonth} className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors">上月</button>
+          <button onClick={goToday} className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors">本月</button>
+          <button onClick={nextMonth} className="px-3 py-1.5 rounded-lg text-sm border border-border hover:bg-brand-cream transition-colors">下月</button>
         </div>
       </div>
 
       {/* Weekday headers */}
       <div className="grid grid-cols-7 border-b border-border">
         {WEEKDAYS.map((day, i) => (
-          <div
-            key={day}
-            className={`py-2 text-center text-sm font-medium ${
-              i >= 5 ? "text-cal-weekend-text" : "text-muted"
-            }`}
-          >
+          <div key={day} className={`py-2 text-center text-sm font-medium ${i >= 5 ? "text-cal-weekend-text" : "text-muted"}`}>
             {day}
           </div>
         ))}
@@ -139,22 +208,22 @@ export default function Calendar({
       <div className="grid grid-cols-7">
         {cells.map((day, idx) => {
           if (day === null) {
-            return (
-              <div key={`empty-${idx}`} className="h-[90px] border-b border-r border-border" />
-            );
+            return <div key={`empty-${idx}`} className={`${cellHeight} border-b border-r border-border`} />;
           }
 
           const dateStr = formatDate(viewYear, viewMonth, day);
-          const dayOfWeek = (idx % 7); // 0=Mon, 5=Sat, 6=Sun
+          const dayOfWeek = idx % 7;
           const isPast = dateStr < todayStr;
           const isToday = dateStr === todayStr;
           const isSelected = dateStr === selectedDate;
-          const isHoliday = holidays.has(dateStr);
+          const isHoliday = mergedHolidays.has(dateStr);
           const isSaturday = dayOfWeek === 5;
           const isSunday = dayOfWeek === 6;
           const event = eventMap.get(dateStr);
+          const dayActivities = activityMap.get(dateStr) || [];
+          const bookedSlots = bookedSlotMap.get(dateStr) || new Set<string>();
 
-          // Determine background color (priority: selected > today > event > holiday > weekend)
+          // Background
           let bgClass = "bg-white";
           if (isSelected) bgClass = "bg-brand-teal/10 ring-2 ring-brand-teal ring-inset";
           else if (isToday) bgClass = "bg-cal-today";
@@ -170,23 +239,86 @@ export default function Calendar({
           else if (isHoliday) textClass = "text-cal-holiday-text";
           else if (isSaturday || isSunday) textClass = "text-cal-weekend-text";
 
-          const isClickable = onDateClick && (!isPast || mode === "market");
+          const isClickable = onDateClick && mode !== "space" && (!isPast || mode === "market");
 
           return (
             <div
               key={dateStr}
               onClick={() => isClickable && onDateClick(dateStr)}
-              className={`h-[90px] border-b border-r border-border p-1.5 transition-colors ${bgClass} ${
+              className={`${cellHeight} border-b border-r border-border p-1 sm:p-1.5 transition-colors ${bgClass} ${
                 isClickable ? "cursor-pointer hover:bg-brand-teal/5" : ""
-              }`}
+              } overflow-hidden`}
             >
-              <span className={`text-sm font-medium ${textClass}`}>
-                {day}
-              </span>
-              {event?.label && (
-                <p className="text-xs mt-0.5 text-brand-orange font-medium truncate">
-                  {event.label}
-                </p>
+              <span className={`text-xs sm:text-sm font-medium ${textClass}`}>{day}</span>
+
+              {/* ── mode="default": 活動列表 ── */}
+              {mode === "default" && dayActivities.length > 0 && (
+                <div className="mt-0.5 space-y-0.5">
+                  {dayActivities.slice(0, 2).map((ev, i) => {
+                    const sc = statusColors[ev.status] || statusColors.published;
+                    const inner = (
+                      <div className="flex items-center gap-0.5 min-w-0">
+                        <span className="truncate text-[8px] sm:text-[10px] font-medium" style={{ color: "var(--color-ink)" }}>
+                          {ev.title}
+                        </span>
+                        <span className="flex-shrink-0 text-[7px] sm:text-[8px] px-1 rounded" style={{ background: sc.bg, color: sc.text }}>
+                          {ev.status === "published" ? "受理中" : ev.status}
+                        </span>
+                      </div>
+                    );
+                    return ev.href ? (
+                      <Link key={i} href={ev.href} onClick={(e) => e.stopPropagation()} className="block hover:opacity-70">
+                        {inner}
+                      </Link>
+                    ) : (
+                      <div key={i}>{inner}</div>
+                    );
+                  })}
+                  {dayActivities.length > 2 && (
+                    <span className="text-[8px]" style={{ color: "var(--color-mist)" }}>+{dayActivities.length - 2} 更多</span>
+                  )}
+                </div>
+              )}
+
+              {/* ── mode="default": legacy event label ── */}
+              {mode !== "space" && event?.label && dayActivities.length === 0 && (
+                <p className="text-[9px] sm:text-xs mt-0.5 text-brand-orange font-medium truncate">{event.label}</p>
+              )}
+
+              {/* ── mode="space": 上午/下午時段 ── */}
+              {mode === "space" && !isPast && (
+                <div className="mt-0.5 space-y-0.5">
+                  {(["morning", "afternoon"] as const).map((slot) => {
+                    const isBooked = bookedSlots.has(slot);
+                    const slotLabel = slot === "morning" ? "上午" : "下午";
+                    return (
+                      <button
+                        key={slot}
+                        disabled={isBooked}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!isBooked && onDateClick) onDateClick(dateStr, slot);
+                        }}
+                        className="w-full text-[8px] sm:text-[10px] py-0.5 rounded transition-colors text-center"
+                        style={{
+                          background: isBooked ? "rgba(229,62,62,0.08)" : "rgba(78,205,196,0.1)",
+                          color: isBooked ? "#e53e3e" : "#3aa89f",
+                          cursor: isBooked ? "default" : "pointer",
+                          textDecoration: isBooked ? "line-through" : "none",
+                        }}
+                      >
+                        {slotLabel} {isBooked ? "已預訂" : "可預約"}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* 過去的日期在 space mode 不顯示 slot */}
+              {mode === "space" && isPast && (
+                <div className="mt-1 text-center">
+                  <span className="text-[8px]" style={{ color: "var(--color-mist)" }}>—</span>
+                </div>
               )}
             </div>
           );
@@ -196,24 +328,25 @@ export default function Calendar({
       {/* Legend */}
       <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted">
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-cal-today border border-border" />
-          今天
+          <span className="w-3 h-3 rounded bg-cal-today border border-border" /> 今天
         </span>
         <span className="flex items-center gap-1">
-          <span className="w-3 h-3 rounded bg-cal-holiday-bg border border-border" />
-          國定假日
+          <span className="w-3 h-3 rounded bg-cal-holiday-bg border border-border" /> 國定假日
         </span>
         {mode === "market" && (
           <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-cal-market border border-border" />
-            市集日
+            <span className="w-3 h-3 rounded bg-cal-market border border-border" /> 市集日
           </span>
         )}
         {mode === "space" && (
-          <span className="flex items-center gap-1">
-            <span className="w-3 h-3 rounded bg-cal-blocked border border-border" />
-            已封鎖
-          </span>
+          <>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded border border-border" style={{ background: "rgba(78,205,196,0.1)" }} /> 可預約
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded border border-border" style={{ background: "rgba(229,62,62,0.08)" }} /> 已預訂
+            </span>
+          </>
         )}
       </div>
     </div>

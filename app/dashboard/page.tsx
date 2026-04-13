@@ -1,11 +1,12 @@
 "use client";
 
 import { useSession } from "next-auth/react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
 import { MOCK_MEMBER_PURCHASES, MOCK_MEMBER_REGISTRATIONS, getMemberStats } from "@/lib/mock-data";
+import { QRCodeSVG } from "qrcode.react";
 
 // ═══════════════════════════════════════════
 // 一般會員總覽
@@ -20,24 +21,86 @@ function MemberOverview() {
   const lineConnected = isDev ? devRole.lineConnected : false;
   const stats = isDev ? getMemberStats() : { points: 0, level: "Lv.1", totalSpent: 0, totalItems: 0, totalEvents: 0 };
 
-  // 購買紀錄（dev 用 mock data，正式用 API）
-  const allPurchases = isDev ? [
+  // 購買紀錄（先用 mock，有 Supabase 資料就覆蓋）
+  const mockPurchases = isDev ? [
     ...MOCK_MEMBER_PURCHASES,
     ...MOCK_MEMBER_REGISTRATIONS.map(r => ({
       id: r.id, productId: r.activityId, name: r.title, qty: 1, author: "—", publisher: "旅人書店",
       date: r.date, price: r.price, rating: r.rating, comment: r.comment, category: r.type, topics: ["文化走讀"],
+      orderItemId: "", memberId: "",
     })),
   ] : [];
-  const [purchases] = useState(allPurchases);
+  const [purchases, setPurchases] = useState(mockPurchases);
+  const [memberId, setMemberId] = useState<string | null>(null);
 
+  // 從 Supabase 載入真實訂單
+  const loadOrders = useCallback(async () => {
+    if (!email || email === "—") return;
+    try {
+      const res = await fetch(`/api/orders?email=${encodeURIComponent(email)}`);
+      const data = await res.json();
+      if (data.orders && data.orders.length > 0) {
+        setMemberId(data.memberId);
+        const realPurchases = data.orders.flatMap((order: any) =>
+          (order.order_items || []).map((item: any) => ({
+            id: item.id,
+            orderItemId: item.id,
+            memberId: data.memberId,
+            productId: item.meta?.productId || "",
+            name: item.meta?.name || "—",
+            qty: item.quantity,
+            author: "—",
+            publisher: "—",
+            date: new Date(order.created_at).toLocaleDateString("zh-TW"),
+            price: item.price,
+            rating: item.reviews?.[0]?.rating || 0,
+            comment: item.reviews?.[0]?.comment || "",
+            category: item.item_type,
+            topics: [],
+          }))
+        );
+        if (realPurchases.length > 0) {
+          setPurchases([...realPurchases, ...mockPurchases]);
+        }
+      }
+    } catch (err) {
+      console.error("載入訂單失敗:", err);
+    }
+  }, [email]);
+
+  useEffect(() => { loadOrders(); }, [loadOrders]);
+
+  const [showQR, setShowQR] = useState(false);
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
 
   const pendingCount = purchases.filter((p) => p.rating === 0 && !submitted[p.id]).length;
 
-  const handleSubmitRating = (id: string) => {
-    if (!ratings[id]) return;
+  const handleSubmitRating = async (id: string) => {
+    const item = purchases.find((p) => p.id === id);
+    if (!ratings[id] || !item) return;
+
+    // 有 orderItemId 就寫入 Supabase
+    if (item.orderItemId && item.memberId) {
+      try {
+        const res = await fetch("/api/reviews", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderItemId: item.orderItemId,
+            memberId: item.memberId,
+            rating: ratings[id],
+            comment: comments[id] || "",
+          }),
+        });
+        if (!res.ok) throw new Error("評價失敗");
+      } catch (err) {
+        console.error("送出評價失敗:", err);
+        alert("送出評價失敗，請稍後再試");
+        return;
+      }
+    }
     setSubmitted((prev) => ({ ...prev, [id]: true }));
   };
 
@@ -67,6 +130,21 @@ function MemberOverview() {
           {displayName} <span className="font-normal">您好</span>
         </p>
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
+          {/* 會員編號 + QR 按鈕 */}
+          {(isDev || memberId) && (() => {
+            const displayId = isDev ? "dev-member-001" : memberId!;
+            const shortId = displayId.slice(0, 8).toUpperCase();
+            return (
+              <span className="flex items-center gap-1.5">
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>🎫</span>
+                <span style={{ fontFamily: "monospace", letterSpacing: "0.05em", color: "#fff", fontSize: 13 }}>{shortId}</span>
+                <button onClick={() => setShowQR(true)} title="顯示 QR Code" style={{ background: "none", border: "1px solid rgba(255,255,255,0.25)", cursor: "pointer", padding: "2px 8px", borderRadius: 4, color: "rgba(255,255,255,0.6)", fontSize: 11 }}>
+                  QR
+                </button>
+              </span>
+            );
+          })()}
+          <Divider />
           <span className="flex items-center gap-1">📧 {email}<EditIcon /></span>
           <Divider />
           <span className="flex items-center gap-1">💬 {lineConnected ? "LINE 已綁定" : "LINE 未綁定"}<EditIcon /></span>
@@ -76,6 +154,17 @@ function MemberOverview() {
           <span>⭐ 積分 <strong style={{ color: "#ffcc00", fontSize: 16 }}>{stats.points}</strong></span>
         </div>
       </div>
+
+      {/* ── QR Code Modal ── */}
+      {showQR && (isDev || memberId) && (
+        <div onClick={() => setShowQR(false)} style={{ position: "fixed", inset: 0, zIndex: 100, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: "#fff", borderRadius: 16, padding: "32px 24px", width: 300, display: "flex", flexDirection: "column", alignItems: "center", gap: 12, boxShadow: "0 16px 48px rgba(0,0,0,0.2)" }}>
+            <p className="text-sm font-semibold" style={{ color: "#333", margin: 0 }}>我的會員條碼</p>
+            <QRCodeSVG value={`https://makesense.ink/m/${isDev ? "dev-member-001" : memberId}`} size={240} level="M" />
+            <button onClick={() => setShowQR(false)} style={{ marginTop: 4, padding: "8px 24px", borderRadius: 8, border: "1px solid #e0e0e0", background: "#fff", cursor: "pointer", fontSize: 13, color: "#666" }}>關閉</button>
+          </div>
+        </div>
+      )}
 
       {/* ── Staff 分頁 tab（問候列下方）── */}
       <StaffTabs />
@@ -376,8 +465,8 @@ function StaffTabs() {
   if (role !== "staff" && role !== "vendor") return null;
 
   const tabs = role === "staff"
-    ? [{ href: "/dashboard", label: "會員中心", exact: true }, { href: "/dashboard/workbench", label: "工作台", exact: false }]
-    : [{ href: "/dashboard", label: "會員中心", exact: true }, { href: "/dashboard/partner", label: "合作後台", exact: false }];
+    ? [{ href: "/dashboard", label: "個人紀錄", exact: true }, { href: "/dashboard/workbench", label: "工作台", exact: false }]
+    : [{ href: "/dashboard", label: "個人紀錄", exact: true }, { href: "/dashboard/partner", label: "協作平台", exact: false }];
 
   return (
     <nav className="flex gap-0 mb-6 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>

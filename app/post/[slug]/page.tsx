@@ -1,5 +1,53 @@
 import type { Metadata } from "next";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
+import MarketPreOrderPanel, { type PreOrderVendor } from "@/components/booking/MarketPreOrderPanel";
+
+// ── 文章關聯的市集預購資料（正式環境從 Notion DB 讀取）──────────────────────
+// 如果 article 沒有關聯市集，這裡為 null；有的話從 Notion 抓廠商+商品清單
+function getArticleMarket(slug: string): {
+  title: string;
+  date?: string;
+  vendors: PreOrderVendor[];
+} | null {
+  // TODO: 正式環境改為從 Notion DB 讀取文章關聯的市集
+  // 這裡示範：特定 slug 才顯示預購面板
+  if (slug === "spring-market-2026" || slug === "market-preview") {
+    return {
+      title: "春日好物市集 現場預購",
+      date: "2026/05/10（日）10:00–17:00",
+      vendors: [
+        {
+          id: "v1",
+          name: "蘭東書坊",
+          description: "在地出版品、地方誌選物",
+          products: [
+            { id: "v1p1", name: "蘭東案內 06期", price: 280, note: "小鎮麵包地圖特輯", stock: 20 },
+            { id: "v1p2", name: "宜蘭街散步圖", price: 50, stock: 50 },
+          ],
+        },
+        {
+          id: "v2",
+          name: "山頂果園",
+          description: "宜蘭溪北有機水果・果乾",
+          products: [
+            { id: "v2p1", name: "檸檬果乾（100g）", price: 180, stock: 30 },
+            { id: "v2p2", name: "有機金棗 1kg", price: 280, note: "季節限定", stock: 15 },
+          ],
+        },
+        {
+          id: "v3",
+          name: "手感皂工作室",
+          description: "天然手工皂、香氛蠟燭",
+          products: [
+            { id: "v3p1", name: "薰衣草手工皂", price: 180, stock: 20 },
+            { id: "v3p2", name: "香氛大豆蠟燭", price: 320, stock: 8 },
+          ],
+        },
+      ],
+    };
+  }
+  return null;
+}
 
 export const metadata: Metadata = {
   title: "文章",
@@ -11,6 +59,7 @@ export default async function PostPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
+  const market = getArticleMarket(slug);
 
   return (
     <article className="mx-auto px-4 py-12" style={{ maxWidth: 1000 }}>
@@ -86,6 +135,28 @@ export default async function PostPage({
           購買閱讀 NT$ 50
         </a>
       </div>
+
+      {/* ── 市集預購區塊（有關聯市集時顯示）── */}
+      {market && (
+        <div className="my-10">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="flex-1 h-px" style={{ background: "var(--color-dust)" }} />
+            <p className="text-xs font-semibold px-3" style={{ color: "var(--color-bark)" }}>
+              📦 現場預購
+            </p>
+            <div className="flex-1 h-px" style={{ background: "var(--color-dust)" }} />
+          </div>
+          <p className="text-sm mb-4" style={{ color: "var(--color-mist)" }}>
+            市集當天到場取貨，現在就能先預訂喜歡的商品，確保不缺貨！
+          </p>
+          <MarketPreOrderPanel
+            marketTitle={market.title}
+            marketDate={market.date}
+            vendors={market.vendors}
+            layout="inline"
+          />
+        </div>
+      )}
 
       {/* 導購區 */}
       <AlsoWantToKnow />

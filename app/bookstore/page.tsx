@@ -92,7 +92,6 @@ function CurationRow({ title, items }: { title: string; items: { type: string; t
     <section className="py-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-[1.1em] font-semibold" style={{ color: "#1a1612" }}>{title}</h3>
-        <span className="text-xs cursor-pointer" style={{ color: "#4ECDC4" }}>查看全部 →</span>
       </div>
       <div className="hscroll-track">
         {items.map((item, i) => {
@@ -153,7 +152,10 @@ export default async function BookstorePage() {
 
       {/* ── 區塊 2: 主題選書輪播 ── */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>主題選書</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>主題選書</h2>
+          <Link href="/book-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多主題選書 →</Link>
+        </div>
         <div className="hscroll-track">
           {books.map((book) => (
             <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} originalPrice={book.originalPrice} photo={book.photo} icon="📖" author={book.author} publisher={book.publisher} />
@@ -164,7 +166,10 @@ export default async function BookstorePage() {
 
       {/* ── 區塊 3: 風格選物輪播 ── */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>風格選物</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>風格選物</h2>
+          <Link href="/goods-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多風格選物 →</Link>
+        </div>
         <div className="hscroll-track">
           {goods.map((good) => (
             <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} originalPrice={good.originalPrice} photo={good.photo} icon="🎁" author={good.author} publisher={good.publisher} />

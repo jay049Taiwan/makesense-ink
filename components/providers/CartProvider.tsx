@@ -1,0 +1,84 @@
+"use client";
+
+import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+
+/* ═══════════════════════════════════════════
+   購物車項目型別
+   ═══════════════════════════════════════════ */
+export type CartItemType = "走讀" | "講座" | "市集" | "空間" | "諮詢" | "預購" | "商品";
+
+export interface CartItem {
+  id: string;           // 唯一 key（商品 ID 或活動 ID + 票種）
+  name: string;         // 顯示名稱
+  subtitle?: string;    // 副標（如票種、規格）
+  type: CartItemType;   // 項目類型
+  price: number;        // 單價
+  qty: number;          // 數量
+  eventId?: string;     // 對應活動 ID（活動票券用）
+  productId?: string;   // 對應商品 ID（商品用）
+  meta?: Record<string, string>; // 額外資訊（日期、場次等）
+  registration?: Record<string, string>; // 報名表單資訊（票券用）
+}
+
+/* ═══════════════════════════════════════════
+   Context 介面
+   ═══════════════════════════════════════════ */
+interface CartContextValue {
+  items: CartItem[];
+  addItem: (item: Omit<CartItem, "qty"> & { qty?: number }) => void;
+  removeItem: (id: string) => void;
+  updateQty: (id: string, qty: number) => void;
+  clearCart: () => void;
+  totalItems: number;
+  totalPrice: number;
+}
+
+const CartContext = createContext<CartContextValue | null>(null);
+
+export function useCart() {
+  const ctx = useContext(CartContext);
+  if (!ctx) throw new Error("useCart must be used within CartProvider");
+  return ctx;
+}
+
+/* ═══════════════════════════════════════════
+   Provider
+   ═══════════════════════════════════════════ */
+export default function CartProvider({ children }: { children: ReactNode }) {
+  const [items, setItems] = useState<CartItem[]>([]);
+
+  const addItem = useCallback((incoming: Omit<CartItem, "qty"> & { qty?: number }) => {
+    setItems((prev) => {
+      const existing = prev.find((i) => i.id === incoming.id);
+      if (existing) {
+        return prev.map((i) =>
+          i.id === incoming.id ? { ...i, qty: i.qty + (incoming.qty ?? 1) } : i
+        );
+      }
+      return [...prev, { ...incoming, qty: incoming.qty ?? 1 }];
+    });
+  }, []);
+
+  const removeItem = useCallback((id: string) => {
+    setItems((prev) => prev.filter((i) => i.id !== id));
+  }, []);
+
+  const updateQty = useCallback((id: string, qty: number) => {
+    if (qty <= 0) {
+      setItems((prev) => prev.filter((i) => i.id !== id));
+    } else {
+      setItems((prev) => prev.map((i) => (i.id === id ? { ...i, qty } : i)));
+    }
+  }, []);
+
+  const clearCart = useCallback(() => setItems([]), []);
+
+  const totalItems = items.reduce((s, i) => s + i.qty, 0);
+  const totalPrice = items.reduce((s, i) => s + i.price * i.qty, 0);
+
+  return (
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQty, clearCart, totalItems, totalPrice }}>
+      {children}
+    </CartContext.Provider>
+  );
+}

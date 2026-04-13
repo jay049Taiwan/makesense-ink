@@ -1,81 +1,150 @@
-import { auth } from "@/lib/auth";
-import { fetchPersonByEmail, fetchVendorInventory } from "@/lib/fetch-all";
-import type { VendorInventoryItem } from "@/lib/fetch-all";
+"use client";
 
-const statusStyle: Record<string, { bg: string; color: string; label: string }> = {
-  上架中:   { bg: "rgba(78,205,196,0.12)", color: "#3aa89f", label: "上架中" },
-  下架:     { bg: "#f5f0eb",              color: "#8C7A6A", label: "下架" },
-  缺貨:     { bg: "#FDF0F0",              color: "#B85C5C", label: "缺貨" },
-  預購中:   { bg: "#FFF3E0",              color: "#C4864A", label: "預購中" },
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import { useDevRole } from "@/components/providers/DevRoleProvider";
+import { getVendorProducts } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
+
+interface ProductRow {
+  id: string;
+  name: string;
+  price: number | null;
+  stock: number | null;
+  category: string | null;
+  status: string | null;
+  photo_url: string | null;
+  sold?: number;
+  avgRating?: string | null;
+}
+
+const statusStyle: Record<string, { bg: string; color: string }> = {
+  上架中: { bg: "rgba(78,205,196,0.12)", color: "#3aa89f" },
+  下架:   { bg: "#f5f0eb",              color: "#8C7A6A" },
+  缺貨:   { bg: "#FDF0F0",              color: "#B85C5C" },
+  預購中: { bg: "#FFF3E0",              color: "#C4864A" },
 };
 
-function StockDisplay({ stock }: { stock: number | null }) {
+function StockBadge({ stock }: { stock: number | null }) {
   if (stock === null) return <span style={{ color: "var(--color-mist)" }}>—</span>;
-  if (stock === 0) return <span style={{ color: "#B85C5C" }}>缺貨</span>;
-  if (stock <= 3) return <span style={{ color: "#C4864A" }}>{stock}</span>;
+  if (stock === 0) return <span style={{ color: "#B85C5C", fontWeight: 600 }}>缺貨</span>;
+  if (stock <= 3) return <span style={{ color: "#C4864A", fontWeight: 600 }}>{stock}</span>;
   return <span style={{ color: "var(--color-ink)" }}>{stock}</span>;
 }
 
-export default async function VendorProductsPage() {
-  const session = await auth();
-  const email = session?.user?.email;
+export default function VendorProductsPage() {
+  const { data: session } = useSession();
+  const devRole = useDevRole();
+  const isDev = process.env.NODE_ENV === "development";
 
-  let items: VendorInventoryItem[] = [];
+  const email = isDev ? devRole.email : (session?.user?.email || "");
+  const partnerName = isDev ? devRole.displayName : ((session as any)?.displayName || "");
 
-  if (email) {
-    const person = await fetchPersonByEmail(email);
-    if (person?.id) {
-      items = await fetchVendorInventory(person.id, 50);
+  const [items, setItems] = useState<ProductRow[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      if (isDev) {
+        // dev 模式：從 mock-data 取假資料
+        const mockProducts = getVendorProducts();
+        setItems(mockProducts.map((p) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          category: p.category,
+          status: p.stock === 0 ? "缺貨" : "上架中",
+          photo_url: p.photo,
+          sold: p.sold,
+          avgRating: p.avgRating,
+        })));
+        setLoading(false);
+        return;
+      }
+
+      // 正式環境：查 Supabase
+      if (!email) { setLoading(false); return; }
+
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("id")
+        .eq("contact->>email" as any, email)
+        .maybeSingle();
+
+      if (partner?.id) {
+        const { data } = await supabase
+          .from("products")
+          .select("id, name, price, stock, category, status, photo_url")
+          .eq("partner_id", partner.id)
+          .order("created_at", { ascending: false });
+        setItems((data as ProductRow[]) || []);
+      }
+
+      setLoading(false);
     }
+
+    load();
+  }, [email, isDev]);
+
+  if (loading) {
+    return <p className="text-sm py-12 text-center" style={{ color: "var(--color-mist)" }}>載入中…</p>;
   }
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>我的產品</h2>
+        <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>商品管理</h2>
         <span className="text-sm" style={{ color: "var(--color-mist)" }}>
-          from Notion DB07・{items.length} 項
+          {partnerName && `${partnerName}・`}{items.length} 項
         </span>
       </div>
 
       {items.length === 0 ? (
         <div className="rounded-xl py-16 text-center" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
-          <p style={{ color: "var(--color-mist)" }}>目前沒有上架中的產品</p>
-          <p className="text-xs mt-2" style={{ color: "var(--color-mist)" }}>如有疑問請聯繫現思工作團隊</p>
+          <p style={{ color: "var(--color-mist)" }}>尚未有商品上架</p>
+          <p className="text-xs mt-2" style={{ color: "var(--color-mist)" }}>商品資料由現思團隊在 Notion 建立後自動同步</p>
         </div>
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ minWidth: 540 }}>
+          <table className="w-full text-sm" style={{ minWidth: 560 }}>
             <thead>
               <tr style={{ borderBottom: "1px solid var(--color-dust)" }}>
-                {["商品名稱", "狀態", "售價", "庫存", "類型"].map((h) => (
+                {["商品名稱", "狀態", "售價", "庫存", "已售", "評分", "類型"].map((h) => (
                   <th key={h} className="text-left py-3 px-2 font-medium" style={{ color: "var(--color-mist)" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {items.map((item) => {
-                const st = statusStyle[item.status] || statusStyle["下架"];
+                const statusKey = item.status || "下架";
+                const st = statusStyle[statusKey] || statusStyle["下架"];
                 return (
                   <tr key={item.id} style={{ borderBottom: "1px solid var(--color-dust)" }}>
                     <td className="py-3 px-2 font-medium" style={{ color: "var(--color-ink)" }}>
-                      {item.photo && (
-                        <img src={item.photo} alt="" className="inline-block w-7 h-7 rounded object-cover mr-2 align-middle" />
+                      {item.photo_url && (
+                        <img src={item.photo_url} alt="" className="inline-block w-7 h-7 rounded object-cover mr-2 align-middle" />
                       )}
                       {item.name}
                     </td>
                     <td className="py-3 px-2">
-                      {item.status ? (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
-                          {item.status}
-                        </span>
-                      ) : <span style={{ color: "var(--color-mist)" }}>—</span>}
+                      <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: st.bg, color: st.color }}>
+                        {statusKey}
+                      </span>
                     </td>
                     <td className="py-3 px-2" style={{ color: "var(--color-rust)" }}>
-                      {item.price ? `NT$ ${item.price.toLocaleString()}` : "—"}
+                      {item.price != null ? `NT$ ${item.price.toLocaleString()}` : "—"}
                     </td>
                     <td className="py-3 px-2">
-                      <StockDisplay stock={item.stock} />
+                      <StockBadge stock={item.stock} />
+                    </td>
+                    <td className="py-3 px-2" style={{ color: "var(--color-ink)" }}>
+                      {item.sold ?? "—"}
+                    </td>
+                    <td className="py-3 px-2">
+                      {item.avgRating
+                        ? <span style={{ color: "#f5a623" }}>★ {item.avgRating}</span>
+                        : <span style={{ color: "var(--color-mist)" }}>—</span>}
                     </td>
                     <td className="py-3 px-2" style={{ color: "var(--color-mist)" }}>
                       {item.category || "—"}

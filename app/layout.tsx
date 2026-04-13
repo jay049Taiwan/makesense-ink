@@ -1,9 +1,9 @@
 import type { Metadata } from "next";
 import "./globals.css";
-import Header from "@/components/ui/Header";
-import Footer from "@/components/ui/Footer";
+import LayoutShell from "@/components/ui/LayoutShell";
 import AuthProvider from "@/components/providers/AuthProvider";
 import DevRoleProvider from "@/components/providers/DevRoleProvider";
+import CartProvider from "@/components/providers/CartProvider";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script";
 
@@ -34,11 +34,11 @@ export default function RootLayout({
       </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>
-          <DevRoleProvider>
-            <Header />
-            <main className="flex-1">{children}</main>
-            <Footer />
-          </DevRoleProvider>
+          <CartProvider>
+            <DevRoleProvider>
+              <LayoutShell>{children}</LayoutShell>
+            </DevRoleProvider>
+          </CartProvider>
         </AuthProvider>
         <GoogleAnalytics gaId="G-51MHE2BT74" />
         <Script id="ga4-cross-domain" strategy="afterInteractive">

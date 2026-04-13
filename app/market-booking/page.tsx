@@ -33,18 +33,28 @@ const partnerBrands = [
 ];
 
 const marketEvents = [
-  { id: 1, title: "森本集市 01場｜春之初", date: "2026-04-03", status: "已結束" },
-  { id: 2, title: "森本集市 02場｜五月春日篇", date: "2026-05-01", status: "報名中" },
-  { id: 3, title: "森本集市 03場｜初夏微風", date: "2026-05-09", status: "即將開放" },
-  { id: 4, title: "森本集市 04場｜仲夏夜", date: "2026-06-19", status: "即將開放" },
-  { id: 5, title: "森本集市 05場｜秋收祭", date: "2026-09-15", status: "規劃中" },
+  { id: 1, title: "森本集市 01場｜春之初", date: "2026-04-03", registrationDeadline: "2026-03-20" },
+  { id: 2, title: "森本集市 02場｜五月春日篇", date: "2026-05-01", registrationDeadline: "2026-04-20" },
+  { id: 3, title: "森本集市 03場｜初夏微風", date: "2026-05-09", registrationDeadline: "2026-04-25" },
+  { id: 4, title: "森本集市 04場｜仲夏夜", date: "2026-06-19", registrationDeadline: "2026-06-05" },
+  { id: 5, title: "森本集市 05場｜秋收祭", date: "2026-09-15", registrationDeadline: "2026-09-01" },
 ];
+
+/** 根據報名截止日與活動日期，自動判斷狀態 */
+function getEventStatus(eventDate: string, registrationDeadline: string): string {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const evDate = new Date(eventDate);
+  const regDeadline = new Date(registrationDeadline);
+  if (today > evDate) return "已結束";
+  if (today > regDeadline) return "截止報名";
+  return "報名中";
+}
 
 const statusStyle: Record<string, { bg: string; text: string }> = {
   已結束: { bg: "#f0f0f0", text: "#999" },
+  截止報名: { bg: "#FFF3E0", text: "#E65100" },
   報名中: { bg: "rgba(78,205,196,0.12)", text: "#3aa89f" },
-  即將開放: { bg: "#FFF3E0", text: "#E65100" },
-  規劃中: { bg: "#E3F2FD", text: "#1565C0" },
 };
 
 export default function MarketBookingPage() {
@@ -53,7 +63,7 @@ export default function MarketBookingPage() {
 
       {/* ═══ 上半部：Notion page content（佔位 300 字）═══ */}
       <section className="py-12">
-        <div className="max-w-[800px] mx-auto">
+        <div className="max-w-[1200px] mx-auto">
           <h1 className="text-3xl font-semibold mb-2"
             style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
             展售合作
@@ -95,12 +105,10 @@ export default function MarketBookingPage() {
             <Link key={p.id} href={`/product/${p.id}`}
               className="rounded-lg overflow-hidden transition-all hover:shadow-md hover:scale-[1.02]"
               style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-              <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-2xl opacity-20">🏷</span>
-              </div>
-              <div className="p-2">
-                <h3 className="text-[0.75em] line-clamp-2 mb-0.5" style={{ color: "var(--color-ink)" }}>{p.name}</h3>
-                <p className="text-[0.7em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {p.price}</p>
+              <div className="aspect-square flex items-center justify-end flex-col relative" style={{ background: "var(--color-parchment)" }}>
+                <span className="text-2xl opacity-20 absolute top-1/3">🏷</span>
+                <h3 className="text-[0.75em] font-medium line-clamp-2 text-center px-2 pb-2 relative z-10"
+                  style={{ color: "var(--color-ink)" }}>{p.name}</h3>
               </div>
             </Link>
           ))}
@@ -111,8 +119,8 @@ export default function MarketBookingPage() {
       <section className="py-8" style={{ borderTop: "1px solid var(--color-dust)" }}>
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h2 className="text-[1.5em] font-bold" style={{ color: "var(--color-ink)" }}>合作代銷品牌</h2>
-            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>與我們攜手合作的在地品牌夥伴・from DB08</p>
+            <h2 className="text-[1.5em] font-bold" style={{ color: "var(--color-ink)" }}>地方特色產品展售</h2>
+            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>有產品在旅人書店銷售的品牌夥伴・from DB08 觀點</p>
           </div>
           <span className="text-sm" style={{ color: "var(--color-teal)" }}>{partnerBrands.length} 個品牌</span>
         </div>
@@ -147,7 +155,8 @@ export default function MarketBookingPage() {
         </div>
         <div className="hscroll-track">
           {marketEvents.map((ev) => {
-            const st = statusStyle[ev.status] || statusStyle["規劃中"];
+            const status = getEventStatus(ev.date, ev.registrationDeadline);
+            const st = statusStyle[status] || statusStyle["報名中"];
             return (
               <Link key={ev.id} href={`/events/${ev.id}`}
                 className="flex-shrink-0 rounded-lg overflow-hidden transition-all hover:shadow-md"
@@ -157,7 +166,7 @@ export default function MarketBookingPage() {
                   <span className="text-3xl opacity-20">🏕</span>
                   <span className="absolute top-2 right-2 text-[0.65em] px-2 py-0.5 rounded-full font-medium"
                     style={{ background: st.bg, color: st.text }}>
-                    {ev.status}
+                    {status}
                   </span>
                 </div>
                 <div className="p-3">

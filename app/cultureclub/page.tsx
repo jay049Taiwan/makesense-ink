@@ -122,7 +122,10 @@ export default function CultureClubPage() {
 
       {/* ── 區塊 3: 地方通訊（原「話題熱搜」）── */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>地方通訊</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>地方通訊</h2>
+          <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多地方通訊 →</Link>
+        </div>
         <div className="hscroll-track">
           {[
             { name: "宜蘭線鐵路", count: 8 },
@@ -150,13 +153,15 @@ export default function CultureClubPage() {
 
       {/* ── 區塊 4: 話題觀點（原「脈絡觀點」）── 跟書店「主題策展」同格式 */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-6" style={{ color: "#1a1612" }}>話題觀點</h2>
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>話題觀點</h2>
+          <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多文化觀點 →</Link>
+        </div>
         <div className="space-y-8">
           {viewpointTopics.map((topic) => (
             <div key={topic.name}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-[1.1em] font-semibold" style={{ color: "#1a1612" }}>{topic.name}</h3>
-                <Link href={`/viewpoint-stroll?keyword=${topic.name}`} className="text-xs" style={{ color: "#4ECDC4" }}>查看全部 →</Link>
               </div>
               <div className="hscroll-track">
                 {topic.items.map((item) => {
@@ -199,7 +204,10 @@ export default function CultureClubPage() {
 
       {/* ── 區塊 5: 選書選物 ── */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>選書選物</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>選書選物</h2>
+          <Link href="/bookstore" className="text-xs" style={{ color: "var(--color-teal)" }}>前往旅人書店看見更多選書選物 →</Link>
+        </div>
         <div className="hscroll-track">
           {sampleGoods.map((g) => (
             <Link
@@ -226,7 +234,7 @@ export default function CultureClubPage() {
       {/* ── 活動行事曆 ── */}
       <section className="py-6 pb-16">
         <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>活動行事曆</h2>
-        <Calendar mode="default" />
+        <Calendar mode="default" fetchUrl="/api/calendar/events" />
       </section>
     </div>
   );
