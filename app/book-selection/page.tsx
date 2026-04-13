@@ -1,94 +1,112 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/lib/supabase";
 
-const topics = ["不分主題", "宜蘭文學", "在地生活", "自然生態", "歷史文化"];
-const authors = ["不分作者", "黃春明", "簡媜", "吳明益"];
-const sortOptions = ["預設", "最新", "價格", "瀏覽數"];
+interface BookItem {
+  id: string;
+  title: string;
+  author: string;
+  publisher: string;
+  price: number;
+  photo: string | null;
+  category: string | null;
+  slug: string;
+}
 
-const sampleBooks = Array.from({ length: 12 }, (_, i) => ({
-  id: i + 1,
-  title: `書籍名稱 ${i + 1}`,
-  author: authors[i % authors.length],
-  price: 280 + i * 30,
-  image: null,
-}));
+const sortOptions = ["預設", "最新", "價格"];
 
-export default function ThemedSelectionPage() {
-  const [activeTopic, setActiveTopic] = useState("不分主題");
+export default function BookSelectionPage() {
   const [activeSort, setActiveSort] = useState("預設");
+  const [books, setBooks] = useState<BookItem[]>([]);
+  const [authors, setAuthors] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      const { data } = await supabase
+        .from("products")
+        .select("id, notion_id, name, price, category, images, status, author_id, publisher_id")
+        .eq("status", "active")
+        .ilike("category", "%選書%")
+        .order("updated_at", { ascending: false })
+        .limit(60);
+
+      if (data) {
+        const personIds = [...new Set(data.flatMap(p => [p.author_id, p.publisher_id]).filter(Boolean))];
+        let personMap: Record<string, string> = {};
+        if (personIds.length > 0) {
+          const { data: persons } = await supabase.from("persons").select("id, name").in("id", personIds);
+          for (const p of persons || []) personMap[p.id] = p.name;
+        }
+
+        const items: BookItem[] = data.map(p => ({
+          id: p.notion_id || p.id,
+          title: p.name,
+          author: p.author_id ? (personMap[p.author_id] || "—") : "—",
+          publisher: p.publisher_id ? (personMap[p.publisher_id] || "—") : "—",
+          price: p.price,
+          photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
+          category: p.category,
+          slug: p.notion_id || p.id,
+        }));
+
+        setBooks(items);
+        setAuthors([...new Set(items.map(b => b.author).filter(a => a !== "—"))]);
+      }
+      setLoading(false);
+    }
+    load();
+  }, []);
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
-      <h1 className="text-[1.5em] font-bold mb-6" style={{ color: "var(--color-ink)" }}>
+      <h1 className="text-[1.5em] font-bold mb-2" style={{ color: "var(--color-ink)" }}>
         主題選書
       </h1>
+      <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
+        我們精選的在地文化書籍與出版品
+      </p>
 
-      {/* Ts-S1: Featured carousel */}
-      <div className="hscroll-track mb-8">
-        {sampleBooks.slice(0, 6).map((book) => (
-          <div
-            key={book.id}
-            className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-            style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
-          >
-            <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-              <span className="text-3xl opacity-30">📖</span>
-            </div>
-            <div className="p-2">
-              <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
-              <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{book.author}</p>
-              <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Ts-S2: Topic tabs */}
-      <div className="flex gap-2 mb-4 overflow-x-auto">
-        {topics.map((t) => (
-          <button
-            key={t}
-            onClick={() => setActiveTopic(t)}
-            className="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
-            style={{
-              background: activeTopic === t ? "var(--color-moss)" : "var(--color-warm-white)",
-              color: activeTopic === t ? "#fff" : "var(--color-muted)",
-              border: `1px solid ${activeTopic === t ? "var(--color-moss)" : "var(--color-dust)"}`,
-            }}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
-      {/* Ts-S3: Author/creator row */}
-      <div className="hscroll-track mb-6">
-        {authors.filter(a => a !== "不分作者").map((a) => (
-          <span key={a} className="flex-shrink-0 px-3 py-1 rounded-full text-xs"
-            style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}>
-            {a}
-          </span>
-        ))}
-      </div>
-
-      <div className="flex gap-6">
-        {/* Ts-S4: Category sidebar */}
-        <aside className="hidden lg:block w-[160px] flex-shrink-0">
-          <div className="sticky top-20 rounded-lg p-4" style={{ background: "var(--color-warm-white)", border: "1px solid var(--color-dust)" }}>
-            <p className="text-xs font-semibold mb-3" style={{ color: "var(--color-bark)" }}>書籍分類</p>
-            {["散文", "小說", "詩集", "圖文", "攝影", "繪本"].map((cat) => (
-              <button key={cat} className="block w-full text-left px-2 py-1.5 rounded text-sm" style={{ color: "var(--color-muted)" }}>
-                {cat}
-              </button>
+      {loading ? (
+        <p className="text-sm py-12 text-center" style={{ color: "var(--color-mist)" }}>載入中…</p>
+      ) : (
+        <>
+          {/* Featured carousel */}
+          <div className="hscroll-track mb-8">
+            {books.slice(0, 6).map((book) => (
+              <a key={book.id} href={`/product/${book.slug}`}
+                className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+                style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                  {book.photo
+                    ? <img src={book.photo} alt={book.title} className="w-full h-full object-cover" />
+                    : <span className="text-3xl opacity-30">📖</span>}
+                </div>
+                <div className="p-2">
+                  <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
+                  <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{book.author}</p>
+                  <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
+                </div>
+              </a>
             ))}
           </div>
-        </aside>
 
-        <div className="flex-1">
-          {/* Ts-S5: Sort */}
+          {/* Author row */}
+          {authors.length > 0 && (
+            <div className="hscroll-track mb-6">
+              {authors.map((a) => (
+                <span key={a} className="flex-shrink-0 px-3 py-1 rounded-full text-xs"
+                  style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}>
+                  {a}
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Sort + count */}
           <div className="flex items-center justify-between mb-4">
-            <span className="text-sm" style={{ color: "var(--color-muted)" }}>共 {sampleBooks.length} 本</span>
+            <span className="text-sm" style={{ color: "var(--color-muted)" }}>共 {books.length} 本</span>
             <div className="flex gap-1">
               {sortOptions.map((s) => (
                 <button key={s} onClick={() => setActiveSort(s)} className="px-2 py-1 text-xs rounded transition-colors"
@@ -99,24 +117,34 @@ export default function ThemedSelectionPage() {
             </div>
           </div>
 
-          {/* Ts-S6: Product grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {sampleBooks.map((book) => (
-              <div key={book.id} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+          {/* Book grid */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {books.map((book) => (
+              <a key={book.id} href={`/product/${book.slug}`} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  <span className="text-3xl opacity-30">📖</span>
+                  {book.photo
+                    ? <img src={book.photo} alt={book.title} className="w-full h-full object-cover" />
+                    : <span className="text-3xl opacity-30">📖</span>}
                 </div>
                 <div className="p-3">
-                  <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
-                  <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{book.author}</p>
+                  <h3 className="text-[0.9em] line-clamp-2 font-medium" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
+                  {book.author !== "—" && (
+                    <p className="text-[0.75em] mt-0.5" style={{ color: "var(--color-muted)" }}>{book.author}</p>
+                  )}
                   <p className="text-[0.85em] font-medium mt-1" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
                 </div>
-              </div>
+              </a>
             ))}
           </div>
-        </div>
-      </div>
+
+          {books.length === 0 && (
+            <div className="py-16 text-center">
+              <p style={{ color: "var(--color-mist)" }}>目前沒有上架的書籍</p>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

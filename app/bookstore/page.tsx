@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchSBProducts, fetchSBEvents } from "@/lib/fetch-supabase";
+import { fetchSBProducts, fetchSBArticles } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 
@@ -32,13 +32,6 @@ const sampleCuration = [
     { type: "觀點", title: "河岸風光：宜蘭的水文地景" },
   ]},
 ];
-
-const newsTypeStyles: Record<string, { bg: string; text: string }> = {
-  文章: { bg: "#E8F5E9", text: "#2E7D32" },
-  活動: { bg: "#FFF3E0", text: "#E65100" },
-  商品: { bg: "#E3F2FD", text: "#1565C0" },
-};
-
 
 /* ── 共用商品卡片 ── */
 function ProductCard({ id, name, price, originalPrice, photo, icon, author, publisher }: {
@@ -123,7 +116,7 @@ export default async function BookstorePage() {
   // 全部從 Supabase 讀取
   const books = await fetchSBProducts("選書", 12);
   const goods = await fetchSBProducts("選物", 12);
-  const activities = await fetchSBEvents(5);
+  const articles = await fetchSBArticles(5);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
@@ -174,36 +167,29 @@ export default async function BookstorePage() {
         ))}
       </section>
 
-      {/* ── 區塊 9: 最新消息 ── */}
+      {/* ── 區塊 B5: 地方通訊 ── */}
       <section className="py-6">
-        <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>最新消息</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>地方通訊</h2>
+          <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多地方通訊 →</Link>
+        </div>
         <div>
-          {activities.map((activity) => {
-            const typeLabel = activity.type || "活動";
-            const style = newsTypeStyles[typeLabel] || newsTypeStyles["活動"];
-            return (
-              <Link
-                key={activity.id}
-                href={`/events/${activity.slug}`}
-                className="flex items-start gap-4 py-4 px-2 -mx-2 rounded transition-colors hover:bg-[#faf8f5]"
-                style={{ borderBottom: "1px solid #f0f0f0" }}
-              >
-                <div className="flex-shrink-0 min-w-[140px]">
-                  <span className="text-[0.8em]" style={{ color: "#999" }}>{activity.date || ""}</span>
-                  <span
-                    className="inline-block ml-2 text-[0.85em] px-2 py-0.5 rounded-[3px]"
-                    style={{ background: style.bg, color: style.text }}
-                  >
-                    {typeLabel}
-                  </span>
-                </div>
-                <span className="text-[0.95em]" style={{ color: "#1a1612" }}>
-                  {activity.title}
-                </span>
-              </Link>
-            );
-          })}
-          {activities.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有近期活動</p>}
+          {articles.map((article) => (
+            <Link
+              key={article.id}
+              href={`/post/${article.slug}`}
+              className="flex items-start gap-4 py-4 px-2 -mx-2 rounded transition-colors hover:bg-[#faf8f5]"
+              style={{ borderBottom: "1px solid #f0f0f0" }}
+            >
+              <span className="text-[0.8em] flex-shrink-0 min-w-[100px]" style={{ color: "#999" }}>
+                {article.date ? new Date(article.date).toLocaleDateString("zh-TW") : ""}
+              </span>
+              <span className="text-[0.95em]" style={{ color: "#1a1612" }}>
+                {article.title}
+              </span>
+            </Link>
+          ))}
+          {articles.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有文章</p>}
         </div>
       </section>
 
