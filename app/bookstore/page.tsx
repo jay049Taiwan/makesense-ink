@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchSBProducts, fetchSBArticles } from "@/lib/fetch-supabase";
+import { fetchSBProducts, fetchSBArticles, fetchSBTopics } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 
@@ -12,26 +12,7 @@ export const metadata: Metadata = {
 // 啟用 ISR：每 300 秒（5 分鐘）重新驗證
 export const revalidate = 300;
 
-const sampleCuration = [
-  { title: "你可能會喜歡的", items: [
-    { type: "選書", title: "散步指南：宜蘭小旅行" },
-    { type: "內容", title: "老街故事：頭城百年風華" },
-    { type: "觀點", title: "溫泉文化與地方再生" },
-    { type: "選物", title: "宜蘭食記手繪明信片組" },
-  ]},
-  { title: "宜蘭人都在看", items: [
-    { type: "內容", title: "蘭陽博物館的建築美學" },
-    { type: "活動", title: "頭城搶孤文化祭" },
-    { type: "觀點", title: "龜山島傳說與海洋信仰" },
-    { type: "選書", title: "三星蔥農事：一位農夫的四季" },
-  ]},
-  { title: "端午節會想到的", items: [
-    { type: "活動", title: "冬山河龍舟賽觀賞指南" },
-    { type: "內容", title: "宜蘭粽子文化小考" },
-    { type: "選物", title: "艾草香包手作組" },
-    { type: "觀點", title: "河岸風光：宜蘭的水文地景" },
-  ]},
-];
+/* sampleCuration removed — B4 now uses dynamic viewpoints from Supabase */
 
 /* ── 共用商品卡片 ── */
 function ProductCard({ id, name, price, originalPrice, photo, icon, author, publisher }: {
@@ -72,51 +53,14 @@ function ProductCard({ id, name, price, originalPrice, photo, icon, author, publ
   );
 }
 
-function CurationRow({ title, items }: { title: string; items: { type: string; title: string }[] }) {
-  const catColors: Record<string, { bg: string; text: string; icon: string }> = {
-    "選書": { bg: "#FFF8E1", text: "#F57F17", icon: "📖" },
-    "選物": { bg: "#E0F2F1", text: "#00695C", icon: "🎁" },
-    "內容": { bg: "#F3E5F5", text: "#6A1B9A", icon: "📄" },
-    "活動": { bg: "#E8F5E9", text: "#2E7D32", icon: "🎪" },
-    "觀點": { bg: "#E3F2FD", text: "#1565C0", icon: "💡" },
-  };
-
-  return (
-    <section className="py-4">
-      <div className="flex items-center justify-between mb-3">
-        <h3 className="text-[1.1em] font-semibold" style={{ color: "#1a1612" }}>{title}</h3>
-      </div>
-      <div className="hscroll-track">
-        {items.map((item, i) => {
-          const c = catColors[item.type] || catColors["內容"];
-          return (
-            <div
-              key={i}
-              className="flex-shrink-0 w-[calc((100%-48px)/4)] min-w-[200px] rounded-lg overflow-hidden transition-all hover:scale-[1.03]"
-              style={{ border: "1px solid #e8e0d4", background: "#fff" }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center relative" style={{ background: "#f2ede6" }}>
-                <span className="text-2xl opacity-20">{c.icon}</span>
-                <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: c.bg, color: c.text }}>
-                  {item.type}
-                </span>
-              </div>
-              <div className="p-2.5">
-                <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{item.title}</h4>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
+/* CurationRow removed — replaced by dynamic viewpoints */
 
 export default async function BookstorePage() {
   // 全部從 Supabase 讀取
   const books = await fetchSBProducts("選書", 12);
   const goods = await fetchSBProducts("選物", 12);
   const articles = await fetchSBArticles(5);
+  const viewpoints = await fetchSBTopics("viewpoint", 3);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
@@ -160,12 +104,30 @@ export default async function BookstorePage() {
         </div>
       </section>
 
-      {/* ── 區塊 4-6: 主題策展 ×3（Netflix 風格）── */}
-      <section className="py-6">
-        {sampleCuration.slice(0, 3).map((row, i) => (
-          <CurationRow key={i} title={row.title} items={row.items} />
-        ))}
-      </section>
+      {/* ── 區塊 B4: 主題策展（動態觀點 from DB08）── */}
+      {viewpoints.length > 0 && (
+        <section className="py-6">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>主題策展</h2>
+            <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>探索更多觀點 →</Link>
+          </div>
+          <div className="hscroll-track">
+            {viewpoints.map((vp) => (
+              <Link key={vp.id} href={`/viewpoint/${vp.slug}`}
+                className="flex-shrink-0 w-[260px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+                style={{ border: "1px solid #e8e0d4", background: "#fff" }}>
+                <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
+                  <span className="text-3xl opacity-20">💡</span>
+                </div>
+                <div className="p-3">
+                  <h3 className="text-[0.95em] font-medium line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{vp.name}</h3>
+                  {vp.summary && <p className="text-[0.75em] line-clamp-2" style={{ color: "#8b7355" }}>{vp.summary}</p>}
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* ── 區塊 B5: 地方通訊 ── */}
       <section className="py-6">

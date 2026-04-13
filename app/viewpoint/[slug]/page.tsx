@@ -1,148 +1,158 @@
-import type { Metadata } from "next";
+"use client";
 
-export const metadata: Metadata = {
-  title: "觀點",
-};
+import { useState, useEffect, use } from "react";
+import { supabase } from "@/lib/supabase";
+import Link from "next/link";
 
-export default async function ViewpointPage({
-  params,
-}: {
-  params: Promise<{ slug: string }>;
-}) {
-  const { slug } = await params;
+interface TopicData {
+  name: string;
+  tag_type: string;
+  summary: string | null;
+  content: string | null;
+}
+
+export default function ViewpointPage({ params }: { params: Promise<{ slug: string }> }) {
+  const { slug } = use(params);
+  const [topic, setTopic] = useState<TopicData | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
+  const [relatedTopics, setRelatedTopics] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    async function load() {
+      // Fetch the topic
+      const { data } = await supabase
+        .from("topics")
+        .select("id, notion_id, name, tag_type, summary, content, status")
+        .or(`notion_id.eq.${slug},id.eq.${slug}`)
+        .maybeSingle();
+
+      if (data) {
+        setTopic({
+          name: data.name,
+          tag_type: data.tag_type || "tag",
+          summary: data.summary,
+          content: data.content,
+        });
+
+        // Fetch related topics (same tag_type, excluding self)
+        const { data: related } = await supabase
+          .from("topics")
+          .select("id, notion_id, name, tag_type")
+          .eq("status", "active")
+          .eq("tag_type", data.tag_type)
+          .neq("notion_id", slug)
+          .limit(8);
+        setRelatedTopics((related || []).map(t => ({ id: t.notion_id || t.id, name: t.name, slug: t.notion_id || t.id })));
+
+        // Fetch some products for "related products"
+        const { data: prods } = await supabase
+          .from("products")
+          .select("id, notion_id, name, price, images, status")
+          .eq("status", "active")
+          .limit(5);
+
+        setRelatedProducts((prods || []).map(p => ({
+          id: p.notion_id || p.id,
+          name: p.name,
+          price: p.price,
+          photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
+          slug: p.notion_id || p.id,
+        })));
+      }
+      setLoading(false);
+    }
+    load();
+  }, [slug]);
+
+  if (loading) {
+    return <div className="flex items-center justify-center py-24"><p style={{ color: "var(--color-mist)" }}>載入中…</p></div>;
+  }
+
+  if (!topic) {
+    return (
+      <div className="flex items-center justify-center py-24 flex-col gap-2">
+        <p className="text-4xl">💡</p>
+        <p style={{ color: "var(--color-mist)" }}>找不到此觀點</p>
+      </div>
+    );
+  }
 
   return (
     <div className="mx-auto px-4 py-12" style={{ maxWidth: 1200 }}>
 
-      {/* 1. 觀點簡介（DB08 簡介摘要） */}
+      {/* 1. 觀點簡介 */}
       <section className="mb-10">
-        <h1
-          className="text-3xl font-semibold mb-3"
-          style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
-        >
-          觀點名稱（{slug}）
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[0.75em] px-2 py-0.5 rounded-[3px]"
+            style={{
+              background: topic.tag_type === "viewpoint" ? "#E3F2FD" : "#E8F5E9",
+              color: topic.tag_type === "viewpoint" ? "#1565C0" : "#2E7D32",
+            }}>
+            {topic.tag_type === "viewpoint" ? "觀點" : "標籤"}
+          </span>
+        </div>
+        <h1 className="text-3xl font-semibold mb-3"
+          style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
+          {topic.name}
         </h1>
-        <div
-          className="rounded-lg p-5 text-sm leading-relaxed"
-          style={{ background: "var(--color-warm-white)", color: "var(--color-ink)", borderLeft: "3px solid var(--color-teal)" }}
-        >
-          觀點簡介（≤350字）— 來自 DB08「簡介摘要」欄位
-        </div>
+        {topic.summary && (
+          <div className="rounded-lg p-5 text-sm leading-relaxed"
+            style={{ background: "var(--color-warm-white)", color: "var(--color-ink)", borderLeft: "3px solid var(--color-teal)" }}>
+            {topic.summary}
+          </div>
+        )}
       </section>
 
-      {/* 2. 觀點內容（DB08 page content） */}
-      <section className="mb-12">
-        <div
-          className="text-[0.95em] leading-[1.8] space-y-4"
-          style={{ color: "var(--color-ink)" }}
-        >
-          <p>觀點內容正文（來自 DB08 page content）</p>
-          <p>
-            這裡會是從 Notion DB08 抓取的完整觀點介紹，
-            支援圖片、標題、引用、列表等所有 Notion block 類型的轉換。
-          </p>
-        </div>
-      </section>
+      {/* 2. 觀點內容 */}
+      {topic.content && (
+        <section className="mb-12">
+          <div className="text-[0.95em] leading-[1.8] space-y-4 whitespace-pre-line"
+            style={{ color: "var(--color-ink)" }}>
+            {topic.content}
+          </div>
+        </section>
+      )}
 
-      {/* 3. 觀點相關商品 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-          相關商品
-        </h2>
-        <div className="hscroll-track">
-          {[1, 2, 3, 4, 5].map((i) => (
-            <a
-              key={i}
-              href={`/product/${i}`}
-              className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
-            >
-              <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-3xl opacity-20">📖</span>
-              </div>
-              <div className="p-2.5">
-                <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>相關商品 {i}</h3>
-                <p className="text-[0.8em]" style={{ color: "var(--color-rust)" }}>NT$ {200 + i * 50}</p>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
+      {/* 3. 相關商品 */}
+      {relatedProducts.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>相關商品</h2>
+          <div className="hscroll-track">
+            {relatedProducts.map((p) => (
+              <Link key={p.id} href={`/product/${p.slug}`}
+                className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+                style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                  {p.photo
+                    ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
+                    : <span className="text-3xl opacity-20">📖</span>}
+                </div>
+                <div className="p-2.5">
+                  <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{p.name}</h3>
+                  <p className="text-[0.8em]" style={{ color: "var(--color-rust)" }}>NT$ {p.price}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
-      {/* 4. 觀點相關活動 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-          相關活動
-        </h2>
-        <div className="hscroll-track">
-          {[1, 2, 3].map((i) => (
-            <a
-              key={i}
-              href={`/events/${i}`}
-              className="flex-shrink-0 w-[260px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-3xl opacity-20">🎪</span>
-              </div>
-              <div className="p-3">
-                <span className="inline-block text-[0.7em] px-1.5 py-0.5 rounded-[3px] mb-1"
-                  style={{ background: "var(--color-badge-event-bg)", color: "var(--color-badge-event-text)" }}>活動</span>
-                <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>相關活動 {i}</h3>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* 5. 觀點相關文章 */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-          相關文章
-        </h2>
-        <div className="hscroll-track">
-          {[1, 2, 3].map((i) => (
-            <a
-              key={i}
-              href={`/post/${i}`}
-              className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-3xl opacity-20">📰</span>
-              </div>
-              <div className="p-3">
-                <span className="inline-block text-[0.7em] px-1.5 py-0.5 rounded-[3px] mb-1"
-                  style={{ background: "var(--color-badge-article-bg)", color: "var(--color-badge-article-text)" }}>文章</span>
-                <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>相關文章 {i}</h3>
-              </div>
-            </a>
-          ))}
-        </div>
-      </section>
-
-      {/* 6. 延伸思考（互為 relation 的 DB08） */}
-      <section className="mb-10">
-        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
-          延伸思考
-        </h2>
-        <div className="flex flex-wrap gap-3">
-          {["宜蘭線鐵路", "草嶺隧道", "頭城老街", "蘭陽博物館", "龜山島"].map((kw) => (
-            <a
-              key={kw}
-              href={`/viewpoint/${kw}`}
-              className="px-4 py-2.5 rounded-full text-sm transition-all hover:shadow-sm"
-              style={{ background: "var(--color-parchment)", color: "var(--color-bark)", border: "1px solid var(--color-dust)" }}
-            >
-              {kw}
-            </a>
-          ))}
-        </div>
-        <p className="text-[0.7em] mt-3" style={{ color: "var(--color-mist)" }}>
-          以上觀點與本頁觀點互為 relation（DB08）
-        </p>
-      </section>
-
+      {/* 4. 延伸探索 */}
+      {relatedTopics.length > 0 && (
+        <section className="mb-10">
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>延伸探索</h2>
+          <div className="flex flex-wrap gap-3">
+            {relatedTopics.map((t) => (
+              <Link key={t.id} href={`/viewpoint/${t.slug}`}
+                className="px-4 py-2.5 rounded-full text-sm transition-all hover:shadow-sm"
+                style={{ background: "var(--color-parchment)", color: "var(--color-bark)", border: "1px solid var(--color-dust)" }}>
+                {t.name}
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
