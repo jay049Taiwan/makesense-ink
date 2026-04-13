@@ -236,7 +236,7 @@ async function syncProducts(wb = false) {
         images: JSON.stringify(fileUrls(props["產品照片"])),
         author_id: aNid ? (aMap[aNid] || null) : null,
         publisher_id: pNid ? (pMap[pNid] || null) : null,
-        status: ms(extractStatus(props["銷售狀態"]?.status), { "已更新": "active", "無販售": "inactive", "維護中": "draft" }),
+        status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "進行中": "draft", "待發佈": "draft" }),
       }, { onConflict: "notion_id" });
       if (error) { console.error("products err:", error.message); errors++; }
       else { upserted++; if (wb) await writeback(page, `${SITE_URL}/product/${nid(page)}`, "發佈狀態", "已發佈", "對應連結"); }
@@ -297,7 +297,7 @@ async function syncEvents(wb = false) {
         description: extractText(props["簡介摘要"]?.rich_text) || null,
         location: locationName,
         guide: guideName,
-        status: ms(extractStatus(props["執行狀態"]?.status), { "執行中": "active", "已完成": "completed", "無執行": "draft" }),
+        status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "inactive" }),
       }, { onConflict: "notion_id" });
       if (error) { console.error("events err:", error.message); errors++; }
       else { upserted++; if (wb) await writeback(page, `${SITE_URL}/events/${nid(page)}`, "發佈狀態", "已發佈", "對應連結"); }
