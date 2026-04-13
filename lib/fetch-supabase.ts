@@ -59,6 +59,45 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
   }));
 }
 
+/** 自營產品：發行商為旅人書店/現思文化/宜蘭文化俱樂部 */
+const OWN_BRAND_NAMES = ["旅人書店", "現思文化創藝術有限公司", "宜蘭文化俱樂部"];
+
+export async function fetchSBOwnProducts(limit = 24) {
+  // 先查三個自家品牌的 persons.id
+  const { data: brands } = await supabase
+    .from("persons")
+    .select("id, name")
+    .in("name", OWN_BRAND_NAMES);
+
+  const brandIds = (brands || []).map(b => b.id);
+  if (brandIds.length === 0) return [];
+
+  const { data, error } = await supabase
+    .from("products")
+    .select("id, notion_id, name, price, stock, category, description, images, status, publisher_id")
+    .eq("status", "active")
+    .in("publisher_id", brandIds)
+    .order("updated_at", { ascending: false })
+    .limit(limit);
+
+  if (error) { console.error("fetchSBOwnProducts err:", error); return []; }
+
+  const brandMap: Record<string, string> = {};
+  for (const b of brands || []) brandMap[b.id] = b.name;
+
+  return (data || []).map(p => ({
+    id: p.notion_id || p.id,
+    name: p.name,
+    price: p.price,
+    stock: p.stock,
+    category: p.category,
+    description: p.description,
+    photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
+    publisher: p.publisher_id ? (brandMap[p.publisher_id] || "—") : "—",
+    slug: p.notion_id || p.id,
+  }));
+}
+
 // ═══════════════════════════════════════════
 // Events（活動）from Supabase
 // ═══════════════════════════════════════════

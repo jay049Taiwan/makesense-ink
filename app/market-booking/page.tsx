@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchSBProducts, fetchSBPartners, fetchSBAllEvents } from "@/lib/fetch-supabase";
+import { fetchSBOwnProducts, fetchSBPartners, fetchSBAllEvents } from "@/lib/fetch-supabase";
 
 export const metadata: Metadata = {
   title: "展售合作",
@@ -25,7 +25,7 @@ const statusStyle: Record<string, { bg: string; text: string }> = {
 
 export default async function MarketBookingPage() {
   const [ownProducts, partnerBrands, allEvents] = await Promise.all([
-    fetchSBProducts(undefined, 24),
+    fetchSBOwnProducts(24),
     fetchSBPartners(20),
     fetchSBAllEvents(20),
   ]);
