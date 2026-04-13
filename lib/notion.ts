@@ -3,6 +3,7 @@ import { Client } from "@notionhq/client";
 // Notion client singleton
 const notion = new Client({
   auth: process.env.NOTION_API_KEY,
+  timeoutMs: 120_000, // 2 分鐘，大量分頁查詢需要更長時間
 });
 
 // Database IDs from environment
@@ -30,15 +31,35 @@ export async function queryDatabase(
   let cursor: string | undefined = undefined;
 
   do {
-    const response: any = await notion.dataSources.query({
-      data_source_id: databaseId,
-      filter: filter as any,
-      sorts: sorts as any,
-      page_size: pageSize,
-      ...(cursor ? { start_cursor: cursor } : {}),
-    });
+    let response: any;
+    // 最多重試 3 次，遇到 502/504/rate-limit 時等待後重試
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await notion.dataSources.query({
+          data_source_id: databaseId,
+          filter: filter as any,
+          sorts: sorts as any,
+          page_size: pageSize,
+          ...(cursor ? { start_cursor: cursor } : {}),
+        });
+        break; // 成功，跳出重試
+      } catch (err: any) {
+        const status = err?.status || err?.code;
+        const isRetryable = status === 502 || status === 504 || status === 429 ||
+          err?.code === "notionhq_client_request_timeout";
+        if (isRetryable && attempt < 2) {
+          const wait = (attempt + 1) * 5000; // 5s, 10s
+          console.warn(`[notion] retry ${attempt + 1}/3 after ${wait}ms (${status || err.code})`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        throw err;
+      }
+    }
     allResults.push(...response.results);
     cursor = response.has_more ? response.next_cursor : undefined;
+    // 分頁間短暫延遲，避免觸發限流
+    if (cursor) await new Promise(r => setTimeout(r, 200));
   } while (cursor);
 
   return allResults;
