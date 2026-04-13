@@ -264,8 +264,13 @@ async function syncEvents(wb = false) {
         capacity: extractNumber(props["數量上限"]?.number) || null,
         cover_url: fileUrl(props["上傳檔案"]) || null,
         description: extractText(props["簡介摘要"]?.rich_text) || null,
-        location: extractText(props["活動地點"]?.rich_text) || null,
-        guide: extractText(props["帶路人"]?.rich_text) || null,
+        location: (() => {
+          const place = props["Place"]?.place;
+          if (place?.name) return place.name;
+          if (place?.address) return place.address;
+          return null;
+        })(),
+        guide: null, // 帶路人目前由 DB08 對應標籤 relation 推導，暫不同步
         status: ms(extractStatus(props["執行狀態"]?.status), { "執行中": "active", "已完成": "completed", "無執行": "draft" }),
       }, { onConflict: "notion_id" });
       if (error) { console.error("events err:", error.message); errors++; }

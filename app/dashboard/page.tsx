@@ -5,7 +5,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
-import { MOCK_MEMBER_PURCHASES, MOCK_MEMBER_REGISTRATIONS, getMemberStats } from "@/lib/mock-data";
+import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
 
 // ═══════════════════════════════════════════
@@ -19,18 +19,9 @@ function MemberOverview() {
   const email = isDev ? devRole.email : (session?.user?.email || "—");
   const phone = isDev ? devRole.phone : "—";
   const lineConnected = isDev ? devRole.lineConnected : false;
-  const stats = isDev ? getMemberStats() : { points: 0, level: "Lv.1", totalSpent: 0, totalItems: 0, totalEvents: 0 };
+  const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
 
-  // 購買紀錄（先用 mock，有 Supabase 資料就覆蓋）
-  const mockPurchases = isDev ? [
-    ...MOCK_MEMBER_PURCHASES,
-    ...MOCK_MEMBER_REGISTRATIONS.map(r => ({
-      id: r.id, productId: r.activityId, name: r.title, qty: 1, author: "—", publisher: "旅人書店",
-      date: r.date, price: r.price, rating: r.rating, comment: r.comment, category: r.type, topics: ["文化走讀"],
-      orderItemId: "", memberId: "",
-    })),
-  ] : [];
-  const [purchases, setPurchases] = useState(mockPurchases);
+  const [purchases, setPurchases] = useState<any[]>([]);
   const [memberId, setMemberId] = useState<string | null>(null);
 
   // 從 Supabase 載入真實訂單
@@ -59,9 +50,13 @@ function MemberOverview() {
             topics: [],
           }))
         );
-        if (realPurchases.length > 0) {
-          setPurchases([...realPurchases, ...mockPurchases]);
-        }
+        setPurchases(realPurchases);
+        // 計算 stats
+        const totalSpent = realPurchases.reduce((s: number, p: any) => s + p.price * p.qty, 0);
+        const totalItems = realPurchases.reduce((s: number, p: any) => s + p.qty, 0);
+        const totalEvents = realPurchases.filter((p: any) => p.category === "event").length;
+        const points = Math.floor(totalSpent / 10);
+        setStats({ totalSpent, totalItems, totalEvents, points, level: points >= 200 ? "Lv.3" : points >= 100 ? "Lv.2" : "Lv.1" });
       }
     } catch (err) {
       console.error("載入訂單失敗:", err);
