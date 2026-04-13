@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchProducts, fetchActivities } from "@/lib/fetch-bookstore";
+import { fetchSBProducts, fetchSBEvents } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 
@@ -120,21 +120,10 @@ function CurationRow({ title, items }: { title: string; items: { type: string; t
 }
 
 export default async function BookstorePage() {
-  // dev 環境用 mock data，不打 Notion API
-  let books: any[] = [];
-  let goods: any[] = [];
-  let activities: any[] = [];
-
-  if (process.env.NODE_ENV === "development") {
-    const { MOCK_PRODUCTS, MOCK_ACTIVITIES } = await import("@/lib/mock-data");
-    books = MOCK_PRODUCTS.filter(p => p.category === "書籍").map(p => ({ ...p, slug: p.id }));
-    goods = MOCK_PRODUCTS.filter(p => p.category === "商品").map(p => ({ ...p, slug: p.id }));
-    activities = MOCK_ACTIVITIES.map(a => ({ ...a, slug: a.id }));
-  } else {
-    try { books = await fetchProducts("書籍刊物", 12); } catch (e) { console.error("Fetch books failed:", e); }
-    try { goods = await fetchProducts("商品", 12); } catch (e) { console.error("Fetch goods failed:", e); }
-    try { activities = await fetchActivities(5); } catch (e) { console.error("Fetch activities failed:", e); }
-  }
+  // 全部從 Supabase 讀取
+  const books = await fetchSBProducts("選書", 12);
+  const goods = await fetchSBProducts("選物", 12);
+  const activities = await fetchSBEvents(5);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
