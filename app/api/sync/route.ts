@@ -250,10 +250,41 @@ async function syncEvents(wb = false) {
   let upserted = 0, errors = 0;
   const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作選項", select: { equals: "活動辦理" } });
 
+  // 批次反查「對應地點」和「對應對象」relation → persons 表拿名字
+  const locIds: string[] = [], guideIds: string[] = [];
+  for (const page of pages) {
+    const props = p(page);
+    locIds.push(...extractRelation(props["對應地點"]?.relation));
+    guideIds.push(...extractRelation(props["對應對象"]?.relation));
+  }
+  const locMap = await lookup("persons", locIds);
+  const guideMap = await lookup("persons", guideIds);
+
+  // 批次取 persons name
+  const allPersonIds = [...new Set([...Object.values(locMap), ...Object.values(guideMap)])];
+  let personNameMap: Record<string, string> = {};
+  if (allPersonIds.length > 0) {
+    const { data: persons } = await supabase.from("persons").select("id, name").in("id", allPersonIds);
+    for (const pr of persons || []) personNameMap[pr.id] = pr.name;
+  }
+
   for (const page of pages) {
     try {
       const props = p(page);
       const dateInfo = extractDate(props["執行時間"]?.date);
+
+      // 對應地點：relation → persons → name
+      const locRel = extractRelation(props["對應地點"]?.relation);
+      const locNid = locRel[0]?.replace(/-/g, "");
+      const locUuid = locNid ? locMap[locNid] : undefined;
+      const locationName = locUuid ? (personNameMap[locUuid] || null) : null;
+
+      // 對應對象（帶路人/講師）：relation → persons → name
+      const guideRel = extractRelation(props["對應對象"]?.relation);
+      const guideNid = guideRel[0]?.replace(/-/g, "");
+      const guideUuid = guideNid ? guideMap[guideNid] : undefined;
+      const guideName = guideUuid ? (personNameMap[guideUuid] || null) : null;
+
       const { error } = await supabase.from("events").upsert({
         notion_id: nid(page),
         title: extractTitle(props["交接名稱"]?.title) || "未命名活動",
@@ -264,13 +295,8 @@ async function syncEvents(wb = false) {
         capacity: extractNumber(props["數量上限"]?.number) || null,
         cover_url: fileUrl(props["上傳檔案"]) || null,
         description: extractText(props["簡介摘要"]?.rich_text) || null,
-        location: (() => {
-          const place = props["Place"]?.place;
-          if (place?.name) return place.name;
-          if (place?.address) return place.address;
-          return null;
-        })(),
-        guide: null, // 帶路人目前由 DB08 對應標籤 relation 推導，暫不同步
+        location: locationName,
+        guide: guideName,
         status: ms(extractStatus(props["執行狀態"]?.status), { "執行中": "active", "已完成": "completed", "無執行": "draft" }),
       }, { onConflict: "notion_id" });
       if (error) { console.error("events err:", error.message); errors++; }
