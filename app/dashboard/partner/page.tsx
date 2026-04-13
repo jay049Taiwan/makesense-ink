@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
-import { getVendorStats, getVendorProducts, getVendorActivities, MOCK_MEMBER_PURCHASES } from "@/lib/mock-data";
 import { activityProductConfig } from "@/lib/vendor-page-config";
+import { supabase } from "@/lib/supabase";
 import QrScanModal from "@/components/partner/QrScanModal";
 
 type PartnerTab = "概覽" | "資訊" | "項目" | "金流" | "設定";
@@ -20,12 +20,12 @@ export interface VendorProduct {
   price: number | ""; stock: number | ""; note: string; active: boolean;
 }
 
-const INIT_PRODUCTS: VendorProduct[] = [
-  { id: "vp1", name: "蘭東案內 06期 小鎮麵包地圖", photo: "", price: 280, stock: 12, note: "現思自製地方刊物，宜蘭麵包店地圖特輯", active: true },
-  { id: "vp2", name: "加購宜蘭街散步圖", photo: "", price: 50, stock: 45, note: "A4 折疊地圖，適合市集免費附贈", active: true },
-  { id: "vp3", name: "散步宜蘭街貼紙", photo: "", price: 30, stock: 100, note: "防水貼紙組，4 款圖案", active: true },
-  { id: "vp4", name: "宜蘭金牌旅遊王（絕版）", photo: "", price: 259, stock: 0, note: "已無庫存，留存紀錄", active: false },
-];
+interface VendorStats {
+  totalProducts: number; totalSold: number; totalRevenue: number;
+  avgRating: string; totalActivities: number; totalRegistrations: number; outOfStock: number;
+}
+
+const emptyStats: VendorStats = { totalProducts: 0, totalSold: 0, totalRevenue: 0, avgRating: "—", totalActivities: 0, totalRegistrations: 0, outOfStock: 0 };
 
 export default function PartnerPage() {
   const { data: session } = useSession();
@@ -37,8 +37,69 @@ export default function PartnerPage() {
   const email = isDev ? devRole.email : (session?.user?.email || "—");
 
   const [activeTab, setActiveTab] = useState<PartnerTab>("概覽");
-  const [products, setProducts] = useState<VendorProduct[]>(INIT_PRODUCTS);
-  const stats = getVendorStats();
+  const [products, setProducts] = useState<VendorProduct[]>([]);
+  const [stats, setStats] = useState<VendorStats>(emptyStats);
+
+  // Load products and stats from Supabase
+  useState(() => {
+    (async () => {
+      // Find partner by email
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("id")
+        .eq("contact->>email" as any, email)
+        .maybeSingle();
+
+      if (!partner?.id) return;
+
+      // Fetch products
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, name, price, stock, description, images, status")
+        .eq("publisher_id", partner.id)
+        .order("created_at", { ascending: false });
+
+      if (prods) {
+        setProducts(prods.map(p => ({
+          id: p.id,
+          name: p.name,
+          photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || ""; } catch { return ""; } })(),
+          price: p.price ?? "",
+          stock: p.stock ?? "",
+          note: p.description || "",
+          active: p.status === "active",
+        })));
+
+        const activeProds = prods.filter(p => p.status === "active");
+        setStats(prev => ({
+          ...prev,
+          totalProducts: activeProds.length,
+          outOfStock: prods.filter(p => p.stock === 0 && p.status === "active").length,
+        }));
+      }
+
+      // Fetch partner performance stats
+      const { data: perf } = await supabase
+        .from("partner_performance")
+        .select("revenue, attendance, rating")
+        .eq("partner_id", partner.id);
+
+      if (perf && perf.length > 0) {
+        const totalRev = perf.reduce((s, r) => s + (r.revenue || 0), 0);
+        const totalAtt = perf.reduce((s, r) => s + (r.attendance || 0), 0);
+        const ratings = perf.filter(r => r.rating).map(r => r.rating!);
+        const avg = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : "—";
+        setStats(prev => ({
+          ...prev,
+          totalRevenue: totalRev,
+          totalRegistrations: totalAtt,
+          avgRating: avg,
+          totalActivities: perf.length,
+          totalSold: totalAtt,
+        }));
+      }
+    })();
+  });
 
   const pageTabs = [
     { href: "/dashboard", label: "個人紀錄", exact: true },
@@ -99,7 +160,7 @@ export default function PartnerPage() {
 // ════════════════════════════════════════════
 // 概覽
 // ════════════════════════════════════════════
-function VendorOverview({ stats }: { stats: ReturnType<typeof getVendorStats> }) {
+function VendorOverview({ stats }: { stats: VendorStats }) {
   const [showScanner, setShowScanner] = useState(false);
 
   return (
@@ -287,9 +348,30 @@ function isExpired(dateStr: string) {
   return new Date(y, m - 1, d) < TODAY;
 }
 
+interface VendorActivity { id: string; title: string; date: string; type: string; registered: number; capacity: number }
+
 function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
-  const activities = getVendorActivities();
-  const mockProducts = getVendorProducts();
+  const [activities, setActivities] = useState<VendorActivity[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("events")
+        .select("id, notion_id, title, event_date, theme, capacity, status")
+        .order("event_date", { ascending: false })
+        .limit(20);
+      if (data) {
+        setActivities(data.map(e => ({
+          id: e.notion_id || e.id,
+          title: e.title,
+          date: e.event_date ? new Date(e.event_date).toLocaleDateString("zh-TW") : "日期待定",
+          type: e.theme || "活動",
+          registered: 0,
+          capacity: e.capacity || 0,
+        })));
+      }
+    })();
+  }, []);
 
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({}); // activityId → productIds
@@ -447,25 +529,28 @@ function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
             </tr>
           </thead>
           <tbody>
-            {mockProducts.map(p => (
-              <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                <td style={{ padding: "12px 14px", fontSize: 14 }}>{p.name}</td>
-                <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>NT${p.price}</td>
-                <td style={{ padding: "12px 14px", fontSize: 14 }}>
-                  <span style={{ color: p.stock === 0 ? "#e53e3e" : p.stock <= 5 ? "#e8935a" : "#333", fontWeight: p.stock <= 5 ? 700 : 400 }}>{p.stock}</span>
-                </td>
-                <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>{p.sold}</td>
-                <td style={{ padding: "12px 14px", fontSize: 14 }}>
-                  {p.avgRating ? <span style={{ color: "#f5a623" }}>★ {p.avgRating}</span> : <span style={{ color: "#ccc" }}>—</span>}
-                </td>
-                <td style={{ padding: "12px 14px" }}>
-                  <span className="text-xs px-2 py-1 rounded-full"
-                    style={{ background: p.stock === 0 ? "#fde8e8" : p.stock <= 5 ? "#fff3cd" : "#d4edda", color: p.stock === 0 ? "#e53e3e" : p.stock <= 5 ? "#856404" : "#155724" }}>
-                    {p.stock === 0 ? "缺貨" : p.stock <= 5 ? "庫存低" : "上架中"}
-                  </span>
-                </td>
-              </tr>
-            ))}
+            {vendorProducts.map(p => {
+              const stock = typeof p.stock === "number" ? p.stock : 0;
+              return (
+                <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  <td style={{ padding: "12px 14px", fontSize: 14 }}>{p.name}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>NT${p.price}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 14 }}>
+                    <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#333", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
+                  </td>
+                  <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>—</td>
+                  <td style={{ padding: "12px 14px", fontSize: 14 }}>
+                    <span style={{ color: "#ccc" }}>—</span>
+                  </td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <span className="text-xs px-2 py-1 rounded-full"
+                      style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
+                      {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
+                    </span>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -476,7 +561,7 @@ function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
 // ════════════════════════════════════════════
 // 金流
 // ════════════════════════════════════════════
-function VendorFinance({ stats }: { stats: ReturnType<typeof getVendorStats> }) {
+function VendorFinance({ stats }: { stats: VendorStats }) {
   const monthly = [
     { month: "2026-04", revenue: stats.totalRevenue, qty: stats.totalSold, status: "待結算" },
     { month: "2026-03", revenue: 4500, qty: 12, status: "已入帳" },
@@ -554,9 +639,35 @@ function VendorSettings() {
 // 近期顧客評價
 // ════════════════════════════════════════════
 function PartnerReviews() {
-  const reviews = MOCK_MEMBER_PURCHASES
-    .filter(p => p.rating > 0 && p.publisher === "旅人書店")
-    .map(p => ({ id: p.id, name: p.name, comment: p.comment, rating: p.rating, date: p.date }));
+  const [reviews, setReviews] = useState<{ id: string; name: string; comment: string; rating: number; date: string }[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("reviews")
+        .select("id, rating, comment, created_at, member_id")
+        .order("created_at", { ascending: false })
+        .limit(10);
+      if (data && data.length > 0) {
+        setReviews(data.map(r => ({
+          id: r.id,
+          name: "顧客",
+          comment: r.comment || "",
+          rating: r.rating,
+          date: new Date(r.created_at).toLocaleDateString("zh-TW"),
+        })));
+      }
+    })();
+  }, []);
+
+  if (reviews.length === 0) {
+    return (
+      <div className="rounded-xl p-6 text-center" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
+        <p className="text-sm" style={{ color: "#aaa" }}>尚無顧客評價</p>
+      </div>
+    );
+  }
+
   return (
     <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
       <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>

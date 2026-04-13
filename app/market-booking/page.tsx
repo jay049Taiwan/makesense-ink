@@ -1,53 +1,19 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchSBProducts, fetchSBPartners, fetchSBAllEvents } from "@/lib/fetch-supabase";
 
 export const metadata: Metadata = {
   title: "展售合作",
   description: "展售合作 — 自有產品、合作代銷品牌、市集活動。",
 };
 
-/* ── 假資料 ── */
-
-const ownProducts = [
-  { id: 1, name: "宜蘭散步地圖", price: 380 },
-  { id: 2, name: "蘭陽風土誌", price: 450 },
-  { id: 3, name: "旅人書店選書套組", price: 1200 },
-  { id: 4, name: "宜蘭手工皂禮盒", price: 580 },
-  { id: 5, name: "龜山島明信片組", price: 150 },
-  { id: 6, name: "藺草杯墊（四入）", price: 220 },
-  { id: 7, name: "旅人帆布袋", price: 350 },
-  { id: 8, name: "手繪宜蘭地圖海報", price: 260 },
-  { id: 9, name: "宜蘭在地蜂蜜", price: 480 },
-  { id: 10, name: "文化街散步圖", price: 70 },
-  { id: 11, name: "蘭陽平原攝影集", price: 650 },
-  { id: 12, name: "旅人書店紀念杯", price: 320 },
-];
-
-const partnerBrands = [
-  { id: 1, name: "宜蘭好物", desc: "在地農產加工品牌", count: 8 },
-  { id: 2, name: "山海工坊", desc: "手工木作與陶藝", count: 12 },
-  { id: 3, name: "蘭陽職人", desc: "傳統工藝傳承品牌", count: 6 },
-  { id: 4, name: "田間生活", desc: "有機農產與食品", count: 15 },
-  { id: 5, name: "島嶼手感", desc: "台灣手作品牌集合", count: 10 },
-  { id: 6, name: "小鎮文創", desc: "地方特色文創商品", count: 9 },
-];
-
-const marketEvents = [
-  { id: 1, title: "森本集市 01場｜春之初", date: "2026-04-03", registrationDeadline: "2026-03-20" },
-  { id: 2, title: "森本集市 02場｜五月春日篇", date: "2026-05-01", registrationDeadline: "2026-04-20" },
-  { id: 3, title: "森本集市 03場｜初夏微風", date: "2026-05-09", registrationDeadline: "2026-04-25" },
-  { id: 4, title: "森本集市 04場｜仲夏夜", date: "2026-06-19", registrationDeadline: "2026-06-05" },
-  { id: 5, title: "森本集市 05場｜秋收祭", date: "2026-09-15", registrationDeadline: "2026-09-01" },
-];
-
-/** 根據報名截止日與活動日期，自動判斷狀態 */
-function getEventStatus(eventDate: string, registrationDeadline: string): string {
+/** 根據活動日期判斷狀態 */
+function getEventStatus(eventDate: string | null): string {
+  if (!eventDate) return "待定";
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const evDate = new Date(eventDate);
-  const regDeadline = new Date(registrationDeadline);
   if (today > evDate) return "已結束";
-  if (today > regDeadline) return "截止報名";
   return "報名中";
 }
 
@@ -57,7 +23,17 @@ const statusStyle: Record<string, { bg: string; text: string }> = {
   報名中: { bg: "rgba(78,205,196,0.12)", text: "#3aa89f" },
 };
 
-export default function MarketBookingPage() {
+export default async function MarketBookingPage() {
+  const [ownProducts, partnerBrands, allEvents] = await Promise.all([
+    fetchSBProducts(undefined, 24),
+    fetchSBPartners(20),
+    fetchSBAllEvents(20),
+  ]);
+  // 市集活動：theme 含「市集」的活動
+  const marketEvents = allEvents.filter(e => e.theme?.includes("市集") || e.title?.includes("市集"));
+  // 如果沒有市集活動就顯示所有活動
+  const displayEvents = marketEvents.length > 0 ? marketEvents : allEvents.slice(0, 5);
+
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
@@ -102,7 +78,7 @@ export default function MarketBookingPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {ownProducts.map((p) => (
-            <Link key={p.id} href={`/product/${p.id}`}
+            <Link key={p.id} href={`/product/${p.slug}`}
               className="rounded-lg overflow-hidden transition-all hover:shadow-md hover:scale-[1.02]"
               style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
               <div className="aspect-square flex items-center justify-end flex-col relative" style={{ background: "var(--color-parchment)" }}>
@@ -126,7 +102,7 @@ export default function MarketBookingPage() {
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           {partnerBrands.map((brand) => (
-            <Link key={brand.id} href={`/viewpoint/${brand.name}`}
+            <Link key={brand.id} href={`/viewpoint/${brand.slug}`}
               className="rounded-xl p-5 transition-all hover:shadow-md"
               style={{ background: "#fff", border: "1.5px solid var(--color-teal)" }}>
               <div className="flex items-start gap-4">
@@ -136,8 +112,7 @@ export default function MarketBookingPage() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <h3 className="text-base font-semibold mb-0.5" style={{ color: "var(--color-ink)" }}>{brand.name}</h3>
-                  <p className="text-xs mb-2" style={{ color: "var(--color-mist)" }}>{brand.desc}</p>
-                  <p className="text-xs" style={{ color: "var(--color-teal)" }}>{brand.count} 件商品</p>
+                  <p className="text-xs mb-2" style={{ color: "var(--color-mist)" }}>{brand.type || "合作夥伴"}</p>
                 </div>
               </div>
             </Link>
@@ -154,11 +129,11 @@ export default function MarketBookingPage() {
           </div>
         </div>
         <div className="hscroll-track">
-          {marketEvents.map((ev) => {
-            const status = getEventStatus(ev.date, ev.registrationDeadline);
+          {displayEvents.map((ev) => {
+            const status = getEventStatus(ev.date);
             const st = statusStyle[status] || statusStyle["報名中"];
             return (
-              <Link key={ev.id} href={`/events/${ev.id}`}
+              <Link key={ev.id} href={`/events/${ev.slug}`}
                 className="flex-shrink-0 rounded-lg overflow-hidden transition-all hover:shadow-md"
                 style={{ width: "calc((100% - 64px) / 5)", minWidth: 200, border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-[16/10] flex items-center justify-center relative"
@@ -173,7 +148,9 @@ export default function MarketBookingPage() {
                   <h3 className="text-[0.85em] font-medium line-clamp-2 mb-1" style={{ color: "var(--color-ink)" }}>
                     {ev.title}
                   </h3>
-                  <p className="text-[0.7em]" style={{ color: "var(--color-mist)" }}>{ev.date}</p>
+                  <p className="text-[0.7em]" style={{ color: "var(--color-mist)" }}>
+                    {ev.date ? new Date(ev.date).toLocaleDateString("zh-TW") : "日期待定"}
+                  </p>
                 </div>
               </Link>
             );

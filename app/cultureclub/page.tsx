@@ -100,47 +100,25 @@ export default async function CultureClubPage() {
           <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>話題觀點</h2>
           <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多文化觀點 →</Link>
         </div>
-        <div className="space-y-8">
-          {viewpointTopics.map((topic) => (
-            <div key={topic.name}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-[1.1em] font-semibold" style={{ color: "#1a1612" }}>{topic.name}</h3>
+        <div className="hscroll-track">
+          {topics.map((topic) => (
+            <Link
+              key={topic.id}
+              href={`/viewpoint/${topic.slug}`}
+              className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+              style={{ border: "1px solid #e8e0d4", background: "#fff" }}
+            >
+              <div className="aspect-square flex items-center justify-center relative" style={{ background: "#f2ede6" }}>
+                <span className="text-3xl opacity-20">💡</span>
+                <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: "#E3F2FD", color: "#1565C0" }}>
+                  觀點
+                </span>
               </div>
-              <div className="hscroll-track">
-                {topic.items.map((item) => {
-                  const typeMap: Record<string, string> = { "文章": "內容", "書籍": "選書", "商品": "選物", "活動": "活動", "觀點": "觀點" };
-                  const label = typeMap[item.type] || item.type;
-                  const catColors: Record<string, { bg: string; text: string }> = {
-                    "選書": { bg: "#FFF8E1", text: "#F57F17" },
-                    "選物": { bg: "#E0F2F1", text: "#00695C" },
-                    "內容": { bg: "#F3E5F5", text: "#6A1B9A" },
-                    "活動": { bg: "#E8F5E9", text: "#2E7D32" },
-                    "觀點": { bg: "#E3F2FD", text: "#1565C0" },
-                  };
-                  const c = catColors[label] || catColors["內容"];
-                  return (
-                    <Link
-                      key={item.id}
-                      href={`/${item.type === "文章" ? "article" : item.type === "活動" ? "activity" : "product"}/${item.id}`}
-                      className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-                      style={{ border: "1px solid #e8e0d4", background: "#fff" }}
-                    >
-                      <div className="aspect-square flex items-center justify-center relative" style={{ background: "#f2ede6" }}>
-                        <span className="text-3xl opacity-20">
-                          {label === "選書" ? "📖" : label === "選物" ? "🎁" : label === "內容" ? "📄" : label === "活動" ? "🎪" : "💡"}
-                        </span>
-                        <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: c.bg, color: c.text }}>
-                          {label}
-                        </span>
-                      </div>
-                      <div className="p-2.5">
-                        <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{item.title}</h4>
-                      </div>
-                    </Link>
-                  );
-                })}
+              <div className="p-2.5">
+                <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{topic.name}</h4>
+                {topic.summary && <p className="text-[0.7em] line-clamp-2 mt-1" style={{ color: "#8b7355" }}>{topic.summary}</p>}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
@@ -152,18 +130,20 @@ export default async function CultureClubPage() {
           <Link href="/bookstore" className="text-xs" style={{ color: "var(--color-teal)" }}>前往旅人書店看見更多選書選物 →</Link>
         </div>
         <div className="hscroll-track">
-          {sampleGoods.map((g) => (
+          {products.map((g) => (
             <Link
               key={g.id}
-              href={`/product/${g.id}`}
+              href={`/product/${g.slug}`}
               className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-square flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <span className="text-3xl opacity-20">📖</span>
+                {g.photo
+                  ? <img src={g.photo} alt={g.name} className="w-full h-full object-cover" />
+                  : <span className="text-3xl opacity-20">📖</span>}
               </div>
               <div className="p-2.5">
-                <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{g.title}</h3>
+                <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{g.name}</h3>
                 <p className="text-[0.8em] font-medium mt-0.5" style={{ color: "#b5522a" }}>NT$ {g.price}</p>
                 {g.author && g.author !== "—" && (
                   <p className="text-[0.7em] mt-0.5" style={{ color: "#999" }}>{g.author} / {g.publisher}</p>

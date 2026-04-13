@@ -1,38 +1,26 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchSBArticles, fetchSBTopics, fetchSBPersons } from "@/lib/fetch-supabase";
 
 export const metadata: Metadata = {
   title: "地方調研",
   description: "地方調研 — 以在地文化為主題的採訪、出版與內容策展。",
 };
 
-/* ── 假資料（from DB08 keywords + DB05 文章/出版品）── */
+export default async function ContentCurationPage() {
+  const [articles, topics, persons] = await Promise.all([
+    fetchSBArticles(200),
+    fetchSBTopics(undefined, 100),
+    fetchSBPersons(undefined, 200),
+  ]);
 
-const contentStats = {
-  articles: 87,
-  publications: 12,
-  interviews: 45,
-  keywords: 156,
-};
-
-/** 採輯主題（按 DB04 執行時間先後排序，內容 from DB05）*/
-const curationTopics = [
-  "宜蘭線鐵路",
-  "頭城搶孤",
-  "黃春明",
-  "礁溪溫泉",
-  "龜山島",
-  "蘭陽博物館",
-  "三星蔥",
-  "冬山河",
-  "太平山",
-  "簡媜",
-  "蘇澳冷泉",
-  "利澤簡走尪",
-];
-
-
-export default function ContentCurationPage() {
+  const curationTopics = topics.map(t => ({ name: t.name, slug: t.slug }));
+  const contentStats = {
+    articles: articles.length,
+    publications: topics.filter(t => t.tag_type === "viewpoint").length,
+    interviews: persons.length,
+    keywords: topics.length,
+  };
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
@@ -114,13 +102,13 @@ export default function ContentCurationPage() {
 
         <ul className="space-y-2">
           {curationTopics.map((topic) => (
-            <li key={topic}>
+            <li key={topic.slug}>
               <Link
-                href={`/viewpoint/${topic}`}
+                href={`/viewpoint/${topic.slug}`}
                 className="block py-2 px-4 rounded-lg text-[0.95em] transition-all hover:bg-[var(--color-parchment)]"
                 style={{ color: "var(--color-ink)", borderBottom: "1px solid var(--color-dust)" }}
               >
-                {topic}
+                {topic.name}
               </Link>
             </li>
           ))}

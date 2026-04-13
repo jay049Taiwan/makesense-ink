@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
-import { getVendorProducts } from "@/lib/mock-data";
 import { supabase } from "@/lib/supabase";
 
 interface ProductRow {
@@ -45,27 +44,9 @@ export default function VendorProductsPage() {
 
   useEffect(() => {
     async function load() {
-      if (isDev) {
-        // dev 模式：從 mock-data 取假資料
-        const mockProducts = getVendorProducts();
-        setItems(mockProducts.map((p) => ({
-          id: p.id,
-          name: p.name,
-          price: p.price,
-          stock: p.stock,
-          category: p.category,
-          status: p.stock === 0 ? "缺貨" : "上架中",
-          photo_url: p.photo,
-          sold: p.sold,
-          avgRating: p.avgRating,
-        })));
-        setLoading(false);
-        return;
-      }
-
-      // 正式環境：查 Supabase
       if (!email) { setLoading(false); return; }
 
+      // 查 Supabase：先找 partner，再查商品
       const { data: partner } = await supabase
         .from("partners")
         .select("id")
@@ -75,17 +56,26 @@ export default function VendorProductsPage() {
       if (partner?.id) {
         const { data } = await supabase
           .from("products")
-          .select("id, name, price, stock, category, status, photo_url")
-          .eq("partner_id", partner.id)
+          .select("id, name, price, stock, category, status, images")
+          .eq("publisher_id", partner.id)
           .order("created_at", { ascending: false });
-        setItems((data as ProductRow[]) || []);
+
+        setItems((data || []).map((p: any) => ({
+          id: p.id,
+          name: p.name,
+          price: p.price,
+          stock: p.stock,
+          category: p.category,
+          status: p.status === "active" ? (p.stock === 0 ? "缺貨" : "上架中") : "下架",
+          photo_url: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
+        })));
       }
 
       setLoading(false);
     }
 
     load();
-  }, [email, isDev]);
+  }, [email]);
 
   if (loading) {
     return <p className="text-sm py-12 text-center" style={{ color: "var(--color-mist)" }}>載入中…</p>;
