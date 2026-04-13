@@ -169,7 +169,7 @@ export default function Header() {
             </div>
             <Link href="/bookstore" onClick={() => setMenuOpen(false)} style={{ color: "#7a5c40", fontWeight: 500 }}>旅人書店</Link>
             <Link href="/market-booking" onClick={() => setMenuOpen(false)} className="pl-3" style={{ color: "#666" }}>展售合作</Link>
-            <Link href="/space-booking" onClick={() => setMenuOpen(false)} className="pl-3" style={{ color: "#666" }}>空間租借</Link>
+            <Link href="/space-experience" onClick={() => setMenuOpen(false)} className="pl-3" style={{ color: "#666" }}>空間體驗</Link>
             <Link href="/cultureclub" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>宜蘭文化俱樂部</Link>
             {isLoggedIn ? (
               <>

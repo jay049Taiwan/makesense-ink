@@ -228,7 +228,7 @@ function MemberOverview() {
               <p className="text-xs mb-3" style={{ color: "#999" }}>你還沒體驗過這些類型，也許會有驚喜：</p>
               <div className="flex flex-wrap gap-2">
                 {unexplored.map((cat) => {
-                  const links: Record<string, string> = { "講座": "/cultureclub", "空間體驗": "/space-booking", "付費文章": "/viewpoint-stroll" };
+                  const links: Record<string, string> = { "講座": "/cultureclub", "空間體驗": "/space-experience", "付費文章": "/viewpoint-stroll" };
                   return (
                     <Link key={cat} href={links[cat] || "/bookstore"} className="inline-flex items-center px-3 py-1.5 rounded-full text-xs font-medium transition-all hover:shadow-md" style={{ background: "#fff", color: "#7a5c40", border: "1px solid #d4c5b0", textDecoration: "none" }}>
                       {cat} →

@@ -56,7 +56,7 @@ export default function SearchDropdown({
           {results.activities.map((a) => {
             const d = formatDate(a.date);
             return (
-              <Link key={a.slug} href={`/activity/${a.slug}`} onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors">
+              <Link key={a.slug} href={`/events/${a.slug}`} onClick={onClose} className="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition-colors">
                 {d ? (
                   <span className="w-9 h-9 rounded-lg flex flex-col items-center justify-center text-xs flex-shrink-0 font-bold" style={{ background: "#e8f5e9", color: "#2e7d32" }}>
                     <span>{d.mm}/{d.dd}</span>

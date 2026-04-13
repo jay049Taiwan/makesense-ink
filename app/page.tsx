@@ -126,7 +126,7 @@ export default function HomePage() {
           {upcomingEvents.map((ev) => (
             <Link
               key={ev.id}
-              href={`/activity/${ev.id}`}
+              href={`/events/${ev.id}`}
               className="rounded-xl overflow-hidden transition-shadow hover:shadow-md"
               style={{ background: "#fff", border: "1px solid var(--color-dust)" }}
             >

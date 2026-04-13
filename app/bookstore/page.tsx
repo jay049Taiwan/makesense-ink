@@ -143,8 +143,8 @@ export default async function BookstorePage() {
       <section className="py-8">
         <HeroCarousel slides={[
           { image: null, title: "蘭東案內 06期｜小鎮麵包地圖", subtitle: "走進宜蘭的巷弄，尋找在地烘焙的溫度", cta: { text: "立即選購", href: "/product/p3" } },
-          { image: null, title: "走讀行旅｜宜蘭舊城散步", subtitle: "2026/04/21 — 跟著文史工作者，漫步百年老城", cta: { text: "報名參加", href: "/activity/a1" } },
-          { image: null, title: "春日好物市集", subtitle: "2026/05/10 — 在地小農、手作品牌齊聚旅人書店", cta: { text: "了解更多", href: "/activity/a4" } },
+          { image: null, title: "走讀行旅｜宜蘭舊城散步", subtitle: "2026/04/21 — 跟著文史工作者，漫步百年老城", cta: { text: "報名參加", href: "/events/a1" } },
+          { image: null, title: "春日好物市集", subtitle: "2026/05/10 — 在地小農、手作品牌齊聚旅人書店", cta: { text: "了解更多", href: "/events/a4" } },
           { image: null, title: "新書上架｜旅行的意義", subtitle: "詹宏志最新力作，探索旅行與生命的交會", cta: { text: "查看書籍", href: "/product/p10" } },
           { image: null, title: "宜蘭文化俱樂部 招募中", subtitle: "成為俱樂部會員，享受專屬文化體驗", cta: { text: "加入俱樂部", href: "/cultureclub" } },
         ]} />
