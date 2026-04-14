@@ -6,6 +6,7 @@ import { useSession, signOut } from "next-auth/react";
 import SearchDropdown from "./SearchDropdown";
 import type { SearchResults } from "./SearchDropdown";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
+import { useCart } from "@/components/providers/CartProvider";
 
 function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + "..." : str;
@@ -15,6 +16,7 @@ export default function Header() {
   const [menuOpen, setMenuOpen] = useState(false);
   const { data: session } = useSession();
   const devRole = useDevRole();
+  const { totalItems } = useCart();
   const isDev = process.env.NODE_ENV === "development";
   // dev 環境下模擬登入狀態
   const isLoggedIn = isDev ? true : !!session?.user;
@@ -119,9 +121,22 @@ export default function Header() {
             </div>
           </div>
 
+          {/* 購物車 */}
+          <Link href="/checkout" className="relative ml-auto p-2 hover:opacity-70 transition-opacity" aria-label="購物車">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7a5c40" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="9" cy="21" r="1" /><circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            {totalItems > 0 && (
+              <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full text-[10px] font-bold text-white" style={{ background: "var(--color-teal)" }}>
+                {totalItems > 99 ? "99+" : totalItems}
+              </span>
+            )}
+          </Link>
+
           {/* 登入狀態 */}
           {isLoggedIn ? (
-            <div className="ml-auto relative group">
+            <div className="relative group">
               <Link href="/dashboard" className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#b89e7a", textDecoration: "none" }}>
                 {truncate(userEmail || userName || "會員", 15)}，你好
               </Link>
@@ -131,7 +146,7 @@ export default function Header() {
               </div>
             </div>
           ) : (
-            <Link href="/login" className="ml-auto whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#4ECDC4", textDecoration: "none" }}>
+            <Link href="/login" className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#4ECDC4", textDecoration: "none" }}>
               註冊/登入
             </Link>
           )}
