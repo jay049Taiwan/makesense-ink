@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPage, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
+import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 30;
@@ -140,7 +140,17 @@ async function syncSingleArticle(nid: string, props: any) {
     relatedEventId = data?.id || null;
   }
 
-  const row = {
+  // 抓文章正文（Notion blocks → HTML）
+  let content: string | null = null;
+  try {
+    const pageId = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+    content = await getPageContent(pageId);
+    if (content && content.trim().length === 0) content = null;
+  } catch (e: any) {
+    console.warn("article content fetch failed:", e.message);
+  }
+
+  const row: Record<string, any> = {
     notion_id: nid,
     title: t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
@@ -148,9 +158,11 @@ async function syncSingleArticle(nid: string, props: any) {
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "無發佈": "draft" }),
     published_at: dateInfo.start || null,
   };
+  if (content) row.content = content;
+
   const { error } = await supabase.from("articles").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`articles upsert: ${error.message}`);
-  return { table: "articles", title: row.title, status: row.status };
+  return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
 }
 
 // ── DB06 → order_items (進銷明細) ──
@@ -211,7 +223,17 @@ async function syncSingleRelation(nid: string, props: any) {
 
   // 根據「經營類型」決定寫入哪張表
   if (type === "主題標籤") {
-    const row = {
+    // 抓觀點正文
+    let content: string | null = null;
+    try {
+      const pageId = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+      content = await getPageContent(pageId);
+      if (content && content.trim().length === 0) content = null;
+    } catch (e: any) {
+      console.warn("topic content fetch failed:", e.message);
+    }
+
+    const row: Record<string, any> = {
       notion_id: nid,
       name: t(props["經營名稱"]) || "未命名",
       tag_type: mapStatus(st(props["觀點狀態"]), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
@@ -219,9 +241,11 @@ async function syncSingleRelation(nid: string, props: any) {
       region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
       status,
     };
+    if (content) row.content = content;
+
     const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
     if (error) throw new Error(`topics upsert: ${error.message}`);
-    return { table: "topics", title: row.name, status };
+    return { table: "topics", title: row.name, status, hasContent: !!content };
   }
 
   if (type === "連結對象") {

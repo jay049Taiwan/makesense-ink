@@ -20,7 +20,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // 從 Supabase 拿文章基本資料
   const { data: article } = await supabase
     .from("articles")
-    .select("id, notion_id, title, cover_url, published_at, status, related_event_id")
+    .select("id, notion_id, title, cover_url, published_at, status, related_event_id, content")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
 
@@ -36,13 +36,22 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     );
   }
 
-  // 從 Notion 拿文章正文（blocks → HTML）
-  const notionPageId = article.notion_id || slug;
-  let contentHtml = "";
-  try {
-    contentHtml = await getPageContent(notionPageId);
-  } catch (e: any) {
-    console.error("Failed to fetch Notion content:", e.message);
+  // 優先讀 Supabase content（已預存的 HTML），沒有才 fallback Notion API
+  let contentHtml = article.content || "";
+  if (!contentHtml) {
+    try {
+      const notionPageId = (article.notion_id || slug).replace(
+        /^(.{8})(.{4})(.{4})(.{4})(.{12})$/,
+        "$1-$2-$3-$4-$5"
+      );
+      contentHtml = await getPageContent(notionPageId);
+      // 順便回存，下次就不用再查 Notion
+      if (contentHtml && contentHtml.trim()) {
+        await supabase.from("articles").update({ content: contentHtml }).eq("id", article.id);
+      }
+    } catch (e: any) {
+      console.error("Failed to fetch Notion content:", e.message);
+    }
   }
 
   // 如果有關聯活動，查活動資訊
