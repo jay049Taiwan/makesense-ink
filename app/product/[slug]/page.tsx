@@ -2,6 +2,7 @@
 
 import { useState, useEffect, use } from "react";
 import { supabase } from "@/lib/supabase";
+import { useCart } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 
 interface ProductData {
@@ -17,9 +18,11 @@ interface ProductData {
 
 export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const { addItem } = useCart();
   const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
   const [qty, setQty] = useState(1);
+  const [added, setAdded] = useState(false);
 
   useEffect(() => {
     async function load() {
@@ -141,10 +144,24 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               <span className="w-10 h-10 flex items-center justify-center text-sm font-medium">{qty}</span>
               <button onClick={() => setQty(q => q + 1)} className="w-10 h-10 text-lg" style={{ color: "var(--color-bark)" }}>+</button>
             </div>
-            <button disabled={product.stock === 0}
+            <button
+              disabled={product.stock === 0}
+              onClick={() => {
+                addItem({
+                  id: `product-${slug}`,
+                  name: product.name,
+                  subtitle: product.category,
+                  type: "商品",
+                  price: product.price,
+                  qty,
+                  productId: slug,
+                });
+                setAdded(true);
+                setTimeout(() => setAdded(false), 2000);
+              }}
               className="flex-1 h-10 rounded text-sm font-medium text-white transition-colors"
-              style={{ background: product.stock > 0 ? "var(--color-moss)" : "#ccc" }}>
-              {product.stock > 0 ? "加入購物車" : "缺貨中"}
+              style={{ background: added ? "var(--color-teal)" : product.stock > 0 ? "var(--color-moss)" : "#ccc" }}>
+              {added ? "✓ 已加入" : product.stock > 0 ? "加入購物車" : "缺貨中"}
             </button>
           </div>
 
