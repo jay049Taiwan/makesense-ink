@@ -136,6 +136,19 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 6. 非同步推播 LINE 訂單確認（不阻擋回應）
+    if (memberId) {
+      import("@/lib/line-notifications").then(({ notifyOrderCreated }) =>
+        notifyOrderCreated(
+          order.id,
+          memberId!,
+          items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+          total,
+          hasTickets
+        ).catch((e) => console.warn("[checkout] LINE notify failed:", e.message))
+      ).catch(() => {});
+    }
+
     return NextResponse.json({
       success: true,
       orderId: order.id,

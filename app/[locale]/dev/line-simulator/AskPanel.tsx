@@ -1,44 +1,47 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 
 const C = { accent: "#4A7C59", text: "#1a1a1a" };
 
 /**
- * 問問我們 — AI 客服面板（暫用模擬回覆，之後接真實 API）
- * 從 line-richmenu-simulator.jsx 移植
+ * 問問我們 — AI 客服面板（接 Claude Haiku 真實 API）
  */
 export default function AskPanel() {
   const [msgs, setMsgs] = useState([
     {
       from: "bot",
-      text: "👋 你好！我是旅人書店的 AI 助手。\n\n你可以用任何語言問我關於書店、活動、宜蘭文化的問題！\n\n例如：\n• 有沒有關於宜蘭歷史的書？\n• 下週有什麼活動？\n• Type in English for English reply",
+      text: "👋 你好！我是旅人書店的 AI 助手小旅。\n\n你可以用任何語言問我關於書店、活動、宜蘭文化的問題！\n\n例如：\n• 有沒有關於宜蘭歷史的書？\n• 下週有什麼活動？\n• Type in English for English reply",
     },
   ]);
   const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const bottomRef = useRef<HTMLDivElement>(null);
 
-  const send = () => {
-    if (!input.trim()) return;
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [msgs]);
+
+  const send = async () => {
+    if (!input.trim() || loading) return;
     const q = input.trim();
     setInput("");
     setMsgs((prev) => [...prev, { from: "user", text: q }]);
-    setTimeout(() => {
-      let reply = "";
-      const qLower = q.toLowerCase();
-      if (q.includes("宜蘭") || q.includes("歷史"))
-        reply = "推薦你《走讀宜蘭》（NT$480），詳細介紹了宜蘭的歷史變遷。\n\n可以到「選書選物」看看！";
-      else if (q.includes("活動") || q.includes("下週"))
-        reply = "可以點下方「近期活動」查看最新可報名的活動喔！";
-      else if (/[a-zA-Z]{3,}/.test(q))
-        reply = "Welcome to Traveler's Bookstore! 😊\n\nWe're in Yilan, Taiwan. Check out our curated books and local events!\n\nTap the menu buttons below to explore.";
-      else if (/[\u3040-\u309F\u30A0-\u30FF]/.test(q))
-        reply = "いらっしゃいませ！😊\n\n宜蘭の「旅人書店」です。下のメニューから探索できます！";
-      else if (/[\uAC00-\uD7AF]/.test(q))
-        reply = "안녕하세요! 😊\n\n이란의 \"여행자 서점\"입니다. 아래 메뉴를 확인해 보세요!";
-      else
-        reply = "收到！你可以試試問我：\n• 有沒有關於宜蘭的書？\n• 下週有什麼活動？\n• Type in English / 日本語 / 한국어";
-      setMsgs((prev) => [...prev, { from: "bot", text: reply }]);
-    }, 800);
+    setLoading(true);
+
+    try {
+      const res = await fetch("/api/line/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: q }),
+      });
+      const data = await res.json();
+      setMsgs((prev) => [...prev, { from: "bot", text: data.reply || "抱歉，系統暫時無法回應 😊" }]);
+    } catch {
+      setMsgs((prev) => [...prev, { from: "bot", text: "抱歉，連線失敗，請稍後再試 😊" }]);
+    }
+
+    setLoading(false);
   };
 
   return (
@@ -63,6 +66,14 @@ export default function AskPanel() {
             </div>
           </div>
         ))}
+        {loading && (
+          <div style={{ display: "flex", justifyContent: "flex-start", marginBottom: 10 }}>
+            <div style={{ padding: "10px 14px", borderRadius: 14, fontSize: 14, background: "#fff", border: "1px solid #e8e6e1", color: "#999" }}>
+              小旅正在想...
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
       </div>
       <div style={{ padding: "8px 14px 12px", display: "flex", gap: 8, background: "#fff", borderTop: "1px solid #e8e6e1" }}>
         <input
@@ -70,11 +81,13 @@ export default function AskPanel() {
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder="輸入問題（中/英/日/韓皆可）"
-          style={{ flex: 1, padding: "10px 14px", borderRadius: 20, border: "1px solid #e0ded8", fontSize: 14, outline: "none" }}
+          disabled={loading}
+          style={{ flex: 1, padding: "10px 14px", borderRadius: 20, border: "1px solid #e0ded8", fontSize: 14, outline: "none", opacity: loading ? 0.6 : 1 }}
         />
         <button
           onClick={send}
-          style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: C.accent, color: "#fff", fontSize: 16, cursor: "pointer" }}
+          disabled={loading}
+          style={{ width: 38, height: 38, borderRadius: "50%", border: "none", background: loading ? "#ccc" : C.accent, color: "#fff", fontSize: 16, cursor: loading ? "default" : "pointer" }}
         >
           ➤
         </button>
