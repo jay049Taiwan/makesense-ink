@@ -155,7 +155,7 @@ async function syncSingleArticle(nid: string, props: any) {
     title: t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "無發佈": "draft" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),
     published_at: dateInfo.start || null,
   };
   if (content) row.content = content;

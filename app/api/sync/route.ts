@@ -349,7 +349,7 @@ async function syncArticles(wb = false) {
       title: extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "草稿": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),
       published_at: dateInfo.start || null,
     };
   });

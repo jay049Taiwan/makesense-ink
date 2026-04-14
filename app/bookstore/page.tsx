@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { fetchSBProducts, fetchSBArticles, fetchSBTopics } from "@/lib/fetch-supabase";
+import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 
@@ -57,22 +57,36 @@ function ProductCard({ id, name, price, originalPrice, photo, icon, author, publ
 
 export default async function BookstorePage() {
   // 全部從 Supabase 讀取
-  const books = await fetchSBProducts("選書", 12);
-  const goods = await fetchSBProducts("選物", 12);
-  const articles = await fetchSBArticles(5);
-  const viewpoints = await fetchSBTopics("viewpoint", 3);
+  const [books, goods, articles, viewpoints, events] = await Promise.all([
+    fetchSBProducts("選書", 12),
+    fetchSBProducts("選物", 12),
+    fetchSBArticles(5),
+    fetchSBTopics("viewpoint", 3),
+    fetchSBEvents(3),
+  ]);
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
-      {/* ── 區塊 1: Hero 輪播 ── */}
+      {/* ── 區塊 1: Hero 輪播（從 Supabase 動態生成）── */}
       <section className="py-8">
         <HeroCarousel slides={[
-          { image: null, title: "蘭東案內 06期｜小鎮麵包地圖", subtitle: "走進宜蘭的巷弄，尋找在地烘焙的溫度", cta: { text: "立即選購", href: "/product/p3" } },
-          { image: null, title: "走讀行旅｜宜蘭舊城散步", subtitle: "2026/04/21 — 跟著文史工作者，漫步百年老城", cta: { text: "報名參加", href: "/events/a1" } },
-          { image: null, title: "春日好物市集", subtitle: "2026/05/10 — 在地小農、手作品牌齊聚旅人書店", cta: { text: "了解更多", href: "/events/a4" } },
-          { image: null, title: "新書上架｜旅行的意義", subtitle: "詹宏志最新力作，探索旅行與生命的交會", cta: { text: "查看書籍", href: "/product/p10" } },
-          { image: null, title: "宜蘭文化俱樂部 招募中", subtitle: "成為俱樂部會員，享受專屬文化體驗", cta: { text: "加入俱樂部", href: "/cultureclub" } },
+          // 近期活動
+          ...events.map(ev => ({
+            image: ev.cover_url || null,
+            title: ev.title,
+            subtitle: ev.date ? `${new Date(ev.date).toLocaleDateString("zh-TW")} — ${ev.theme || "活動"}` : ev.description?.slice(0, 60) || "",
+            cta: { text: "報名參加", href: `/events/${ev.slug}` },
+          })),
+          // 最新文章（補滿至少 4 張）
+          ...articles.slice(0, Math.max(0, 4 - events.length)).map(a => ({
+            image: a.cover_url || null,
+            title: a.title,
+            subtitle: a.date ? new Date(a.date).toLocaleDateString("zh-TW") : "",
+            cta: { text: "閱讀文章", href: `/post/${a.slug}` },
+          })),
+          // 固定：加入俱樂部
+          { image: null, title: "宜蘭文化俱樂部", subtitle: "成為俱樂部會員，享受專屬文化體驗", cta: { text: "加入俱樂部", href: "/cultureclub" } },
         ]} />
       </section>
 
