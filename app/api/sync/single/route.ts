@@ -121,7 +121,7 @@ async function syncSingleEvent(nid: string, props: any) {
     description: tx(props["簡介摘要"]),
     location: locationName,
     guide: guideName,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "draft", "不發佈": "inactive" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active", "不發佈": "inactive" }),
   };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`events upsert: ${error.message}`);
@@ -208,7 +208,7 @@ async function syncSingleProduct(nid: string, props: any) {
     publisher_id: publisherId,
     sub_category: sub || null,
     supplier_type: sel(props["進貨屬性"]) || null,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "無發佈": "inactive", "待發佈": "draft" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "無發佈": "inactive", "待發佈": "active" }),
   };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`products upsert: ${error.message}`);
@@ -219,7 +219,7 @@ async function syncSingleProduct(nid: string, props: any) {
 async function syncSingleRelation(nid: string, props: any) {
   const type = sel(props["經營類型"]);
   const objectType = sel(props["對象選項"]);
-  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "已完成": "active", "待發佈": "draft", "不發佈": "inactive" });
+  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "已完成": "active", "待發佈": "active", "不發佈": "inactive" });
 
   // 根據「經營類型」決定寫入哪張表
   if (type === "主題標籤") {
