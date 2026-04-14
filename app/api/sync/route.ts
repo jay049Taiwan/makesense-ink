@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage } from "@/lib/notion";
+import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage } from "@/lib/notion";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 300; // Vercel timeout 5 min
@@ -152,6 +152,7 @@ async function syncTopics() {
       name: extractTitle(props["經營名稱"]?.title) || "未命名",
       tag_type: ms(extractStatus(props["觀點狀態"]?.status), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
+      region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
       status: ms(extractStatus(props["觀點專頁"]?.status) || extractStatus(props["觀點狀態"]?.status), { "已完成": "active", "進行中": "draft" }),
     };
   });
@@ -247,11 +248,13 @@ async function syncProducts(wb = false) {
       category: sub ? `${cat}/${sub}` : cat,
       price: extractNumber(props["庫存售價"]?.number) || 0,
       stock: extractNumber(props["庫存總計"]?.number) || extractNumber(props["庫存總計"]?.formula?.number) || 0,
-      description: extractText(props["產品介紹"]?.rich_text) || null,
+      description: extractText(props["簡介摘要"]?.rich_text) || null,
       images: JSON.stringify(fileUrls(props["產品照片"])),
       author_id: aNid ? (aMap[aNid] || null) : null,
       publisher_id: pNid ? (pMap[pNid] || null) : null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "進行中": "draft", "待發佈": "draft" }),
+      sub_category: sub || null,
+      supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "無發佈": "inactive", "待發佈": "draft" }),
     };
   });
 

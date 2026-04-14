@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPage, extractTitle, extractText, extractSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
+import { getPage, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
 import { supabase } from "@/lib/supabase";
 
 export const maxDuration = 30;
@@ -194,7 +194,9 @@ async function syncSingleProduct(nid: string, props: any) {
     images: JSON.stringify(fileUrls(props["產品照片"])),
     author_id: authorId,
     publisher_id: publisherId,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "進行中": "draft", "待發佈": "draft" }),
+    sub_category: sub || null,
+    supplier_type: sel(props["進貨屬性"]) || null,
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "無發佈": "inactive", "待發佈": "draft" }),
   };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`products upsert: ${error.message}`);
@@ -214,6 +216,7 @@ async function syncSingleRelation(nid: string, props: any) {
       name: t(props["經營名稱"]) || "未命名",
       tag_type: mapStatus(st(props["觀點狀態"]), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
       summary: tx(props["簡介摘要"]),
+      region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
       status,
     };
     const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
