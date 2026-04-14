@@ -70,15 +70,10 @@ export default async function CultureClubPage() {
           <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多地方通訊 →</Link>
         </div>
         <div className="hscroll-track">
-          {[
-            { name: "宜蘭線鐵路", count: 8 },
-            { name: "礁溪溫泉", count: 12 },
-            { name: "龜山島", count: 6 },
-            { name: "蘭陽博物館", count: 10 },
-          ].map((kw) => (
+          {tags.length > 0 ? tags.map((tag) => (
             <Link
-              key={kw.name}
-              href={`/viewpoint-stroll?keyword=${kw.name}`}
+              key={tag.id}
+              href={`/viewpoint/${tag.slug}`}
               className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
@@ -86,11 +81,13 @@ export default async function CultureClubPage() {
                 <span className="text-3xl opacity-20">💡</span>
               </div>
               <div className="p-3">
-                <h3 className="text-[0.9em] font-semibold line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{kw.name}</h3>
-                <p className="text-[0.75em]" style={{ color: "#8b7355" }}>{kw.count} 篇相關內容</p>
+                <h3 className="text-[0.9em] font-semibold line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{tag.name}</h3>
+                {tag.summary && <p className="text-[0.75em] line-clamp-2" style={{ color: "#8b7355" }}>{tag.summary}</p>}
               </div>
             </Link>
-          ))}
+          )) : (
+            <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有標籤</p>
+          )}
         </div>
       </section>
 
