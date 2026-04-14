@@ -50,6 +50,30 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "Organization",
+              name: "現思文化創藝術有限公司",
+              alternateName: "Culture Makes Sense",
+              url: "https://makesense.ink",
+              description:
+                "以宜蘭為根，透過走讀、市集、講座與空間，串連在地職人、品牌與社群",
+              address: {
+                "@type": "PostalAddress",
+                streetAddress: "文化街55號",
+                addressLocality: "羅東鎮",
+                addressRegion: "宜蘭縣",
+                postalCode: "265",
+                addressCountry: "TW",
+              },
+              telephone: "039-325957",
+              sameAs: [],
+            }),
+          }}
+        />
       </head>
       <body className="min-h-full flex flex-col">
         <AuthProvider>

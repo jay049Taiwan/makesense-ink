@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 export const maxDuration = 30;
 
@@ -111,7 +111,7 @@ async function syncSingleEvent(nid: string, props: any) {
 
   const row = {
     notion_id: nid,
-    title: t(props["交接名稱"]) || "未命名活動",
+    title: tx(props["主題名稱"]) || t(props["交接名稱"]) || "未命名活動",
     theme: sel(props["活動類型"]),
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
@@ -152,7 +152,7 @@ async function syncSingleArticle(nid: string, props: any) {
 
   const row: Record<string, any> = {
     notion_id: nid,
-    title: t(props["表單名稱"]) || "未命名文章",
+    title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),

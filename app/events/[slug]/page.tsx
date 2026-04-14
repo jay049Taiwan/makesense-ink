@@ -115,8 +115,48 @@ export default function EventPage({
     );
   }
 
+  const eventJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Event",
+    name: event.title,
+    description: event.excerpt,
+    ...(event.date && { startDate: event.date }),
+    ...(event.location && {
+      location: {
+        "@type": "Place",
+        name: event.location,
+        address: {
+          "@type": "PostalAddress",
+          addressRegion: "宜蘭縣",
+          addressCountry: "TW",
+        },
+      },
+    }),
+    organizer: {
+      "@type": "Organization",
+      name: "現思文化創藝術有限公司",
+      url: "https://makesense.ink",
+    },
+    ...(event.tickets.length > 0 && {
+      offers: event.tickets.map((t) => ({
+        "@type": "Offer",
+        name: t.name,
+        price: t.price.replace(/[^0-9]/g, ""),
+        priceCurrency: "TWD",
+        availability: "https://schema.org/InStock",
+        url: `https://makesense.ink/events/${slug}`,
+      })),
+    }),
+    eventAttendanceMode: "https://schema.org/OfflineEventAttendanceMode",
+    eventStatus: "https://schema.org/EventScheduled",
+  };
+
   return (
     <div>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(eventJsonLd) }}
+      />
       {/* SP-E0: Hero banner */}
       <div
         className="relative flex items-end"

@@ -1,16 +1,19 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
+import { Suspense } from "react";
 import Header from "./Header";
 import Footer from "./Footer";
 
-/**
- * 根據路徑決定是否顯示 Header/Footer
- * /telegram/* 路徑不顯示
- */
-export default function LayoutShell({ children }: { children: React.ReactNode }) {
+function LayoutShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const isNoChrome = pathname.startsWith("/telegram") || pathname.startsWith("/buy");
+  const searchParams = useSearchParams();
+  const isLiffMode = searchParams.get("liff_mode") === "true";
+  const isNoChrome =
+    pathname.startsWith("/telegram") ||
+    pathname.startsWith("/buy") ||
+    pathname.startsWith("/dev/") ||
+    isLiffMode;
 
   if (isNoChrome) {
     return <main style={{ background: "#f8f7f4", minHeight: "100vh" }}>{children}</main>;
@@ -22,5 +25,18 @@ export default function LayoutShell({ children }: { children: React.ReactNode })
       <main className="flex-1">{children}</main>
       <Footer />
     </>
+  );
+}
+
+/**
+ * 根據路徑和參數決定是否顯示 Header/Footer
+ * - /telegram/* /buy/* /dev/* 路徑不顯示
+ * - ?liff_mode=true 參數不顯示（LINE LIFF 模式）
+ */
+export default function LayoutShell({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={<main className="flex-1">{children}</main>}>
+      <LayoutShellInner>{children}</LayoutShellInner>
+    </Suspense>
   );
 }

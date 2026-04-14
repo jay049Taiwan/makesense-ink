@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useContext, useState, useCallback, type ReactNode } from "react";
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
 
 /* ═══════════════════════════════════════════
    購物車項目型別
@@ -44,8 +44,32 @@ export function useCart() {
 /* ═══════════════════════════════════════════
    Provider
    ═══════════════════════════════════════════ */
+const STORAGE_KEY = "makesense_cart";
+
+function loadCart(): CartItem[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch { return []; }
+}
+
 export default function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>([]);
+  const [items, setItems] = useState<CartItem[]>(loadCart);
+
+  // 持久化到 localStorage
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
+  }, [items]);
+
+  // postMessage 同步給父視窗（LINE 模擬器用）
+  useEffect(() => {
+    const total = items.reduce((s, i) => s + i.price * i.qty, 0);
+    const count = items.reduce((s, i) => s + i.qty, 0);
+    if (typeof window !== "undefined" && window.parent !== window) {
+      window.parent.postMessage({ type: "CART_UPDATE", count, total }, "*");
+    }
+  }, [items]);
 
   const addItem = useCallback((incoming: Omit<CartItem, "qty"> & { qty?: number }) => {
     setItems((prev) => {
@@ -57,6 +81,10 @@ export default function CartProvider({ children }: { children: ReactNode }) {
       }
       return [...prev, { ...incoming, qty: incoming.qty ?? 1 }];
     });
+    // 通知父視窗（LINE 模擬器 toast）
+    if (typeof window !== "undefined" && window.parent !== window) {
+      window.parent.postMessage({ type: "CART_UPDATE", action: "added", name: incoming.name }, "*");
+    }
   }, []);
 
   const removeItem = useCallback((id: string) => {

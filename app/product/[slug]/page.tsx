@@ -76,8 +76,37 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
 
   const mainPhoto = product.photos[0] || null;
 
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    ...(product.description && { description: product.description }),
+    ...(mainPhoto && { image: mainPhoto }),
+    ...(product.author !== "—" && {
+      brand: { "@type": "Brand", name: product.author },
+    }),
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "TWD",
+      availability:
+        product.stock > 0
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      url: `https://makesense.ink/product/${slug}`,
+      seller: {
+        "@type": "Organization",
+        name: "現思文化創藝術有限公司",
+      },
+    },
+  };
+
   return (
     <div className="mx-auto py-12 px-4 sm:px-10" style={{ maxWidth: 1200 }}>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
       <div className="grid grid-cols-1 md:grid-cols-2 gap-16 items-start">
         {/* Left: Gallery */}
         <div className="md:sticky md:top-6">

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 /**
  * GET /api/orders?email=xxx — 取得會員的訂單 + 明細 + 評價

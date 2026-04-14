@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent } from "@/lib/notion";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const maxDuration = 300; // Vercel timeout 5 min
@@ -381,7 +381,7 @@ async function syncEvents(wb = false) {
 
     return {
       notion_id: nid(page),
-      title: extractTitle(props["交接名稱"]?.title) || "未命名活動",
+      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["交接名稱"]?.title) || "未命名活動",
       theme: extractSelect(props["活動類型"]?.select) || null,
       event_type: extractSelect(props["活動類型"]?.select) || null,
       event_date: dateInfo.start || null,
@@ -424,7 +424,7 @@ async function syncArticles(wb = false) {
     const eNid = eRel[0]?.replace(/-/g, "");
     return {
       notion_id: nid(page),
-      title: extractTitle(props["表單名稱"]?.title) || "未命名文章",
+      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),
