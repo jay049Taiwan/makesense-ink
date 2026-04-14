@@ -95,8 +95,12 @@ function fileUrls(prop: any): string[] {
   return files.map((f: any) => f?.file?.url || f?.external?.url).filter(Boolean);
 }
 
-function mapStatus(val: string | null, map: Record<string, string>): string {
-  if (!val) return "draft";
+/**
+ * 狀態映射：只有「已發佈」→ active/published，「待發佈」→ draft
+ * 無發佈 / 空值 → null（不同步）
+ */
+function mapStatus(val: string | null, map: Record<string, string>): string | null {
+  if (!val || val === "無發佈" || val === "不發佈") return null;
   return map[val] || "draft";
 }
 
@@ -129,8 +133,9 @@ async function syncSingleEvent(nid: string, props: any) {
     description: tx(props["簡介摘要"]),
     location: locationName,
     guide: guideName,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active", "不發佈": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active" }),
   };
+  if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`events upsert: ${error.message}`);
   return { table: "events", title: row.title, status: row.status };
@@ -163,11 +168,12 @@ async function syncSingleArticle(nid: string, props: any) {
     title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published" }),
     published_at: dateInfo.start || null,
   };
   if (content) row.content = content;
 
+  if (row.status === null) return { table: "articles", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("articles").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`articles upsert: ${error.message}`);
   return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
@@ -216,8 +222,9 @@ async function syncSingleProduct(nid: string, props: any) {
     publisher_id: publisherId,
     sub_category: sub || null,
     supplier_type: sel(props["進貨屬性"]) || null,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "無發佈": "active", "待發佈": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active" }),
   };
+  if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`products upsert: ${error.message}`);
   return { table: "products", title: row.name, status: row.status };
@@ -227,7 +234,7 @@ async function syncSingleProduct(nid: string, props: any) {
 async function syncSingleRelation(nid: string, props: any) {
   const type = sel(props["經營類型"]);
   const objectType = sel(props["對象選項"]);
-  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "已完成": "active", "待發佈": "active", "不發佈": "active" });
+  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active" });
 
   // 根據「經營類型」決定寫入哪張表
   if (type === "主題標籤") {
@@ -251,6 +258,7 @@ async function syncSingleRelation(nid: string, props: any) {
     };
     if (content) row.content = content;
 
+    if (status === null) return { table: "topics", title: row.name, status: null, skipped: true };
     const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
     if (error) throw new Error(`topics upsert: ${error.message}`);
     return { table: "topics", title: row.name, status, hasContent: !!content };
@@ -271,6 +279,7 @@ async function syncSingleRelation(nid: string, props: any) {
         },
         status,
       };
+      if (status === null) return { table: "partners", title: row.name, status: null, skipped: true };
       const { error } = await supabase.from("partners").upsert(row, { onConflict: "notion_id" });
       if (error) throw new Error(`partners upsert: ${error.message}`);
       return { table: "partners", title: row.name, status };
@@ -307,6 +316,7 @@ async function syncSingleRelation(nid: string, props: any) {
       },
       status,
     };
+    if (status === null) return { table: "persons", title: row.name, status: null, skipped: true };
     const { error } = await supabase.from("persons").upsert(row, { onConflict: "notion_id" });
     if (error) throw new Error(`persons upsert: ${error.message}`);
     return { table: "persons", title: row.name, status };

@@ -75,9 +75,13 @@ function fileUrls(prop: any): string[] {
   return files.map((f: any) => f?.file?.url || f?.external?.url).filter(Boolean);
 }
 
-function ms(val: string | null, map: Record<string, string>): string {
-  if (!val) return "draft";
-  return map[val] || "draft";
+/**
+ * 狀態映射：只有「已發佈」才 active/published，「待發佈」= draft
+ * 無發佈 / 空值 → 回傳 null（不同步到 Supabase）
+ */
+function ms(val: string | null, map: Record<string, string>): string | null {
+  if (!val || val === "無發佈" || val === "不發佈") return null; // 不同步
+  return map[val] || "draft"; // 待發佈等 → draft
 }
 
 const SITE_URL = "https://makesense.ink";
@@ -206,10 +210,11 @@ async function syncPersons() {
         ig: extractUrl(props["IG粉專"]?.url) || null,
         website: extractUrl(props["網路連結"]?.url) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "已完成": "active", "待發佈": "active", "進行中": "draft", "不發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
     };
   });
-  return batchUpsert("persons", rows, "notion_id");
+  const validRows = rows.filter(r => r.status !== null);
+  return batchUpsert("persons", validRows, "notion_id");
 }
 
 // ── DB08 → topics ──
@@ -223,10 +228,11 @@ async function syncTopics() {
       tag_type: ms(extractStatus(props["觀點狀態"]?.status), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
-      status: ms(extractStatus(props["觀點專頁"]?.status) || extractStatus(props["觀點狀態"]?.status), { "已完成": "active", "進行中": "draft" }),
+      status: ms(extractStatus(props["觀點專頁"]?.status) || extractStatus(props["觀點狀態"]?.status), { "已發佈": "active", "已完成": "active" }),
     };
   });
-  return batchUpsert("topics", rows, "notion_id");
+  const validRows = rows.filter(r => r.status !== null);
+  return batchUpsert("topics", validRows, "notion_id");
 }
 
 // ── DB08 → partners ──
@@ -249,10 +255,11 @@ async function syncPartners() {
         address: extractText(props["地址"]?.rich_text) || null,
         contactPerson: extractText(props["聯絡人"]?.rich_text) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "已完成": "active", "待發佈": "active", "不發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
     };
   });
-  return batchUpsert("partners", rows, "notion_id");
+  const validRows = rows.filter(r => r.status !== null);
+  return batchUpsert("partners", validRows, "notion_id");
 }
 
 // ── DB08 → members ──
@@ -324,15 +331,18 @@ async function syncProducts(wb = false) {
       publisher_id: pNid ? (pMap[pNid] || null) : null,
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active", "無發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
     };
   });
 
-  // 圖片遷移到 Cloudinary（在 upsert 前）
-  console.log(`[sync] products: migrating ${rows.length} product images to Cloudinary...`);
-  await migrateProductImages(rows);
+  // 過濾掉無發佈狀態的（不送到 Supabase）
+  const validRows = rows.filter(r => r.status !== null);
+  console.log(`[sync] products: ${rows.length} total, ${validRows.length} with publish status`);
 
-  const result = await batchUpsert("products", rows, "notion_id");
+  // 圖片遷移到 Cloudinary（在 upsert 前）
+  await migrateProductImages(validRows);
+
+  const result = await batchUpsert("products", validRows, "notion_id");
 
   if (wb) {
     for (const page of pages) {
@@ -391,15 +401,16 @@ async function syncEvents(wb = false) {
       description: extractText(props["簡介摘要"]?.rich_text) || null,
       location: locationName,
       guide: guideName,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active", "不發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
     };
   });
 
-  // 圖片遷移到 Cloudinary（在 upsert 前）
-  console.log(`[sync] events: migrating ${rows.length} event covers to Cloudinary...`);
-  await migrateCoverUrls(rows, "events");
+  const validRows = rows.filter(r => r.status !== null);
+  console.log(`[sync] events: ${rows.length} total, ${validRows.length} with publish status`);
 
-  const result = await batchUpsert("events", rows, "notion_id");
+  await migrateCoverUrls(validRows, "events");
+
+  const result = await batchUpsert("events", validRows, "notion_id");
 
   if (wb) {
     for (const page of pages) {
@@ -427,16 +438,17 @@ async function syncArticles(wb = false) {
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "published", "無發佈": "draft", "草稿": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published" }),
       published_at: dateInfo.start || null,
     };
   });
 
-  // 圖片遷移到 Cloudinary（在 upsert 前）
-  console.log(`[sync] articles: migrating ${rows.length} article covers to Cloudinary...`);
-  await migrateCoverUrls(rows, "articles");
+  const validRows = rows.filter(r => r.status !== null);
+  console.log(`[sync] articles: ${rows.length} total, ${validRows.length} with publish status`);
 
-  const result = await batchUpsert("articles", rows, "notion_id");
+  await migrateCoverUrls(validRows, "articles");
+
+  const result = await batchUpsert("articles", validRows, "notion_id");
 
   if (wb) {
     for (const page of pages) {
