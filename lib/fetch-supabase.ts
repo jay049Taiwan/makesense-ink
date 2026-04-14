@@ -102,13 +102,30 @@ export async function fetchSBOwnProducts(limit = 24) {
 // Events（活動）from Supabase
 // ═══════════════════════════════════════════
 export async function fetchSBEvents(limit = 10) {
-  const { data, error } = await supabase
+  // 先抓未來活動，不夠再補最近的過去活動
+  const now = new Date().toISOString();
+  let { data, error } = await supabase
     .from("events")
     .select("id, notion_id, title, theme, event_date, price, capacity, cover_url, description, status")
     .eq("status", "active")
-    .gte("event_date", new Date().toISOString())
+    .gte("event_date", now)
     .order("event_date", { ascending: true })
     .limit(limit);
+
+  if (error) { console.error("fetchSBEvents err:", error); return []; }
+
+  // 未來活動不夠時，補最近的過去活動
+  if ((data || []).length < limit) {
+    const remaining = limit - (data || []).length;
+    const { data: past } = await supabase
+      .from("events")
+      .select("id, notion_id, title, theme, event_date, price, capacity, cover_url, description, status")
+      .eq("status", "active")
+      .lt("event_date", now)
+      .order("event_date", { ascending: false })
+      .limit(remaining);
+    data = [...(data || []), ...(past || [])];
+  }
 
   if (error) { console.error("fetchSBEvents err:", error); return []; }
   return (data || []).map(e => ({
