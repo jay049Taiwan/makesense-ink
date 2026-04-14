@@ -149,4 +149,74 @@ export function extractStatus(statusProp: any): string | null {
   return statusProp?.name ?? null;
 }
 
+// ── 讀取頁面內容（blocks → HTML）──
+export async function getPageContent(pageId: string): Promise<string> {
+  const blocks: any[] = [];
+  let cursor: string | undefined = undefined;
+
+  do {
+    const res: any = await notion.blocks.children.list({
+      block_id: pageId,
+      page_size: 100,
+      ...(cursor ? { start_cursor: cursor } : {}),
+    });
+    blocks.push(...res.results);
+    cursor = res.has_more ? res.next_cursor : undefined;
+  } while (cursor);
+
+  return blocks.map(blockToHtml).filter(Boolean).join("\n");
+}
+
+function richTextToHtml(rt: any[]): string {
+  if (!rt || !Array.isArray(rt)) return "";
+  return rt.map((t) => {
+    let text = t.plain_text || "";
+    // 轉義 HTML
+    text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    if (t.annotations?.bold) text = `<strong>${text}</strong>`;
+    if (t.annotations?.italic) text = `<em>${text}</em>`;
+    if (t.annotations?.strikethrough) text = `<del>${text}</del>`;
+    if (t.annotations?.code) text = `<code>${text}</code>`;
+    if (t.href) text = `<a href="${t.href}" target="_blank" rel="noopener">${text}</a>`;
+    return text;
+  }).join("");
+}
+
+function blockToHtml(block: any): string {
+  const type = block.type;
+  if (!type) return "";
+
+  switch (type) {
+    case "paragraph":
+      return `<p>${richTextToHtml(block.paragraph?.rich_text)}</p>`;
+    case "heading_1":
+      return `<h2>${richTextToHtml(block.heading_1?.rich_text)}</h2>`;
+    case "heading_2":
+      return `<h3>${richTextToHtml(block.heading_2?.rich_text)}</h3>`;
+    case "heading_3":
+      return `<h4>${richTextToHtml(block.heading_3?.rich_text)}</h4>`;
+    case "bulleted_list_item":
+      return `<li>${richTextToHtml(block.bulleted_list_item?.rich_text)}</li>`;
+    case "numbered_list_item":
+      return `<li>${richTextToHtml(block.numbered_list_item?.rich_text)}</li>`;
+    case "quote":
+      return `<blockquote>${richTextToHtml(block.quote?.rich_text)}</blockquote>`;
+    case "callout":
+      return `<div class="callout">${block.callout?.icon?.emoji || ""} ${richTextToHtml(block.callout?.rich_text)}</div>`;
+    case "divider":
+      return "<hr />";
+    case "image": {
+      const url = block.image?.file?.url || block.image?.external?.url || "";
+      const caption = richTextToHtml(block.image?.caption) || "";
+      return url ? `<figure><img src="${url}" alt="${caption}" />${caption ? `<figcaption>${caption}</figcaption>` : ""}</figure>` : "";
+    }
+    case "toggle":
+      return `<details><summary>${richTextToHtml(block.toggle?.rich_text)}</summary></details>`;
+    case "code":
+      return `<pre><code>${richTextToHtml(block.code?.rich_text)}</code></pre>`;
+    default:
+      return "";
+  }
+}
+
 export default notion;

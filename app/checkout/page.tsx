@@ -1,41 +1,17 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart, type CartItem } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";
 
 /* ═══════════════════════════════════════════
-   Dev 假資料（購物車空時自動填入）
-   ═══════════════════════════════════════════ */
-const DEMO_ITEMS: CartItem[] = [
-  {
-    id: "ticket-a1-adult", name: "走讀行旅｜宜蘭舊城散步", subtitle: "成人票", type: "走讀",
-    price: 500, qty: 1, eventId: "a1",
-    meta: { date: "2026/04/21", guide: "黃育智" },
-    registration: {
-      contact_name: "王大明", phone: "0912-345-678", email: "wangdaming@gmail.com",
-      id_number: "A123456789", birth_date: "1990-01-15", residence: "宜蘭縣",
-      referral_sources: "Facebook 粉專", registration_reasons: "對主題/路線感興趣",
-    },
-  },
-  {
-    id: "ticket-a1-lunch", name: "走讀行旅｜宜蘭舊城散步", subtitle: "午餐便當（加購）", type: "走讀",
-    price: 120, qty: 1, eventId: "a1",
-  },
-  {
-    id: "product-p1", name: "蘭東案內 04期", subtitle: "書籍", type: "商品",
-    price: 250, qty: 2, productId: "p1",
-  },
-];
-
-/* ═══════════════════════════════════════════
    結帳頁面（= 購物車頁面）
    ═══════════════════════════════════════════ */
 export default function CheckoutPage() {
   const router = useRouter();
-  const { items, updateQty, removeItem, totalPrice, clearCart, addItem } = useCart();
+  const { items, updateQty, removeItem, totalPrice, clearCart } = useCart();
   const [paymentMethod, setPaymentMethod] = useState("credit");
   const [delivery, setDelivery] = useState("self");
   const [submitting, setSubmitting] = useState(false);
@@ -45,13 +21,6 @@ export default function CheckoutPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
 
-  // Dev: 購物車空時注入假資料
-  useEffect(() => {
-    if (items.length === 0) {
-      DEMO_ITEMS.forEach((item) => addItem(item));
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // 是否含票券（需審核）
   const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));

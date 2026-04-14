@@ -1,31 +1,62 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { fetchSBEvents } from "@/lib/fetch-supabase";
+import { supabase } from "@/lib/supabase";
 
 export const metadata: Metadata = {
   title: "Culture Makes Sense | 現思文化創藝術",
   description: "現思文化創藝術有限公司 — 以宜蘭在地文化為核心，打造地方文化永續生態系。",
 };
 
-const highlights = [
-  { label: "走讀活動", count: "48+", unit: "場", href: "/viewpoint-stroll" },
-  { label: "園遊市集", count: "35+", unit: "場", href: "/market-booking" },
-  { label: "合作品牌", count: "89+", unit: "個", href: "/sense" },
-  { label: "服務人次", count: "12,340+", unit: "人", href: "/sense" },
-];
-
-const upcomingEvents = [
-  { id: "a1", title: "走讀行旅｜宜蘭舊城散步", date: "04/21（一）", type: "走讀", color: "#5ba3d9" },
-  { id: "a3", title: "講座｜宜蘭的前世今生", date: "04/28（一）", type: "講座", color: "#b8943c" },
-  { id: "a2", title: "走讀行旅｜羅東林場文學散步", date: "05/05（一）", type: "走讀", color: "#5ba3d9" },
-  { id: "a4", title: "森本集市｜春日好物市集", date: "05/10（六）", type: "市集", color: "#4ECDC4" },
-];
+const EVENT_TYPE_COLORS: Record<string, string> = {
+  "走讀行旅": "#5ba3d9",
+  "講座課程": "#b8943c",
+  "園遊市集": "#4ECDC4",
+  "陳列展售": "#e8935a",
+  "文化冊展": "#7a5c40",
+  "藝文表演": "#c87060",
+  "典禮儀式": "#9575CD",
+};
 
 const brands = [
   { name: "旅人書店", desc: "用書連結地方的街角書店", href: "/bookstore" },
   { name: "宜蘭文化俱樂部", desc: "地方文化的分享與探索平台", href: "/cultureclub" },
 ];
 
-export default function HomePage() {
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const weekdays = ["日", "一", "二", "三", "四", "五", "六"];
+  return `${mm}/${dd}（${weekdays[d.getDay()]}）`;
+}
+
+export default async function HomePage() {
+  // 動態抓取近期活動
+  const upcomingEvents = await fetchSBEvents(4);
+
+  // 動態抓取統計數字
+  const [
+    { count: tourCount },
+    { count: marketCount },
+    { count: partnerCount },
+  ] = await Promise.all([
+    supabase.from("events").select("id", { count: "exact", head: true }).eq("status", "active").eq("event_type", "走讀行旅"),
+    supabase.from("events").select("id", { count: "exact", head: true }).eq("status", "active").eq("event_type", "園遊市集"),
+    supabase.from("partners").select("id", { count: "exact", head: true }).eq("status", "active"),
+  ]);
+
+  // 訂單人次（from orders）
+  const { count: orderCount } = await supabase.from("orders").select("id", { count: "exact", head: true });
+
+  const highlights = [
+    { label: "走讀活動", count: `${tourCount || 0}`, unit: "場", href: "/viewpoint-stroll" },
+    { label: "園遊市集", count: `${marketCount || 0}`, unit: "場", href: "/market-booking" },
+    { label: "合作品牌", count: `${partnerCount || 0}`, unit: "個", href: "/sense" },
+    { label: "服務人次", count: `${(orderCount || 0).toLocaleString()}`, unit: "人", href: "/sense" },
+  ];
+
   return (
     <div>
       {/* ═══ Hero ═══ */}
@@ -122,37 +153,49 @@ export default function HomePage() {
             查看全部
           </Link>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          {upcomingEvents.map((ev) => (
-            <Link
-              key={ev.id}
-              href={`/events/${ev.id}`}
-              className="rounded-xl overflow-hidden transition-shadow hover:shadow-md"
-              style={{ background: "#fff", border: "1px solid var(--color-dust)" }}
-            >
-              <div
-                className="aspect-[16/9] flex items-center justify-center"
-                style={{ background: "var(--color-parchment)" }}
+        {upcomingEvents.length > 0 ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {upcomingEvents.map((ev) => (
+              <Link
+                key={ev.id}
+                href={`/events/${ev.slug}`}
+                className="rounded-xl overflow-hidden transition-shadow hover:shadow-md"
+                style={{ background: "#fff", border: "1px solid var(--color-dust)" }}
               >
-                <span className="text-3xl opacity-20">📷</span>
-              </div>
-              <div className="p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span
-                    className="text-[0.6em] px-2 py-0.5 rounded-full text-white"
-                    style={{ background: ev.color }}
-                  >
-                    {ev.type}
-                  </span>
-                  <span className="text-[0.65em]" style={{ color: "var(--color-mist)" }}>{ev.date}</span>
+                <div
+                  className="aspect-[16/9] flex items-center justify-center overflow-hidden"
+                  style={{ background: "var(--color-parchment)" }}
+                >
+                  {ev.cover_url
+                    ? <img src={ev.cover_url} alt={ev.title} className="w-full h-full object-cover" />
+                    : <span className="text-3xl opacity-20">📷</span>}
                 </div>
-                <h3 className="text-sm font-medium line-clamp-2" style={{ color: "var(--color-ink)" }}>
-                  {ev.title}
-                </h3>
-              </div>
-            </Link>
-          ))}
-        </div>
+                <div className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    {ev.theme && (
+                      <span
+                        className="text-[0.6em] px-2 py-0.5 rounded-full text-white"
+                        style={{ background: EVENT_TYPE_COLORS[ev.theme] || "var(--color-mist)" }}
+                      >
+                        {ev.theme}
+                      </span>
+                    )}
+                    <span className="text-[0.65em]" style={{ color: "var(--color-mist)" }}>
+                      {formatDate(ev.date)}
+                    </span>
+                  </div>
+                  <h3 className="text-sm font-medium line-clamp-2" style={{ color: "var(--color-ink)" }}>
+                    {ev.title}
+                  </h3>
+                </div>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="text-center py-8 text-sm" style={{ color: "var(--color-mist)" }}>
+            目前沒有近期活動，請稍後再看
+          </p>
+        )}
       </section>
 
       {/* ═══ CTA ═══ */}
