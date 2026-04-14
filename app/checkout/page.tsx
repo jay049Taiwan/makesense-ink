@@ -48,6 +48,7 @@ export default function CheckoutPage() {
           },
           delivery,
           note,
+          source: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("liff_mode") === "true" ? "liff" : "web",
         }),
       });
       const data = await res.json();

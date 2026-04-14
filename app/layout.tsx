@@ -50,6 +50,7 @@ export default function RootLayout({
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&display=swap"
           rel="stylesheet"
         />
+        <link rel="alternate" type="application/rss+xml" title="現思文化創藝術" href="/feed.xml" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{

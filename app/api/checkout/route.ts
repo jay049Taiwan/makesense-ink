@@ -8,7 +8,7 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { items, contact, delivery, note, memberEmail } = body as {
+    const { items, contact, delivery, note, memberEmail, source } = body as {
       items: {
         id: string;
         name: string;
@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       delivery: string;
       note?: string;
       memberEmail?: string;
+      source?: "web" | "liff" | "telegram" | "preorder";
     };
 
     if (!items || items.length === 0) {
@@ -70,6 +71,7 @@ export async function POST(req: NextRequest) {
         member_id: memberId,
         status: orderStatus,
         total,
+        source: source || "web",
       })
       .select("id")
       .single();

@@ -275,8 +275,53 @@ npm run start  # 生產模式
 npm run lint   # ESLint
 ```
 
+## SEO & 基礎設施（2026/04/14 建立）
+- `app/robots.ts` — 搜尋引擎爬蟲規則（Disallow: /api/, /dashboard/, /telegram/, /checkout, /buy/, /login）
+- `app/sitemap.ts` — 動態 sitemap（靜態頁 + Supabase 動態內容）
+- `app/manifest.ts` — PWA manifest（standalone 模式，品牌色）
+- `app/feed.xml/route.ts` — RSS Feed（文章 + 活動，自動從 Supabase 生成）
+- `app/not-found.tsx` — 自訂 404 頁面
+- `app/error.tsx` — 錯誤邊界（重新載入 + 回首頁）
+- Loading 骨架屏：首頁、dashboard、文章、活動、商品、觀點 detail 頁
+- JSON-LD 結構化資料：Organization（全域）、Event（活動詳情）、Product（商品詳情）
+- 全域 OG/Twitter tags + canonical URL（layout.tsx）
+- RSS 自動發現標籤（layout.tsx `<head>`）
+
+## LINE LIFF 整合（2026/04/14 建立）
+- **模擬器**：`/dev/line-simulator` — LINE 聊天室模擬器，iframe 載入真實頁面帶 `?liff_mode=true`
+- **LIFF 模式偵測**：`LayoutShell.tsx` 讀 URL 參數 `?liff_mode=true` → 隱藏 Header/Footer
+- **Rich Menu 六宮格（不可更改）**：
+  ```
+  📚 選書選物 → /bookstore    | 🎪 近期活動 → /cultureclub    | 🗺️ 觀點漫遊 → /viewpoint-stroll
+  🛒 確認結帳 → /checkout     | 👤 會員中心 → /dashboard      | 💬 問問我們 → AI 客服面板
+  ```
+- **來源切換器**：LINE LIFF / Google 地圖 / Facebook / QR Code / 官網正常
+- **購物車持久化**：localStorage（跨 Rich Menu 切換不會清空）+ postMessage 通知模擬器
+- **訂單來源追蹤**：checkout API 接收 `source` 參數（web / liff / telegram / preorder）
+
+## Bottom Sheet（2026/04/14 建立）
+- `components/ui/BottomSheet.tsx` — 推薦商品/文章的底部小視窗
+- 「你應該也關注」（文章）和「你可能也會喜歡」（商品）點擊先開 Bottom Sheet
+- Sheet 內容：圖片 + 名稱 + 價格 + 加入購物車 / 查看詳情按鈕
+- 全站生效（不只 LIFF 模式），點灰色遮罩關閉
+- 不遞迴（Sheet 裡不再有推薦區）
+
+## 圖片處理（2026/04/14 建立）
+- `components/ui/ImagePlaceholder.tsx` — 品牌漸層 placeholder（7 種 type：event/article/product/topic/space/market/default）
+- `components/ui/SafeImage.tsx` — 圖片載入失敗自動 fallback 到 ImagePlaceholder
+- 同步管線自動上傳 Cloudinary（`migrateCoverUrls` + `migrateProductImages` in sync/route.ts）
+- 下次 Notion sync 時圖片自動存為 Cloudinary 永久 URL
+
+## Supabase 安全
+- `lib/supabase.ts` 提供兩個 client：
+  - `supabase` — anon key，用於前端和公開讀取
+  - `supabaseAdmin` — service_role key，用於 server-side API 寫入（繞過 RLS）
+- 所有寫入 API routes 已切換到 `supabaseAdmin`
+- **待做**：需要在 .env.local 加 `SUPABASE_SERVICE_ROLE_KEY`，然後收緊 RLS 政策
+
 ## 注意事項
 - Turbopack 快取損壞時 `rm -rf .next && npm run dev` 重啟
 - 完整重裝 `rm -rf .next node_modules package-lock.json && npm install && npm run dev`
 - 非英文路徑偶爾導致 Turbopack panic，重裝 node_modules 可解決
 - 舊站 makesense.site 已退役，不再維護
+- Build 時 `.next` 資料夾可能鎖定，需先停 dev server 再 build
