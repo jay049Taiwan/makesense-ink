@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import { getPageContent } from "@/lib/notion";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";
+import SafeImage from "@/components/ui/SafeImage";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -89,18 +90,9 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       </header>
 
       {/* Cover image */}
-      {article.cover_url ? (
-        <div className="aspect-[16/9] rounded-lg mb-8 overflow-hidden">
-          <img src={article.cover_url} alt={article.title} className="w-full h-full object-cover" />
-        </div>
-      ) : (
-        <div
-          className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center"
-          style={{ background: "var(--color-parchment)" }}
-        >
-          <span className="text-5xl opacity-20">📷</span>
-        </div>
-      )}
+      <div className="aspect-[16/9] rounded-lg mb-8 overflow-hidden" style={{ background: "var(--color-parchment)" }}>
+        <SafeImage src={article.cover_url} alt={article.title} placeholderType="article" />
+      </div>
 
       {/* Article body */}
       {contentHtml ? (

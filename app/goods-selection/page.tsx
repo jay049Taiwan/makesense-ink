@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import SafeImage from "@/components/ui/SafeImage";
 
 interface GoodsItem {
   id: string;
@@ -88,9 +89,7 @@ export default function GoodsSelectionPage() {
               <a key={g.id} href={`/product/${g.slug}`} className="flex-shrink-0 w-[200px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  {g.photo
-                    ? <img src={g.photo} alt={g.title} className="w-full h-full object-cover" />
-                    : <span className="text-3xl opacity-30">🎁</span>}
+                  <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
                 </div>
                 <div className="p-2">
                   <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{g.title}</h3>
@@ -163,9 +162,7 @@ export default function GoodsSelectionPage() {
                   <a key={g.id} href={`/product/${g.slug}`} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                     style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                     <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                      {g.photo
-                        ? <img src={g.photo} alt={g.title} className="w-full h-full object-cover" />
-                        : <span className="text-3xl opacity-30">🎁</span>}
+                      <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
                     </div>
                     <div className="p-3">
                       <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>{g.title}</h3>

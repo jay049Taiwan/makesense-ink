@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 interface LocationItem { name: string; type: string; slug: string }
 interface KeywordItem { name: string; slug: string }
@@ -35,7 +36,7 @@ export default function ReadingTourClient({
             className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center"
             style={{ background: "var(--color-parchment)" }}
           >
-            <span className="text-5xl opacity-20">📷</span>
+            <ImagePlaceholder type="default" />
           </div>
           <h1
             className="text-3xl font-semibold mb-2"

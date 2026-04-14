@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import RegistrationModal from "@/components/booking/RegistrationModal";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 const spaces = [
   {
@@ -80,7 +81,7 @@ export default function SpaceBookingPage() {
               className="aspect-[16/7] flex items-center justify-center"
               style={{ background: "var(--color-parchment)" }}
             >
-              <span className="text-3xl opacity-20">📷</span>
+              <ImagePlaceholder type="space" />
             </div>
             <div className="p-4">
               <h3 className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>{s.name}</h3>

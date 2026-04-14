@@ -5,6 +5,7 @@ import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections
 import RegistrationModal from "@/components/booking/RegistrationModal";
 import { useCart } from "@/components/providers/CartProvider";
 import { supabase } from "@/lib/supabase";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 interface EventData {
   title: string;
@@ -197,7 +198,7 @@ export default function EventPage({
                       className="h-[160px] flex items-center justify-center"
                       style={{ background: "var(--color-parchment)" }}
                     >
-                      <span className="text-3xl opacity-20">📷</span>
+                      <ImagePlaceholder type="event" />
                     </div>
                     <div className="p-4">
                       <div className="flex items-center justify-between mb-2">

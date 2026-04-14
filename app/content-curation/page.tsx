@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { fetchSBArticles, fetchSBTopics, fetchSBPersons } from "@/lib/fetch-supabase";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 export const metadata: Metadata = {
   title: "地方調研",
@@ -31,7 +32,7 @@ export default async function ContentCurationPage() {
             className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center"
             style={{ background: "var(--color-parchment)" }}
           >
-            <span className="text-5xl opacity-20">📷</span>
+            <ImagePlaceholder type="default" />
           </div>
           <h1
             className="text-3xl font-semibold mb-2"
@@ -97,7 +98,7 @@ export default async function ContentCurationPage() {
           採輯主題
         </h2>
         <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
-          按執行時間排列・from DB05
+          按執行時間排列
         </p>
 
         <ul className="space-y-2">

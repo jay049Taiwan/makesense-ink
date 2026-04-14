@@ -3,6 +3,8 @@ import Link from "next/link";
 import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import SafeImage from "@/components/ui/SafeImage";
 
 export const metadata: Metadata = {
   title: "旅人書店",
@@ -15,8 +17,8 @@ export const revalidate = 300;
 /* sampleCuration removed — B4 now uses dynamic viewpoints from Supabase */
 
 /* ── 共用商品卡片 ── */
-function ProductCard({ id, name, price, originalPrice, photo, icon, author, publisher }: {
-  id: string; name: string; price: number; originalPrice?: number; photo?: string | null; icon: string; author?: string; publisher?: string;
+function ProductCard({ id, name, price, originalPrice, photo, author, publisher }: {
+  id: string; name: string; price: number; originalPrice?: number; photo?: string | null; author?: string; publisher?: string;
 }) {
   return (
     <Link
@@ -25,11 +27,7 @@ function ProductCard({ id, name, price, originalPrice, photo, icon, author, publ
       style={{ border: "1px solid #e8e0d4", background: "#fff" }}
     >
       <div className="aspect-square flex items-center justify-center overflow-hidden" style={{ background: "#f2ede6" }}>
-        {photo ? (
-          <img src={photo} alt={name} className="w-full h-full object-cover" />
-        ) : (
-          <span className="text-3xl opacity-30">{icon}</span>
-        )}
+        <SafeImage src={photo} alt={name} placeholderType="product" />
       </div>
       <div className="p-2.5">
         <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{name}</h3>
@@ -71,21 +69,21 @@ export default async function BookstorePage() {
       {/* ── 區塊 1: Hero 輪播（從 Supabase 動態生成）── */}
       <section className="py-8">
         <HeroCarousel slides={[
-          // 近期活動
-          ...events.map(ev => ({
-            image: ev.cover_url || null,
+          // 近期活動（僅有封面圖的才放輪播）
+          ...events.filter(ev => ev.cover_url).map(ev => ({
+            image: ev.cover_url,
             title: ev.title,
             subtitle: ev.date ? `${new Date(ev.date).toLocaleDateString("zh-TW")} — ${ev.theme || "活動"}` : ev.description?.slice(0, 60) || "",
             cta: { text: "報名參加", href: `/events/${ev.slug}` },
           })),
-          // 最新文章（補滿至少 4 張）
-          ...articles.slice(0, Math.max(0, 4 - events.length)).map(a => ({
-            image: a.cover_url || null,
+          // 最新文章（僅有封面圖的，補滿至少 4 張）
+          ...articles.filter(a => a.cover_url).slice(0, Math.max(0, 4 - events.filter(ev => ev.cover_url).length)).map(a => ({
+            image: a.cover_url,
             title: a.title,
             subtitle: a.date ? new Date(a.date).toLocaleDateString("zh-TW") : "",
             cta: { text: "閱讀文章", href: `/post/${a.slug}` },
           })),
-          // 固定：加入俱樂部
+          // 固定：加入俱樂部（保底，確保至少有一張）
           { image: null, title: "宜蘭文化俱樂部", subtitle: "成為俱樂部會員，享受專屬文化體驗", cta: { text: "加入俱樂部", href: "/cultureclub" } },
         ]} />
       </section>
@@ -98,7 +96,7 @@ export default async function BookstorePage() {
         </div>
         <div className="hscroll-track">
           {books.map((book) => (
-            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} originalPrice={book.originalPrice} photo={book.photo} icon="📖" author={book.author} publisher={book.publisher} />
+            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} originalPrice={book.originalPrice} photo={book.photo} author={book.author} publisher={book.publisher} />
           ))}
           {books.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的書籍</p>}
         </div>
@@ -112,7 +110,7 @@ export default async function BookstorePage() {
         </div>
         <div className="hscroll-track">
           {goods.map((good) => (
-            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} originalPrice={good.originalPrice} photo={good.photo} icon="🎁" author={good.author} publisher={good.publisher} />
+            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} originalPrice={good.originalPrice} photo={good.photo} author={good.author} publisher={good.publisher} />
           ))}
           {goods.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的商品</p>}
         </div>
@@ -131,7 +129,7 @@ export default async function BookstorePage() {
                 className="flex-shrink-0 w-[260px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid #e8e0d4", background: "#fff" }}>
                 <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                  <span className="text-3xl opacity-20">💡</span>
+                  <ImagePlaceholder type="topic" />
                 </div>
                 <div className="p-3">
                   <h3 className="text-[0.95em] font-medium line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{vp.name}</h3>

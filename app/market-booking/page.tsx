@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { fetchSBOwnProducts, fetchSBPartners, fetchSBAllEvents } from "@/lib/fetch-supabase";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 export const metadata: Metadata = {
   title: "展售合作",
@@ -82,7 +83,7 @@ export default async function MarketBookingPage() {
               className="rounded-lg overflow-hidden transition-all hover:shadow-md hover:scale-[1.02]"
               style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
               <div className="aspect-square flex items-center justify-end flex-col relative" style={{ background: "var(--color-parchment)" }}>
-                <span className="text-2xl opacity-20 absolute top-1/3">🏷</span>
+                <div className="absolute inset-0"><ImagePlaceholder type="market" /></div>
                 <h3 className="text-[0.75em] font-medium line-clamp-2 text-center px-2 pb-2 relative z-10"
                   style={{ color: "var(--color-ink)" }}>{p.name}</h3>
               </div>
@@ -96,7 +97,7 @@ export default async function MarketBookingPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-[1.5em] font-bold" style={{ color: "var(--color-ink)" }}>地方特色產品展售</h2>
-            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>有產品在旅人書店銷售的品牌夥伴・from DB08 觀點</p>
+            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>有產品在旅人書店銷售的品牌夥伴</p>
           </div>
           <span className="text-sm" style={{ color: "var(--color-teal)" }}>{partnerBrands.length} 個品牌</span>
         </div>
@@ -125,7 +126,7 @@ export default async function MarketBookingPage() {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-[1.5em] font-bold" style={{ color: "var(--color-ink)" }}>市集活動</h2>
-            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>我們辦理的展售市集・from DB04</p>
+            <p className="text-sm mt-1" style={{ color: "var(--color-mist)" }}>我們辦理的展售市集</p>
           </div>
         </div>
         <div className="hscroll-track">
@@ -138,7 +139,7 @@ export default async function MarketBookingPage() {
                 style={{ width: "calc((100% - 64px) / 5)", minWidth: 200, border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-[16/10] flex items-center justify-center relative"
                   style={{ background: "linear-gradient(135deg, var(--color-parchment), var(--color-dust))" }}>
-                  <span className="text-3xl opacity-20">🏕</span>
+                  <ImagePlaceholder type="event" />
                   <span className="absolute top-2 right-2 text-[0.65em] px-2 py-0.5 rounded-full font-medium"
                     style={{ background: st.bg, color: st.text }}>
                     {status}

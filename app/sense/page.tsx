@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 /* ═══════════════════════════════════════════
    同行的人 — 四種服務對象
@@ -80,7 +81,7 @@ const yearData: TimelinePoint[] = Array.from({ length: 15 }, (_, i) => {
   return {
     label: `${y}`,
     title: s?.title || `${y} 年`,
-    desc: s?.desc || `${y} 年的重要事蹟（from DB09）`,
+    desc: s?.desc || `${y} 年的重要事蹟`,
     tags: s?.tags || [],
     hasContent: !!s,
     metrics: { events: Math.round(8 + i * 11), brands: Math.round(3 + i * 6.5), partners: Math.round(5 + i * 5.5), govProjects: Math.max(0, Math.round(i * 1.1 - 2)) },
@@ -103,7 +104,7 @@ const quarterData: TimelinePoint[] = (() => {
       quarters.push({
         label: key,
         title: s?.title || `${key}`,
-        desc: s?.desc || `${key} 的營運概況（from DB09）`,
+        desc: s?.desc || `${key} 的營運概況`,
         tags: s?.tags || [],
         hasContent: !!s,
         metrics: { events: 5 + Math.round(Math.random() * 20), brands: 4 + Math.round(Math.random() * 5), partners: 55 + Math.round(Math.random() * 15), govProjects: 10 + Math.round(Math.random() * 5) },
@@ -131,7 +132,7 @@ const monthData: TimelinePoint[] = (() => {
       months.push({
         label: m === 1 ? `${y}年1月` : `${m}月`,
         title: s?.title || `${y}年${m}月`,
-        desc: s?.desc || `${y}年${m}月的營運概況（from DB09）`,
+        desc: s?.desc || `${y}年${m}月的營運概況`,
         tags: s?.tags || [],
         hasContent: !!s,
         metrics: { events: 2 + Math.round(Math.random() * 10), brands: 4 + Math.round(Math.random() * 4), partners: 58 + Math.round(Math.random() * 10), govProjects: 12 + Math.round(Math.random() * 4) },
@@ -172,7 +173,7 @@ export default function SensePage() {
           ════════════════════════════════════════ */}
       <section className="mx-auto px-4 py-12" style={{ maxWidth: 1200 }}>
         <div className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-          <span className="text-5xl opacity-20">📷</span>
+          <ImagePlaceholder type="default" />
         </div>
         <div className="max-w-[1000px] mx-auto">
           <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>

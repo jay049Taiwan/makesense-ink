@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 interface TopicItem {
   id: string;
@@ -94,9 +95,8 @@ export default function ViewpointStrollPage() {
               <Link key={topic.id} href={`/viewpoint/${topic.slug}`}
                 className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                <div className="aspect-[4/3] flex items-center justify-center"
-                  style={{ background: "var(--color-parchment)" }}>
-                  <span className="text-2xl opacity-30">{topic.tag_type === "viewpoint" ? "💡" : "🏷"}</span>
+                <div className="aspect-[4/3]">
+                  <ImagePlaceholder type="topic" />
                 </div>
                 <div className="p-3">
                   <div className="flex items-center gap-1.5 mb-1">

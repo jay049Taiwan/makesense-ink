@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent } from "@/lib/notion";
 import { supabase } from "@/lib/supabase";
+import { uploadToCloudinary } from "@/lib/cloudinary";
 
 export const maxDuration = 300; // Vercel timeout 5 min
 
@@ -30,19 +31,31 @@ export async function POST(req: NextRequest) {
 
   const order = ["persons", "topics", "partners", "members", "staff", "products", "events", "articles"];
 
-  try {
-    for (const table of order) {
-      if (only && !only.has(table)) continue;
-      console.log(`[sync] start: ${table}`);
-      const start = Date.now();
+  const failures: Record<string, string> = {};
+
+  for (const table of order) {
+    if (only && !only.has(table)) continue;
+    console.log(`[sync] start: ${table}`);
+    const start = Date.now();
+    try {
       results[table] = await syncMap[table]();
       console.log(`[sync] done: ${table} — ${results[table].upserted} upserted, ${results[table].errors} errors (${((Date.now() - start) / 1000).toFixed(1)}s)`);
+    } catch (err: any) {
+      const elapsed = ((Date.now() - start) / 1000).toFixed(1);
+      console.error(`[sync] FAILED: ${table} after ${elapsed}s — ${err.message}`);
+      failures[table] = err.message;
+      results[table] = { upserted: 0, errors: -1 };
+      // 繼續同步其餘表，不中斷
     }
-    return NextResponse.json({ success: true, results, writeback: doWriteback });
-  } catch (err: any) {
-    console.error("Sync error:", err);
-    return NextResponse.json({ success: false, error: err.message, results }, { status: 500 });
   }
+
+  const hasFailures = Object.keys(failures).length > 0;
+  const allFailed = Object.keys(failures).length === Object.keys(results).length;
+
+  return NextResponse.json(
+    { success: !allFailed, partial: hasFailures && !allFailed, results, failures: hasFailures ? failures : undefined, writeback: doWriteback },
+    { status: allFailed ? 500 : 200 }
+  );
 }
 
 // ── Helpers ──
@@ -69,15 +82,72 @@ function ms(val: string | null, map: Record<string, string>): string {
 
 const SITE_URL = "https://makesense.ink";
 const BATCH_SIZE = 200; // 每批 upsert 筆數
+const ENABLE_CLOUDINARY = true; // 同步時自動上傳圖片到 Cloudinary
 
-/** 批次 upsert：每 BATCH_SIZE 筆送一次，批次間間隔 500ms 避免限流 */
+/** 批次遷移 cover_url 到 Cloudinary（並行處理，每 5 張一組避免限流） */
+async function migrateCoverUrls(rows: Record<string, any>[], table: string): Promise<void> {
+  if (!ENABLE_CLOUDINARY) return;
+  const CONCURRENCY = 5;
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const chunk = rows.slice(i, i + CONCURRENCY);
+    await Promise.all(chunk.map(async (row) => {
+      if (!row.cover_url) return;
+      if (row.cover_url.includes("res.cloudinary.com")) return;
+      if (!row.cover_url.includes("notion-static") && !row.cover_url.includes("prod-files-secure")) return;
+      try {
+        const cdnUrl = await uploadToCloudinary(row.cover_url, `makesense/${table}`, row.notion_id);
+        if (cdnUrl) row.cover_url = cdnUrl;
+      } catch (e: any) { console.warn(`[img] ${row.notion_id}: ${e.message}`); }
+    }));
+  }
+}
+
+/** 批次遷移 products.images 到 Cloudinary */
+async function migrateProductImages(rows: Record<string, any>[]): Promise<void> {
+  if (!ENABLE_CLOUDINARY) return;
+  const CONCURRENCY = 3;
+  for (let i = 0; i < rows.length; i += CONCURRENCY) {
+    const chunk = rows.slice(i, i + CONCURRENCY);
+    await Promise.all(chunk.map(async (row) => {
+      if (!row.images) return;
+      let imgs: string[];
+      try { imgs = JSON.parse(row.images); } catch { return; }
+      if (imgs.length === 0) return;
+      let changed = false;
+      const newImgs = await Promise.all(imgs.map(async (url, idx) => {
+        if (url.includes("res.cloudinary.com")) return url;
+        if (!url.includes("notion-static") && !url.includes("prod-files-secure")) return url;
+        try {
+          const cdnUrl = await uploadToCloudinary(url, "makesense/products", `${row.notion_id}_${idx}`);
+          if (cdnUrl && cdnUrl !== url) { changed = true; return cdnUrl; }
+        } catch (e: any) { console.warn(`[img] ${row.notion_id}_${idx}: ${e.message}`); }
+        return url;
+      }));
+      if (changed) row.images = JSON.stringify(newImgs);
+    }));
+  }
+}
+
+/** 批次 upsert：每 BATCH_SIZE 筆送一次，失敗自動重試一次（等 2s），批次間間隔 500ms 避免限流 */
 async function batchUpsert(table: string, rows: Record<string, any>[], conflictKey: string): Promise<{ upserted: number; errors: number }> {
   let upserted = 0, errors = 0;
   for (let i = 0; i < rows.length; i += BATCH_SIZE) {
     const chunk = rows.slice(i, i + BATCH_SIZE);
-    const { error, count } = await supabase.from(table).upsert(chunk, { onConflict: conflictKey, count: "exact" });
+    let { error, count } = await supabase.from(table).upsert(chunk, { onConflict: conflictKey, count: "exact" });
+    // 失敗時重試一次
     if (error) {
-      console.error(`${table} batch err (${i}~${i + chunk.length}):`, error.message);
+      console.warn(`[supabase] ${table} batch (${i}~${i + chunk.length}) failed: ${error.message} — retrying in 2s...`);
+      await new Promise(r => setTimeout(r, 2000));
+      const retry = await supabase.from(table).upsert(chunk, { onConflict: conflictKey, count: "exact" });
+      error = retry.error;
+      count = retry.count;
+      if (error) {
+        console.error(`[supabase] ${table} batch (${i}~${i + chunk.length}) retry also failed: ${error.message}`);
+      } else {
+        console.log(`[supabase] ${table} batch (${i}~${i + chunk.length}) retry succeeded`);
+      }
+    }
+    if (error) {
       errors += chunk.length;
     } else {
       upserted += count ?? chunk.length;
@@ -258,6 +328,10 @@ async function syncProducts(wb = false) {
     };
   });
 
+  // 圖片遷移到 Cloudinary（在 upsert 前）
+  console.log(`[sync] products: migrating ${rows.length} product images to Cloudinary...`);
+  await migrateProductImages(rows);
+
   const result = await batchUpsert("products", rows, "notion_id");
 
   if (wb) {
@@ -321,6 +395,10 @@ async function syncEvents(wb = false) {
     };
   });
 
+  // 圖片遷移到 Cloudinary（在 upsert 前）
+  console.log(`[sync] events: migrating ${rows.length} event covers to Cloudinary...`);
+  await migrateCoverUrls(rows, "events");
+
   const result = await batchUpsert("events", rows, "notion_id");
 
   if (wb) {
@@ -353,6 +431,10 @@ async function syncArticles(wb = false) {
       published_at: dateInfo.start || null,
     };
   });
+
+  // 圖片遷移到 Cloudinary（在 upsert 前）
+  console.log(`[sync] articles: migrating ${rows.length} article covers to Cloudinary...`);
+  await migrateCoverUrls(rows, "articles");
 
   const result = await batchUpsert("articles", rows, "notion_id");
 

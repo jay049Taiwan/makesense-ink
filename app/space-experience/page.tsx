@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Calendar from "@/components/calendar/Calendar";
 import RegistrationModal from "@/components/booking/RegistrationModal";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 
 export default function SpaceExperiencePage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -19,7 +20,7 @@ export default function SpaceExperiencePage() {
             className="aspect-[16/9] rounded-lg mb-8 flex items-center justify-center"
             style={{ background: "var(--color-parchment)" }}
           >
-            <span className="text-5xl opacity-20">📷</span>
+            <ImagePlaceholder type="space" />
           </div>
           <h1
             className="text-3xl font-semibold mb-2"

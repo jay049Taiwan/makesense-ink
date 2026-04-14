@@ -3,6 +3,7 @@
 import { useState, useEffect, use } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
+import SafeImage from "@/components/ui/SafeImage";
 
 interface TopicData {
   name: string;
@@ -124,9 +125,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
                 className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  {p.photo
-                    ? <img src={p.photo} alt={p.name} className="w-full h-full object-cover" />
-                    : <span className="text-3xl opacity-20">📖</span>}
+                  <SafeImage src={p.photo} alt={p.name} placeholderType="product" />
                 </div>
                 <div className="p-2.5">
                   <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{p.name}</h3>

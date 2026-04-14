@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
+import SafeImage from "@/components/ui/SafeImage";
 
 interface ProductData {
   name: string;
@@ -82,9 +83,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
         <div className="md:sticky md:top-6">
           <div className="aspect-square rounded-[2px] flex items-center justify-center overflow-hidden"
             style={{ background: "var(--color-parchment)" }}>
-            {mainPhoto
-              ? <img src={mainPhoto} alt={product.name} className="w-full h-full object-cover" />
-              : <span className="text-6xl opacity-20">📖</span>}
+            <SafeImage src={mainPhoto} alt={product.name} placeholderType="product" />
           </div>
           {product.photos.length > 1 && (
             <div className="flex gap-2 mt-2.5">

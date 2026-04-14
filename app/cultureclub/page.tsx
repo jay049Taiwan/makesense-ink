@@ -3,6 +3,8 @@ import Link from "next/link";
 import Calendar from "@/components/calendar/Calendar";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 import { fetchSBEvents, fetchSBArticles, fetchSBTopics, fetchSBProducts } from "@/lib/fetch-supabase";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import SafeImage from "@/components/ui/SafeImage";
 
 export const metadata: Metadata = {
   title: "宜蘭文化俱樂部",
@@ -52,7 +54,7 @@ export default async function CultureClubPage() {
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                {post.cover_url ? <img src={post.cover_url} alt="" className="w-full h-full object-cover" /> : <span className="text-3xl opacity-20">📰</span>}
+                <SafeImage src={post.cover_url} alt={post.title} placeholderType="article" />
               </div>
               <div className="p-3">
                 <h3 className="text-[0.9em] line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{post.title}</h3>
@@ -78,7 +80,7 @@ export default async function CultureClubPage() {
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <span className="text-3xl opacity-20">💡</span>
+                <ImagePlaceholder type="topic" />
               </div>
               <div className="p-3">
                 <h3 className="text-[0.9em] font-semibold line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{tag.name}</h3>
@@ -106,7 +108,7 @@ export default async function CultureClubPage() {
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-square flex items-center justify-center relative" style={{ background: "#f2ede6" }}>
-                <span className="text-3xl opacity-20">💡</span>
+                <ImagePlaceholder type="topic" />
                 <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: "#E3F2FD", color: "#1565C0" }}>
                   觀點
                 </span>
@@ -135,9 +137,7 @@ export default async function CultureClubPage() {
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-square flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                {g.photo
-                  ? <img src={g.photo} alt={g.name} className="w-full h-full object-cover" />
-                  : <span className="text-3xl opacity-20">📖</span>}
+                <SafeImage src={g.photo} alt={g.name} placeholderType="product" />
               </div>
               <div className="p-2.5">
                 <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{g.name}</h3>

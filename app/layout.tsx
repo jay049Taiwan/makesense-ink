@@ -17,6 +17,25 @@ export const metadata: Metadata = {
   metadataBase: new URL(
     process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink"
   ),
+  openGraph: {
+    type: "website",
+    locale: "zh_TW",
+    siteName: "現思文化創藝術",
+    title: "現思文化創藝術 | Culture Makes Sense",
+    description: "以宜蘭為根，透過走讀、市集、講座與空間，串連在地職人、品牌與社群，打造地方文化的永續生態系。",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "現思文化創藝術 | Culture Makes Sense",
+    description: "以宜蘭為根，透過走讀、市集、講座與空間，串連在地職人、品牌與社群，打造地方文化的永續生態系。",
+  },
+  robots: {
+    index: true,
+    follow: true,
+  },
+  alternates: {
+    canonical: "https://makesense.ink",
+  },
 };
 
 export default function RootLayout({

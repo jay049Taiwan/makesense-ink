@@ -32,7 +32,8 @@ export async function queryDatabase(
 
   do {
     let response: any;
-    // 最多重試 3 次，遇到 502/504/rate-limit 時等待後重試
+    // 最多重試 3 次，遇到 502/504/429/timeout 時指數退避重試
+    const RETRY_DELAYS = [5000, 15000, 30000]; // 5s, 15s, 30s
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         response = await notion.dataSources.query({
@@ -48,11 +49,12 @@ export async function queryDatabase(
         const isRetryable = status === 502 || status === 504 || status === 429 ||
           err?.code === "notionhq_client_request_timeout";
         if (isRetryable && attempt < 2) {
-          const wait = (attempt + 1) * 5000; // 5s, 10s
-          console.warn(`[notion] retry ${attempt + 1}/3 after ${wait}ms (${status || err.code})`);
+          const wait = RETRY_DELAYS[attempt];
+          console.warn(`[notion] queryDatabase retry ${attempt + 1}/3 for db ${databaseId.slice(0, 8)}... — waiting ${wait / 1000}s (status: ${status || err.code})`);
           await new Promise(r => setTimeout(r, wait));
           continue;
         }
+        console.error(`[notion] queryDatabase failed after ${attempt + 1} attempts for db ${databaseId.slice(0, 8)}... (status: ${status || err.code})`);
         throw err;
       }
     }

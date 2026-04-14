@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { fetchSBEvents } from "@/lib/fetch-supabase";
 import { supabase } from "@/lib/supabase";
+import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import SafeImage from "@/components/ui/SafeImage";
 
 export const metadata: Metadata = {
   title: "Culture Makes Sense | 現思文化創藝術",
@@ -33,8 +35,10 @@ function formatDate(dateStr: string | null): string {
 }
 
 export default async function HomePage() {
-  // 動態抓取近期活動
+  // 動態抓取近期活動（未來優先，不足時補最近的過去活動）
   const upcomingEvents = await fetchSBEvents(4);
+  const now = new Date().toISOString();
+  const hasFutureEvents = upcomingEvents.some(ev => ev.date && ev.date >= now);
 
   // 動態抓取統計數字
   const [
@@ -47,14 +51,17 @@ export default async function HomePage() {
     supabase.from("partners").select("id", { count: "exact", head: true }).eq("status", "active"),
   ]);
 
-  // 訂單人次（from orders）
-  const { count: orderCount } = await supabase.from("orders").select("id", { count: "exact", head: true });
+  // 累計活動場次（歷年所有已舉辦的活動）
+  const { count: totalEventCount } = await supabase
+    .from("events")
+    .select("id", { count: "exact", head: true })
+    .eq("status", "active");
 
   const highlights = [
     { label: "走讀活動", count: `${tourCount || 0}`, unit: "場", href: "/viewpoint-stroll" },
     { label: "園遊市集", count: `${marketCount || 0}`, unit: "場", href: "/market-booking" },
     { label: "合作品牌", count: `${partnerCount || 0}`, unit: "個", href: "/sense" },
-    { label: "服務人次", count: `${(orderCount || 0).toLocaleString()}`, unit: "人", href: "/sense" },
+    { label: "累計活動", count: `${(totalEventCount || 0).toLocaleString()}`, unit: "場", href: "/sense" },
   ];
 
   return (
@@ -127,11 +134,8 @@ export default async function HomePage() {
                 className="rounded-xl overflow-hidden transition-shadow hover:shadow-md"
                 style={{ background: "#fff", border: "1px solid var(--color-dust)" }}
               >
-                <div
-                  className="aspect-[16/7] flex items-center justify-center"
-                  style={{ background: "var(--color-parchment)" }}
-                >
-                  <span className="text-4xl opacity-20">📷</span>
+                <div className="aspect-[16/7]">
+                  <ImagePlaceholder type="default" />
                 </div>
                 <div className="p-5">
                   <h3 className="text-lg font-semibold mb-1" style={{ color: "var(--color-ink)" }}>{b.name}</h3>
@@ -147,7 +151,7 @@ export default async function HomePage() {
       <section className="mx-auto px-4 py-12" style={{ maxWidth: 1140 }}>
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-xl font-semibold" style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
-            近期活動
+            {hasFutureEvents ? "近期活動" : "精選活動"}
           </h2>
           <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>
             查看全部
@@ -166,9 +170,7 @@ export default async function HomePage() {
                   className="aspect-[16/9] flex items-center justify-center overflow-hidden"
                   style={{ background: "var(--color-parchment)" }}
                 >
-                  {ev.cover_url
-                    ? <img src={ev.cover_url} alt={ev.title} className="w-full h-full object-cover" />
-                    : <span className="text-3xl opacity-20">📷</span>}
+                  <SafeImage src={ev.cover_url} alt={ev.title} placeholderType="event" />
                 </div>
                 <div className="p-4">
                   <div className="flex items-center gap-2 mb-2">
