@@ -374,8 +374,8 @@
     "noProductsDesc": "「商品追加」をクリックして開始 — 30秒で完了"
   },
   "recommend": {
-    "articles": "こちらもおすすめ",
-    "products": "あなたにおすすめ"
+    "articles": "気になるかも",
+    "products": "こちらもおすすめ"
   },
   "bottomSheet": {
     "addToCart": "カートに入れる",

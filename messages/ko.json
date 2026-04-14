@@ -374,8 +374,8 @@
     "noProductsDesc": "\"상품 추가\"를 클릭하여 시작 — 30초면 완료"
   },
   "recommend": {
-    "articles": "함께 읽으면 좋은 글",
-    "products": "추천 상품"
+    "articles": "관심 가질 만한 글",
+    "products": "이런 것도 좋아할지도"
   },
   "bottomSheet": {
     "addToCart": "장바구니에 담기",

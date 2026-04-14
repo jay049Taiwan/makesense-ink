@@ -1,22 +1,20 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents } from "@/lib/fetch-supabase";
+import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents, applyTranslations } from "@/lib/fetch-supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { Link } from "@/i18n/routing";
 
-export const metadata: Metadata = {
-  title: "旅人書店",
-  description: "旅人書店 — 宜蘭在地文化書店，提供展售合作、空間租借、文化活動。",
-};
+export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
+  const { locale } = await params;
+  const t = await getTranslations({ locale, namespace: "bookstore" });
+  return { title: t("title") };
+}
 
-// 啟用 ISR：每 300 秒（5 分鐘）重新驗證
 export const revalidate = 300;
 
-/* sampleCuration removed — B4 now uses dynamic viewpoints from Supabase */
-
-/* ── 共用商品卡片 ── */
 function ProductCard({ id, name, price, originalPrice, photo, author, publisher }: {
   id: string; name: string; price: number; originalPrice?: number; photo?: string | null; author?: string; publisher?: string;
 }) {
@@ -51,11 +49,13 @@ function ProductCard({ id, name, price, originalPrice, photo, author, publisher 
   );
 }
 
-/* CurationRow removed — replaced by dynamic viewpoints */
+export default async function BookstorePage({ params }: { params: Promise<{ locale: string }> }) {
+  const { locale } = await params;
+  setRequestLocale(locale);
+  const t = await getTranslations("bookstore");
+  const te = await getTranslations("events");
 
-export default async function BookstorePage() {
-  // 全部從 Supabase 讀取
-  const [books, goods, articles, viewpoints, events] = await Promise.all([
+  const [booksRaw, goodsRaw, articlesRaw, viewpointsRaw, eventsRaw] = await Promise.all([
     fetchSBProducts("選書", 12),
     fetchSBProducts("選物", 12),
     fetchSBArticles(5),
@@ -63,65 +63,69 @@ export default async function BookstorePage() {
     fetchSBEvents(3),
   ]);
 
+  // 非中文時套用翻譯
+  const books = await applyTranslations(booksRaw, "products", locale, ["name", "description"]);
+  const goods = await applyTranslations(goodsRaw, "products", locale, ["name", "description"]);
+  const articles = await applyTranslations(articlesRaw, "articles", locale, ["title"]);
+  const viewpoints = await applyTranslations(viewpointsRaw, "topics", locale, ["name", "summary"]);
+  const events = await applyTranslations(eventsRaw, "events", locale, ["title", "description"]);
+
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
-      {/* ── 區塊 1: Hero 輪播（從 Supabase 動態生成）── */}
+      {/* ── 區塊 1: Hero 輪播 ── */}
       <section className="py-8">
         <HeroCarousel slides={[
-          // 近期活動（僅有封面圖的才放輪播）
           ...events.filter(ev => ev.cover_url).map(ev => ({
             image: ev.cover_url,
             title: ev.title,
-            subtitle: ev.date ? `${new Date(ev.date).toLocaleDateString("zh-TW")} — ${ev.theme || "活動"}` : ev.description?.slice(0, 60) || "",
-            cta: { text: "報名參加", href: `/events/${ev.slug}` },
+            subtitle: ev.date ? `${new Date(ev.date).toLocaleDateString(locale === "zh" ? "zh-TW" : locale)} — ${ev.theme || ""}` : ev.description?.slice(0, 60) || "",
+            cta: { text: te("register"), href: `/events/${ev.slug}` },
           })),
-          // 最新文章（僅有封面圖的，補滿至少 4 張）
           ...articles.filter(a => a.cover_url).slice(0, Math.max(0, 4 - events.filter(ev => ev.cover_url).length)).map(a => ({
             image: a.cover_url,
             title: a.title,
-            subtitle: a.date ? new Date(a.date).toLocaleDateString("zh-TW") : "",
-            cta: { text: "閱讀文章", href: `/post/${a.slug}` },
+            subtitle: a.date ? new Date(a.date).toLocaleDateString(locale === "zh" ? "zh-TW" : locale) : "",
+            cta: { text: t("localNewsletter"), href: `/post/${a.slug}` },
           })),
-          // 固定：加入俱樂部（保底，確保至少有一張）
-          { image: null, title: "宜蘭文化俱樂部", subtitle: "成為俱樂部會員，享受專屬文化體驗", cta: { text: "加入俱樂部", href: "/cultureclub" } },
+          { image: null, title: t("title"), subtitle: "", cta: { text: t("themeCuration"), href: "/cultureclub" } },
         ]} />
       </section>
 
-      {/* ── 區塊 2: 主題選書輪播 ── */}
+      {/* ── 區塊 2: 主題選書 ── */}
       <section className="py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>主題選書</h2>
-          <Link href="/book-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多主題選書 →</Link>
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{t("themeBooks")}</h2>
+          <Link href="/book-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>{t("moreThemeBooks")}</Link>
         </div>
         <div className="hscroll-track">
           {books.map((book) => (
-            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} originalPrice={book.originalPrice} photo={book.photo} author={book.author} publisher={book.publisher} />
+            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} photo={book.photo} author={book.author} publisher={book.publisher} />
           ))}
-          {books.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的書籍</p>}
+          {books.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>{t("noBooksYet")}</p>}
         </div>
       </section>
 
-      {/* ── 區塊 3: 風格選物輪播 ── */}
+      {/* ── 區塊 3: 風格選物 ── */}
       <section className="py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>風格選物</h2>
-          <Link href="/goods-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多風格選物 →</Link>
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{t("styleGoods")}</h2>
+          <Link href="/goods-selection" className="text-xs" style={{ color: "var(--color-teal)" }}>{t("moreStyleGoods")}</Link>
         </div>
         <div className="hscroll-track">
           {goods.map((good) => (
-            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} originalPrice={good.originalPrice} photo={good.photo} author={good.author} publisher={good.publisher} />
+            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} photo={good.photo} author={good.author} publisher={good.publisher} />
           ))}
-          {goods.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有上架的商品</p>}
+          {goods.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>{t("noGoodsYet")}</p>}
         </div>
       </section>
 
-      {/* ── 區塊 B4: 主題策展（動態觀點 from DB08）── */}
+      {/* ── 區塊 B4: 主題策展 ── */}
       {viewpoints.length > 0 && (
         <section className="py-6">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>主題策展</h2>
-            <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>探索更多觀點 →</Link>
+            <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{t("themeCuration")}</h2>
+            <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>{t("viewpointExplorer")} →</Link>
           </div>
           <div className="hscroll-track">
             {viewpoints.map((vp) => (
@@ -144,8 +148,8 @@ export default async function BookstorePage() {
       {/* ── 區塊 B5: 地方通訊 ── */}
       <section className="py-6">
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>地方通訊</h2>
-          <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多地方通訊 →</Link>
+          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{t("localNewsletter")}</h2>
+          <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>{t("localNewsletter")} →</Link>
         </div>
         <div>
           {articles.map((article) => (
@@ -156,18 +160,18 @@ export default async function BookstorePage() {
               style={{ borderBottom: "1px solid #f0f0f0" }}
             >
               <span className="text-[0.8em] flex-shrink-0 min-w-[100px]" style={{ color: "#999" }}>
-                {article.date ? new Date(article.date).toLocaleDateString("zh-TW") : ""}
+                {article.date ? new Date(article.date).toLocaleDateString(locale === "zh" ? "zh-TW" : locale) : ""}
               </span>
               <span className="text-[0.95em]" style={{ color: "#1a1612" }}>
                 {article.title}
               </span>
             </Link>
           ))}
-          {articles.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有文章</p>}
+          {articles.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>—</p>}
         </div>
       </section>
 
-      {/* ── 區塊 8: 觀點漫遊（宜蘭 + 12 鄉鎮觀點）── */}
+      {/* ── 觀點漫遊地圖 ── */}
       <ViewpointExplorer />
     </div>
   );

@@ -374,8 +374,8 @@
     "noProductsDesc": "點「新增商品」開始上架，30 秒完成一筆"
   },
   "recommend": {
-    "articles": "你應該也關注",
-    "products": "你可能也會喜歡"
+    "articles": "你應該會關注",
+    "products": "你可能也喜歡"
   },
   "bottomSheet": {
     "addToCart": "加入購物車",

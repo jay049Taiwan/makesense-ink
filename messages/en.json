@@ -374,8 +374,8 @@
     "noProductsDesc": "Click \"Add Product\" to get started — takes 30 seconds"
   },
   "recommend": {
-    "articles": "You Should Also Read",
-    "products": "You May Also Like"
+    "articles": "You Might Be Interested In",
+    "products": "You Might Also Like"
   },
   "bottomSheet": {
     "addToCart": "Add to Cart",
