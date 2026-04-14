@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
 import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
+import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 
 // ═══════════════════════════════════════════
 // 一般會員總覽
@@ -321,6 +322,12 @@ function MemberOverview() {
           })}
         </div>
       </div>
+
+      {/* ── 網站營運分析（僅 staff 可見）── */}
+      {(() => {
+        const roleForAnalytics = isDev ? devRole.role : ((session as any)?.role || "member");
+        return roleForAnalytics === "staff" ? <AnalyticsPanel /> : null;
+      })()}
     </div>
   );
 }

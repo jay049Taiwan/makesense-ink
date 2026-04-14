@@ -116,6 +116,7 @@ export function MightAlsoLike() {
         .from("products")
         .select("id, notion_id, name, price, images")
         .eq("status", "active")
+        .or("category.eq.商品/選書,category.eq.商品/選物")
         .order("updated_at", { ascending: false })
         .limit(4);
 

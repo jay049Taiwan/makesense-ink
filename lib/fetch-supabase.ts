@@ -26,6 +26,9 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
 
   if (subCategory) {
     query = query.ilike("category", `%${subCategory}%`);
+  } else {
+    // 公開頁面預設只顯示選書和選物，隱藏票券、加購品等
+    query = query.or("category.eq.商品/選書,category.eq.商品/選物");
   }
 
   const { data, error } = await query;

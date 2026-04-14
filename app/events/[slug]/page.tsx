@@ -6,6 +6,7 @@ import RegistrationModal from "@/components/booking/RegistrationModal";
 import { useCart } from "@/components/providers/CartProvider";
 import { supabase } from "@/lib/supabase";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import WishlistButton from "@/components/ui/WishlistButton";
 
 interface EventData {
   title: string;
@@ -170,12 +171,15 @@ export default function EventPage({
           <p className="text-sm tracking-widest mb-2" style={{ color: "var(--color-mist)", fontFamily: "var(--font-sans)" }}>
             活動
           </p>
-          <h1
-            className="text-3xl sm:text-4xl font-semibold text-white mb-2"
-            style={{ fontFamily: "var(--font-display)" }}
-          >
-            {event.title}
-          </h1>
+          <div className="flex items-center gap-3 mb-2">
+            <h1
+              className="text-3xl sm:text-4xl font-semibold text-white"
+              style={{ fontFamily: "var(--font-display)" }}
+            >
+              {event.title}
+            </h1>
+            <WishlistButton itemType="event" itemId={slug} />
+          </div>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70 mt-1">
             <span>{event.date}</span>
             {event.location && <span>地點：{event.location}</span>}

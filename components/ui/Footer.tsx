@@ -67,6 +67,13 @@ export default function Footer() {
                   <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
                 </svg>
               </a>
+              {/* RSS icon */}
+              <a href="/feed.xml" target="_blank" rel="noopener noreferrer"
+                className="hover:opacity-70 transition-opacity" aria-label="RSS Feed">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="#7a6248">
+                  <path d="M6.18 15.64a2.18 2.18 0 0 1 2.18 2.18C8.36 19 7.38 20 6.18 20C5 20 4 19 4 17.82a2.18 2.18 0 0 1 2.18-2.18M4 4.44A15.56 15.56 0 0 1 19.56 20h-2.83A12.73 12.73 0 0 0 4 7.27V4.44m0 5.66a9.9 9.9 0 0 1 9.9 9.9h-2.83A7.07 7.07 0 0 0 4 12.93V10.1z"/>
+                </svg>
+              </a>
             </div>
             <span style={{ fontSize: 20, color: "#8b7355" }}>039-325957</span>
             <span style={{ fontSize: 20, color: "#8b7355" }}>宜蘭縣羅東鎮文化街55號</span>

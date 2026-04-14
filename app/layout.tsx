@@ -4,8 +4,10 @@ import LayoutShell from "@/components/ui/LayoutShell";
 import AuthProvider from "@/components/providers/AuthProvider";
 import DevRoleProvider from "@/components/providers/DevRoleProvider";
 import CartProvider from "@/components/providers/CartProvider";
+import { Suspense } from "react";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script";
+import PageViewTracker from "@/components/tracking/PageViewTracker";
 
 export const metadata: Metadata = {
   title: {
@@ -51,6 +53,7 @@ export default function RootLayout({
           rel="stylesheet"
         />
         <link rel="alternate" type="application/rss+xml" title="現思文化創藝術" href="/feed.xml" />
+        <meta name="theme-color" content="#7a5c40" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -81,6 +84,7 @@ export default function RootLayout({
           <CartProvider>
             <DevRoleProvider>
               <LayoutShell>{children}</LayoutShell>
+              <Suspense fallback={null}><PageViewTracker /></Suspense>
             </DevRoleProvider>
           </CartProvider>
         </AuthProvider>

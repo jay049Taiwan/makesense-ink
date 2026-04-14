@@ -31,6 +31,7 @@ export default function GoodsSelectionPage() {
         .from("products")
         .select("id, notion_id, name, price, category, images, status, publisher_id")
         .eq("status", "active")
+        .eq("category", "商品/選物")
         .order("updated_at", { ascending: false })
         .limit(60);
 

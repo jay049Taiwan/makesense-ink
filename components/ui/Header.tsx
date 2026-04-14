@@ -7,6 +7,7 @@ import SearchDropdown from "./SearchDropdown";
 import type { SearchResults } from "./SearchDropdown";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
 import { useCart } from "@/components/providers/CartProvider";
+import { trackSearch } from "@/lib/tracking";
 
 function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + "..." : str;
@@ -37,12 +38,16 @@ export default function Header() {
     try {
       const res = await fetch(`/api/search-index?q=${encodeURIComponent(q)}`);
       const data = await res.json();
-      setResults({
+      const searchResults = {
         products: (data.products || []).map((p: any) => ({ name: p.name, category: p.category, slug: p.slug, photo: p.photo })),
         activities: (data.events || []).map((e: any) => ({ title: e.name, date: e.date, type: e.type, slug: e.slug })),
         articles: (data.articles || []).map((a: any) => ({ title: a.name, type: "文章", date: a.date, slug: a.slug })),
         keywords: (data.topics || []).map((t: any) => ({ name: t.name, slug: t.slug })),
-      });
+      };
+      setResults(searchResults);
+      // Track search query
+      const totalResults = searchResults.products.length + searchResults.activities.length + searchResults.articles.length + searchResults.keywords.length;
+      trackSearch(q, totalResults);
     } catch { setResults(null); }
     setSearching(false);
   }, []);
@@ -110,6 +115,7 @@ export default function Header() {
                   onChange={(e) => handleInput(e.target.value)}
                   onFocus={() => query.length >= 2 && setShowDropdown(true)}
                   placeholder="搜尋書籍、活動、文章..."
+                  aria-label="搜尋書籍、活動、文章"
                   className="flex-1 ml-2 text-sm outline-none bg-transparent"
                   style={{ color: "#333" }}
                 />
@@ -174,6 +180,7 @@ export default function Header() {
                   value={query}
                   onChange={(e) => handleInput(e.target.value)}
                   placeholder="搜尋..."
+                  aria-label="搜尋"
                   className="flex-1 ml-2 text-sm outline-none bg-transparent"
                 />
                 {clearBtn}

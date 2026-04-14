@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from "react";
+import { sendGAEvent } from "@/lib/tracking";
 
 /* ═══════════════════════════════════════════
    購物車項目型別
@@ -80,6 +81,12 @@ export default function CartProvider({ children }: { children: ReactNode }) {
         );
       }
       return [...prev, { ...incoming, qty: incoming.qty ?? 1 }];
+    });
+    // GA4 add_to_cart event
+    sendGAEvent("add_to_cart", {
+      currency: "TWD",
+      value: incoming.price,
+      items: [{ item_id: incoming.id, item_name: incoming.name, price: incoming.price }],
     });
     // 通知父視窗（LINE 模擬器 toast）
     if (typeof window !== "undefined" && window.parent !== window) {

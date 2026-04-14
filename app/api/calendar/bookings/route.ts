@@ -33,7 +33,9 @@ export async function GET(req: NextRequest) {
       timeSlot: b.time_slot as "morning" | "afternoon",
     }));
 
-    return NextResponse.json(result);
+    return NextResponse.json(result, {
+      headers: { "Cache-Control": "public, s-maxage=300, stale-while-revalidate=60" },
+    });
   } catch (err) {
     console.error("Calendar bookings API error:", err);
     return NextResponse.json({ error: "系統錯誤" }, { status: 500 });

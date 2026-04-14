@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart, type CartItem } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";
+import { sendGAEvent } from "@/lib/tracking";
 
 /* ═══════════════════════════════════════════
    結帳頁面（= 購物車頁面）
@@ -31,6 +32,12 @@ export default function CheckoutPage() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    // GA4 begin_checkout event
+    sendGAEvent("begin_checkout", {
+      currency: "TWD",
+      value: totalPrice,
+      items: items.map(i => ({ item_id: i.id, item_name: i.name, price: i.price, quantity: i.qty })),
+    });
     try {
       const res = await fetch("/api/checkout", {
         method: "POST",
@@ -53,6 +60,12 @@ export default function CheckoutPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "結帳失敗");
+      // GA4 purchase event
+      sendGAEvent("purchase", {
+        transaction_id: data.orderId,
+        currency: "TWD",
+        value: totalPrice,
+      });
       clearCart();
       router.push(`/checkout/success?status=${hasTickets ? "review" : "success"}&orderId=${data.orderId}`);
     } catch (err: any) {

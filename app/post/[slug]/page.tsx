@@ -4,6 +4,7 @@ import { getPageContent } from "@/lib/notion";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
+import WishlistButton from "@/components/ui/WishlistButton";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -76,12 +77,15 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     <article className="mx-auto px-4 py-12" style={{ maxWidth: 1000 }}>
       {/* Header */}
       <header className="mb-8">
-        <h1
-          className="text-3xl font-semibold leading-tight mb-3"
-          style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
-        >
-          {article.title}
-        </h1>
+        <div className="flex items-center gap-2 mb-3">
+          <h1
+            className="text-3xl font-semibold leading-tight"
+            style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
+          >
+            {article.title}
+          </h1>
+          <WishlistButton itemType="article" itemId={article.id} />
+        </div>
         {publishDate && (
           <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-mist)" }}>
             <span>{publishDate}</span>
