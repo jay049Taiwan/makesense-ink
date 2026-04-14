@@ -1,0 +1,398 @@
+{
+  "common": {
+    "loading": "載入中…",
+    "loadingDots": "載入中...",
+    "error": "發生錯誤",
+    "retry": "重新載入",
+    "backHome": "回到首頁",
+    "viewAll": "查看全部",
+    "viewMore": "前往更多",
+    "learnMore": "了解更多",
+    "search": "搜尋",
+    "noResults": "找不到結果",
+    "nt": "NT$",
+    "free": "免費",
+    "items": "件",
+    "sessions": "場",
+    "people": "人",
+    "save": "儲存",
+    "saving": "儲存中...",
+    "saved": "已儲存",
+    "cancel": "取消",
+    "confirm": "確認",
+    "delete": "刪除",
+    "edit": "編輯",
+    "submit": "送出",
+    "close": "關閉",
+    "share": "分享",
+    "copyLink": "複製連結",
+    "addToCart": "加入購物車",
+    "added": "已加入",
+    "viewDetails": "查看詳情",
+    "notFound": "找不到頁面",
+    "notFoundDesc": "你要找的頁面不存在或已被移除。",
+    "errorTitle": "出了點問題",
+    "errorDesc": "頁面載入時發生錯誤，請重新載入試試。"
+  },
+  "header": {
+    "bookstore": "旅人書店",
+    "cultureclub": "宜蘭文化俱樂部",
+    "searchPlaceholder": "搜尋書籍、活動、文章...",
+    "cart": "購物車",
+    "member": "會員",
+    "logout": "登出",
+    "myRecords": "個人紀錄",
+    "registerLogin": "註冊/登入"
+  },
+  "footer": {
+    "about": "關於我們",
+    "marketBooking": "展售合作",
+    "readingTour": "走讀漫遊",
+    "spaceExperience": "空間體驗",
+    "contentCuration": "地方調研",
+    "phone": "039-325957",
+    "address": "宜蘭縣羅東鎮文化街55號",
+    "company": "現思文化創藝術有限公司",
+    "lineOA": "LINE 官方帳號"
+  },
+  "home": {
+    "heroTitle": "讓文化成為日常的風景",
+    "exploreBookstore": "探索旅人書店",
+    "joinCultureclub": "加入文化俱樂部",
+    "aboutUs": "認識現思",
+    "joinMember": "加入會員",
+    "recentEvents": "近期活動",
+    "featuredEvents": "精選活動",
+    "twoBrands": "兩大品牌",
+    "bookstoreName": "旅人書店",
+    "cultureclubName": "宜蘭文化俱樂部",
+    "noRecentEvents": "目前沒有近期活動，請稍後再看",
+    "joinCTA": "加入我們，一起讓文化持續發生"
+  },
+  "bookstore": {
+    "title": "旅人書店",
+    "themeBooks": "主題選書",
+    "styleGoods": "風格選物",
+    "themeCuration": "主題策展",
+    "moreThemeBooks": "前往更多主題選書 →",
+    "moreStyleGoods": "前往更多風格選物 →",
+    "localNewsletter": "地方通訊",
+    "noBooksYet": "目前沒有上架的書籍",
+    "noGoodsYet": "目前沒有上架的選物",
+    "viewpointExplorer": "觀點漫遊"
+  },
+  "cultureclub": {
+    "title": "宜蘭文化俱樂部",
+    "recentEvents": "近期活動",
+    "localNewsletter": "地方通訊",
+    "topicViewpoints": "話題觀點",
+    "booksAndGoods": "選書選物",
+    "calendar": "行事曆",
+    "farming": "小農",
+    "environment": "環境",
+    "culture": "文化",
+    "business": "創業",
+    "moreNewsletter": "前往更多地方通訊 →",
+    "moreViewpoints": "前往更多話題觀點 →",
+    "moreBooksGoods": "前往更多選書選物 →"
+  },
+  "events": {
+    "registration": "報名中",
+    "closed": "截止報名",
+    "ended": "已結束",
+    "date": "活動日期",
+    "location": "活動地點",
+    "guide": "帶路人",
+    "capacity": "人數上限",
+    "price": "費用",
+    "tickets": "票券選擇",
+    "addons": "加購項目",
+    "register": "立即報名",
+    "routeStops": "路線站點",
+    "keywords": "關鍵字",
+    "relatedArticles": "相關文章",
+    "eventTypes": {
+      "walkingTour": "走讀行旅",
+      "lecture": "講座課程",
+      "workshop": "工坊手作",
+      "market": "園遊市集",
+      "exhibition": "展覽策展",
+      "screening": "放映分享",
+      "other": "其他活動"
+    }
+  },
+  "products": {
+    "price": "售價",
+    "stock": "庫存",
+    "outOfStock": "缺貨",
+    "author": "作者",
+    "publisher": "出版",
+    "category": "分類",
+    "description": "商品介紹",
+    "recommendations": "你可能也會喜歡",
+    "addToCart": "加入購物車"
+  },
+  "articles": {
+    "publishedAt": "發佈日期",
+    "relatedEvent": "相關活動",
+    "relatedArticles": "你應該也關注",
+    "readMore": "閱讀全文"
+  },
+  "viewpoints": {
+    "title": "文化觀點",
+    "region": "地區",
+    "summary": "摘要",
+    "relatedTopics": "相關主題"
+  },
+  "bookSelection": {
+    "title": "主題選書",
+    "allTopics": "不分主題",
+    "sort": {
+      "default": "預設",
+      "newest": "最新",
+      "price": "價格",
+      "views": "瀏覽數"
+    },
+    "totalItems": "共 {count} 件",
+    "category": "書籍分類"
+  },
+  "goodsSelection": {
+    "title": "風格選物",
+    "allTopics": "不分主題",
+    "sort": {
+      "default": "預設",
+      "newest": "最新",
+      "price": "價格",
+      "views": "瀏覽數"
+    },
+    "totalItems": "共 {count} 件",
+    "category": "商品分類"
+  },
+  "marketBooking": {
+    "title": "展售合作",
+    "ownProducts": "自有產品",
+    "localProducts": "地方特色產品展售",
+    "marketEvents": "市集活動"
+  },
+  "readingTour": {
+    "title": "走讀漫遊",
+    "keywords": "走讀旅行關鍵字",
+    "visitedPlaces": "去過的地方"
+  },
+  "spaceExperience": {
+    "title": "空間體驗",
+    "rentalCalendar": "空間租借行事曆",
+    "morning": "上午",
+    "afternoon": "下午",
+    "available": "可預約",
+    "booked": "已預訂"
+  },
+  "contentCuration": {
+    "title": "地方調研",
+    "stats": "數據統計",
+    "curationThemes": "採輯主題"
+  },
+  "localNewsletter": {
+    "title": "地方通訊",
+    "archive": "完整存檔"
+  },
+  "viewpointStroll": {
+    "title": "文化觀點列表"
+  },
+  "sense": {
+    "title": "關於現思",
+    "intro": "現思文化以宜蘭為根，透過走讀、市集、講座與空間，串連在地職人、品牌與社群，打造地方文化的永續生態系。"
+  },
+  "checkout": {
+    "title": "購物車與結帳",
+    "cartContents": "購物車內容",
+    "registrationInfo": "報名資訊",
+    "contactInfo": "聯絡資訊",
+    "pickupMethod": "取貨方式",
+    "pickupSelf": "自取（旅人書店）",
+    "pickupMail": "郵寄（運費 $80）",
+    "paymentMethod": "付款方式",
+    "payAtStore": "到門市現場付現",
+    "notes": "備註",
+    "orderSummary": "訂單摘要",
+    "shipping": "運費",
+    "total": "合計",
+    "terms": "使用條款",
+    "privacy": "隱私權政策",
+    "refundPolicy": "活動退費規則",
+    "eventNotice": "此訂單含活動票券，付款完成後將進入受理程序，我們確認後會以 Email 及 LINE 通知您",
+    "emptyCart": "購物車為空",
+    "placeOrder": "確認下單",
+    "agreeTerms": "我同意"
+  },
+  "checkoutSuccess": {
+    "eventTitle": "付款完成，報名受理中",
+    "eventDesc": "費用已收取完成，您的報名資料正在受理中。",
+    "eventNotify": "我們確認後將以 Email 及 LINE 通知您結果。",
+    "processing": "受理中",
+    "shopTitle": "付款成功！",
+    "shopDesc": "感謝您的購買，確認信已寄送至您的信箱。",
+    "orderId": "訂單編號",
+    "paymentStatus": "付款狀態",
+    "paid": "已付款",
+    "regStatus": "報名狀態",
+    "viewOrders": "查看訂單",
+    "continueShopping": "繼續逛逛",
+    "eventFollowUp": "我們會盡快確認您的報名，結果將透過 Email 與 LINE 官方帳號通知。",
+    "contactUs": "如有任何問題，歡迎透過 LINE 官方帳號聯繫我們。"
+  },
+  "login": {
+    "title": "會員登入",
+    "chooseMethod": "選擇登入方式",
+    "google": "Google 登入",
+    "line": "LINE 登入",
+    "safeRegister": "安心註冊，資料保護",
+    "privacyProtection": "隱私權保護",
+    "accountSecurity": "帳號安全",
+    "dataEncryption": "數據加密"
+  },
+  "dashboard": {
+    "myRecords": "個人紀錄",
+    "workbench": "工作台",
+    "partnerPlatform": "協作平台",
+    "participation": "參與分析",
+    "purchaseHistory": "購買紀錄",
+    "orders": "訂單紀錄",
+    "profile": "個人資料",
+    "productMgmt": "商品管理",
+    "proposalMgmt": "提案管理"
+  },
+  "orders": {
+    "title": "訂單紀錄",
+    "all": "全部",
+    "eventReg": "活動報名",
+    "noRecords": "尚無紀錄",
+    "noRecordsDesc": "完成活動報名後將出現在此",
+    "unnamed": "（未命名）",
+    "registration": "報名"
+  },
+  "profile": {
+    "title": "個人資料",
+    "loadError": "讀取資料失敗",
+    "saveError": "儲存失敗",
+    "networkError": "網路錯誤，請稍後再試",
+    "email": "電子信箱",
+    "emailReadonly": "信箱不可修改",
+    "memberType": "會員類型",
+    "displayName": "顯示名稱",
+    "namePlaceholder": "你的名稱",
+    "phone": "電話號碼",
+    "phonePlaceholder": "0912-345-678",
+    "notificationPref": "通知偏好",
+    "lineNotify": "LINE 官方帳號通知",
+    "emailNotify": "Email 通知",
+    "saveChanges": "儲存變更",
+    "staff": "工作團隊",
+    "vendor": "合作單位",
+    "member": "一般會員"
+  },
+  "productMgmt": {
+    "title": "商品管理",
+    "noProducts": "尚未有商品上架",
+    "noProductsDesc": "商品資料由現思團隊在 Notion 建立後自動同步",
+    "name": "商品名稱",
+    "status": "狀態",
+    "price": "售價",
+    "stock": "庫存",
+    "sold": "已售",
+    "rating": "評分",
+    "type": "類型",
+    "active": "上架中",
+    "inactive": "下架",
+    "outOfStock": "缺貨",
+    "preorder": "預購中"
+  },
+  "workbench": {
+    "hello": "您好",
+    "tabs": {
+      "activity": "動態",
+      "handover": "交接",
+      "inventory": "庫存",
+      "attendance": "考勤",
+      "expense": "費用"
+    },
+    "inventoryOps": "庫存作業",
+    "shipOut": "商品出貨",
+    "shipIn": "商品進貨",
+    "stocktake": "商品盤點",
+    "detail": "庫存細項",
+    "normalShip": "一般出貨",
+    "channelShip": "通路出貨",
+    "returnExchange": "下架退換",
+    "todayRevenue": "今日營收",
+    "todayOrders": "今日筆數",
+    "pendingShip": "待出貨",
+    "lowStock": "低庫存",
+    "scanPrompt": "掃碼 或 輸入商品名稱...",
+    "clockIn": "打卡上班",
+    "clockOut": "打卡下班",
+    "punch": "打卡",
+    "journal": "日誌",
+    "leave": "請假",
+    "overtime": "加班",
+    "schedule": "班表",
+    "handoverItems": "交接事項",
+    "incomplete": "未完成",
+    "completed": "已完成",
+    "selectHandover": "點選左側交接項目",
+    "execTime": "執行時間：",
+    "assignee": "負責人：",
+    "relatedTxn": "相關進銷明細（DB06）—",
+    "allCompleted": "所有項目已完成，此工作已結案",
+    "closed": "已結案"
+  },
+  "partner": {
+    "title": "協作平台",
+    "hello": "您好",
+    "since": "合作期間：",
+    "toNow": "至今",
+    "tabs": {
+      "overview": "概覽",
+      "info": "資訊",
+      "projects": "項目",
+      "cashflow": "金流",
+      "settings": "設定"
+    },
+    "overview": "本期數據概覽",
+    "scanCheckin": "掃碼簽到",
+    "listedProducts": "上架商品",
+    "totalSales": "總銷售量",
+    "totalRevenue": "總營收",
+    "avgRating": "平均評分",
+    "eventCount": "活動數",
+    "totalRegistrants": "總報名人數",
+    "outOfStockProducts": "缺貨商品",
+    "productInfo": "商品資訊",
+    "productInfoDesc": "在此管理上架商品，資料將顯示於商家頁面與市集預購系統",
+    "addProduct": "＋ 新增商品",
+    "noProducts": "尚未新增任何商品",
+    "noProductsDesc": "點「新增商品」開始上架，30 秒完成一筆"
+  },
+  "recommend": {
+    "articles": "你應該也關注",
+    "products": "你可能也會喜歡"
+  },
+  "bottomSheet": {
+    "addToCart": "加入購物車",
+    "viewDetails": "查看詳情"
+  },
+  "buy": {
+    "preorderTitle": "市集預購",
+    "vendorProducts": "廠商商品",
+    "preorderForm": "預購表單"
+  },
+  "privacy": {
+    "title": "隱私權政策"
+  },
+  "terms": {
+    "title": "服務條款"
+  },
+  "languageSwitcher": {
+    "label": "語言"
+  }
+}

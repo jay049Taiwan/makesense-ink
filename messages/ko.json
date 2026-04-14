@@ -1,0 +1,398 @@
+{
+  "common": {
+    "loading": "로딩 중…",
+    "loadingDots": "로딩 중...",
+    "error": "오류가 발생했습니다",
+    "retry": "다시 로드",
+    "backHome": "홈으로 돌아가기",
+    "viewAll": "전체 보기",
+    "viewMore": "더 보기",
+    "learnMore": "자세히 보기",
+    "search": "검색",
+    "noResults": "결과를 찾을 수 없습니다",
+    "nt": "NT$",
+    "free": "무료",
+    "items": "개",
+    "sessions": "회",
+    "people": "명",
+    "save": "저장",
+    "saving": "저장 중...",
+    "saved": "저장됨",
+    "cancel": "취소",
+    "confirm": "확인",
+    "delete": "삭제",
+    "edit": "편집",
+    "submit": "제출",
+    "close": "닫기",
+    "share": "공유",
+    "copyLink": "링크 복사",
+    "addToCart": "장바구니에 담기",
+    "added": "추가됨",
+    "viewDetails": "상세 보기",
+    "notFound": "페이지를 찾을 수 없습니다",
+    "notFoundDesc": "찾으시는 페이지가 존재하지 않거나 삭제되었습니다.",
+    "errorTitle": "문제가 발생했습니다",
+    "errorDesc": "페이지 로드 중 오류가 발생했습니다. 다시 로드해 주세요."
+  },
+  "header": {
+    "bookstore": "여행자 서점",
+    "cultureclub": "이란 문화클럽",
+    "searchPlaceholder": "도서, 이벤트, 기사 검색...",
+    "cart": "장바구니",
+    "member": "회원",
+    "logout": "로그아웃",
+    "myRecords": "내 기록",
+    "registerLogin": "회원가입 / 로그인"
+  },
+  "footer": {
+    "about": "소개",
+    "marketBooking": "전시 협력",
+    "readingTour": "독서 산책",
+    "spaceExperience": "공간 체험",
+    "contentCuration": "지역 연구",
+    "phone": "039-325957",
+    "address": "대만 이란현 뤄둥진 원화가 55호",
+    "company": "현사문화창예술유한공사",
+    "lineOA": "LINE 공식 계정"
+  },
+  "home": {
+    "heroTitle": "문화를 일상의 풍경으로",
+    "exploreBookstore": "서점 둘러보기",
+    "joinCultureclub": "문화클럽 가입",
+    "aboutUs": "소개",
+    "joinMember": "회원 가입",
+    "recentEvents": "예정 이벤트",
+    "featuredEvents": "추천 이벤트",
+    "twoBrands": "두 개의 브랜드",
+    "bookstoreName": "여행자 서점",
+    "cultureclubName": "이란 문화클럽",
+    "noRecentEvents": "현재 예정된 이벤트가 없습니다. 나중에 다시 확인해 주세요.",
+    "joinCTA": "함께 문화를 이어갑시다"
+  },
+  "bookstore": {
+    "title": "여행자 서점",
+    "themeBooks": "테마 도서",
+    "styleGoods": "스타일 잡화",
+    "themeCuration": "테마 기획전",
+    "moreThemeBooks": "더 많은 테마 도서 보기 →",
+    "moreStyleGoods": "더 많은 스타일 잡화 보기 →",
+    "localNewsletter": "지역 뉴스레터",
+    "noBooksYet": "현재 게시된 도서가 없습니다",
+    "noGoodsYet": "현재 게시된 상품이 없습니다",
+    "viewpointExplorer": "관점 탐색"
+  },
+  "cultureclub": {
+    "title": "이란 문화클럽",
+    "recentEvents": "예정 이벤트",
+    "localNewsletter": "지역 뉴스레터",
+    "topicViewpoints": "토픽 관점",
+    "booksAndGoods": "도서 & 잡화",
+    "calendar": "캘린더",
+    "farming": "농업",
+    "environment": "환경",
+    "culture": "문화",
+    "business": "창업",
+    "moreNewsletter": "더 많은 지역 뉴스레터 보기 →",
+    "moreViewpoints": "더 많은 관점 보기 →",
+    "moreBooksGoods": "더 많은 도서 & 잡화 보기 →"
+  },
+  "events": {
+    "registration": "접수 중",
+    "closed": "접수 마감",
+    "ended": "종료",
+    "date": "일시",
+    "location": "장소",
+    "guide": "가이드",
+    "capacity": "정원",
+    "price": "참가비",
+    "tickets": "티켓 선택",
+    "addons": "추가 옵션",
+    "register": "신청하기",
+    "routeStops": "경로 스팟",
+    "keywords": "키워드",
+    "relatedArticles": "관련 기사",
+    "eventTypes": {
+      "walkingTour": "독서 산책",
+      "lecture": "강좌",
+      "workshop": "워크숍",
+      "market": "마켓 페스티벌",
+      "exhibition": "기획전",
+      "screening": "상영회",
+      "other": "기타"
+    }
+  },
+  "products": {
+    "price": "가격",
+    "stock": "재고 있음",
+    "outOfStock": "품절",
+    "author": "저자",
+    "publisher": "출판사",
+    "category": "카테고리",
+    "description": "상품 소개",
+    "recommendations": "추천 상품",
+    "addToCart": "장바구니에 담기"
+  },
+  "articles": {
+    "publishedAt": "게시일",
+    "relatedEvent": "관련 이벤트",
+    "relatedArticles": "함께 읽으면 좋은 글",
+    "readMore": "전체 읽기"
+  },
+  "viewpoints": {
+    "title": "문화 관점",
+    "region": "지역",
+    "summary": "요약",
+    "relatedTopics": "관련 주제"
+  },
+  "bookSelection": {
+    "title": "테마 도서",
+    "allTopics": "전체 주제",
+    "sort": {
+      "default": "기본",
+      "newest": "최신순",
+      "price": "가격순",
+      "views": "조회순"
+    },
+    "totalItems": "총 {count}개",
+    "category": "도서 카테고리"
+  },
+  "goodsSelection": {
+    "title": "스타일 잡화",
+    "allTopics": "전체 주제",
+    "sort": {
+      "default": "기본",
+      "newest": "최신순",
+      "price": "가격순",
+      "views": "조회순"
+    },
+    "totalItems": "총 {count}개",
+    "category": "상품 카테고리"
+  },
+  "marketBooking": {
+    "title": "전시 협력",
+    "ownProducts": "자체 상품",
+    "localProducts": "지역 특산품",
+    "marketEvents": "마켓 이벤트"
+  },
+  "readingTour": {
+    "title": "독서 산책",
+    "keywords": "독서 여행 키워드",
+    "visitedPlaces": "다녀온 곳"
+  },
+  "spaceExperience": {
+    "title": "공간 체험",
+    "rentalCalendar": "공간 대여 캘린더",
+    "morning": "오전",
+    "afternoon": "오후",
+    "available": "예약 가능",
+    "booked": "예약됨"
+  },
+  "contentCuration": {
+    "title": "지역 연구",
+    "stats": "통계 데이터",
+    "curationThemes": "기획 주제"
+  },
+  "localNewsletter": {
+    "title": "지역 뉴스레터",
+    "archive": "전체 아카이브"
+  },
+  "viewpointStroll": {
+    "title": "문화 관점 목록"
+  },
+  "sense": {
+    "title": "소개",
+    "intro": "컬처메이크센스는 이란을 기반으로 독서 투어, 마켓, 강좌, 공간을 통해 지역 장인, 브랜드, 커뮤니티를 연결하여 지속 가능한 지역 문화 생태계를 구축합니다."
+  },
+  "checkout": {
+    "title": "장바구니 & 결제",
+    "cartContents": "장바구니 내용",
+    "registrationInfo": "신청 정보",
+    "contactInfo": "연락처 정보",
+    "pickupMethod": "수령 방법",
+    "pickupSelf": "매장 수령 (여행자 서점)",
+    "pickupMail": "배송 (배송비 NT$80)",
+    "paymentMethod": "결제 방법",
+    "payAtStore": "매장 현금 결제",
+    "notes": "비고",
+    "orderSummary": "주문 요약",
+    "shipping": "배송비",
+    "total": "합계",
+    "terms": "이용약관",
+    "privacy": "개인정보처리방침",
+    "refundPolicy": "이벤트 환불 규정",
+    "eventNotice": "이 주문에는 이벤트 티켓이 포함되어 있습니다. 결제 완료 후 접수 절차가 진행되며, 결과는 이메일과 LINE으로 안내드립니다.",
+    "emptyCart": "장바구니가 비어있습니다",
+    "placeOrder": "주문 확인",
+    "agreeTerms": "동의합니다"
+  },
+  "checkoutSuccess": {
+    "eventTitle": "결제 완료 — 접수 진행 중",
+    "eventDesc": "결제가 확인되었습니다. 신청을 처리 중입니다.",
+    "eventNotify": "결과는 이메일과 LINE으로 안내드립니다.",
+    "processing": "처리 중",
+    "shopTitle": "결제 완료!",
+    "shopDesc": "구매해 주셔서 감사합니다. 확인 이메일이 발송되었습니다.",
+    "orderId": "주문 번호",
+    "paymentStatus": "결제 상태",
+    "paid": "결제 완료",
+    "regStatus": "신청 상태",
+    "viewOrders": "주문 보기",
+    "continueShopping": "쇼핑 계속하기",
+    "eventFollowUp": "신청을 확인하는 대로 이메일과 LINE 공식 계정으로 안내드리겠습니다.",
+    "contactUs": "문의 사항이 있으시면 LINE 공식 계정으로 연락해 주세요."
+  },
+  "login": {
+    "title": "회원 로그인",
+    "chooseMethod": "로그인 방법 선택",
+    "google": "Google로 로그인",
+    "line": "LINE으로 로그인",
+    "safeRegister": "안심 가입, 데이터 보호",
+    "privacyProtection": "개인정보 보호",
+    "accountSecurity": "계정 보안",
+    "dataEncryption": "데이터 암호화"
+  },
+  "dashboard": {
+    "myRecords": "내 기록",
+    "workbench": "워크벤치",
+    "partnerPlatform": "파트너 관리",
+    "participation": "참여 분석",
+    "purchaseHistory": "구매 내역",
+    "orders": "주문 내역",
+    "profile": "프로필",
+    "productMgmt": "상품 관리",
+    "proposalMgmt": "제안 관리"
+  },
+  "orders": {
+    "title": "주문 내역",
+    "all": "전체",
+    "eventReg": "이벤트 신청",
+    "noRecords": "기록이 없습니다",
+    "noRecordsDesc": "이벤트 신청 완료 후 여기에 표시됩니다",
+    "unnamed": "(이름 없음)",
+    "registration": "신청"
+  },
+  "profile": {
+    "title": "프로필",
+    "loadError": "데이터를 불러오지 못했습니다",
+    "saveError": "저장에 실패했습니다",
+    "networkError": "네트워크 오류. 나중에 다시 시도해 주세요.",
+    "email": "이메일",
+    "emailReadonly": "이메일은 변경할 수 없습니다",
+    "memberType": "회원 유형",
+    "displayName": "표시 이름",
+    "namePlaceholder": "이름",
+    "phone": "전화번호",
+    "phonePlaceholder": "010-1234-5678",
+    "notificationPref": "알림 설정",
+    "lineNotify": "LINE 공식 계정 알림",
+    "emailNotify": "이메일 알림",
+    "saveChanges": "변경사항 저장",
+    "staff": "스태프",
+    "vendor": "파트너",
+    "member": "일반 회원"
+  },
+  "productMgmt": {
+    "title": "상품 관리",
+    "noProducts": "아직 상품이 없습니다",
+    "noProductsDesc": "상품은 Notion에서 생성 후 자동으로 동기화됩니다",
+    "name": "상품명",
+    "status": "상태",
+    "price": "가격",
+    "stock": "재고",
+    "sold": "판매",
+    "rating": "평점",
+    "type": "유형",
+    "active": "게시 중",
+    "inactive": "비활성",
+    "outOfStock": "품절",
+    "preorder": "예약 접수 중"
+  },
+  "workbench": {
+    "hello": "님, 안녕하세요",
+    "tabs": {
+      "activity": "피드",
+      "handover": "인수인계",
+      "inventory": "재고",
+      "attendance": "근태",
+      "expense": "경비"
+    },
+    "inventoryOps": "재고 작업",
+    "shipOut": "출하",
+    "shipIn": "입고",
+    "stocktake": "재고조사",
+    "detail": "상세",
+    "normalShip": "일반 출하",
+    "channelShip": "채널 출하",
+    "returnExchange": "반품 / 교환",
+    "todayRevenue": "오늘 매출",
+    "todayOrders": "오늘 주문",
+    "pendingShip": "출하 대기",
+    "lowStock": "재고 부족",
+    "scanPrompt": "스캔 또는 상품명 입력...",
+    "clockIn": "출근",
+    "clockOut": "퇴근",
+    "punch": "출퇴근",
+    "journal": "일지",
+    "leave": "휴가",
+    "overtime": "초과근무",
+    "schedule": "근무표",
+    "handoverItems": "인수인계 항목",
+    "incomplete": "미완료",
+    "completed": "완료",
+    "selectHandover": "왼쪽 인수인계 항목을 선택하세요",
+    "execTime": "실행일:",
+    "assignee": "담당자:",
+    "relatedTxn": "관련 거래 (DB06) —",
+    "allCompleted": "모든 항목 완료, 이 작업이 종결되었습니다",
+    "closed": "종결"
+  },
+  "partner": {
+    "title": "파트너 관리",
+    "hello": "님, 안녕하세요",
+    "since": "제휴 시작:",
+    "toNow": "현재",
+    "tabs": {
+      "overview": "개요",
+      "info": "정보",
+      "projects": "프로젝트",
+      "cashflow": "수지",
+      "settings": "설정"
+    },
+    "overview": "기간 개요",
+    "scanCheckin": "스캔 체크인",
+    "listedProducts": "게시 상품",
+    "totalSales": "총 판매",
+    "totalRevenue": "총 매출",
+    "avgRating": "평균 평점",
+    "eventCount": "이벤트 수",
+    "totalRegistrants": "총 신청자",
+    "outOfStockProducts": "품절 상품",
+    "productInfo": "상품 정보",
+    "productInfoDesc": "여기서 게시 상품을 관리하세요. 데이터는 상점 페이지와 마켓 예약 시스템에 표시됩니다.",
+    "addProduct": "+ 상품 추가",
+    "noProducts": "아직 상품이 없습니다",
+    "noProductsDesc": "\"상품 추가\"를 클릭하여 시작 — 30초면 완료"
+  },
+  "recommend": {
+    "articles": "함께 읽으면 좋은 글",
+    "products": "추천 상품"
+  },
+  "bottomSheet": {
+    "addToCart": "장바구니에 담기",
+    "viewDetails": "상세 보기"
+  },
+  "buy": {
+    "preorderTitle": "마켓 예약",
+    "vendorProducts": "입점 상품",
+    "preorderForm": "예약 양식"
+  },
+  "privacy": {
+    "title": "개인정보처리방침"
+  },
+  "terms": {
+    "title": "이용약관"
+  },
+  "languageSwitcher": {
+    "label": "언어"
+  }
+}

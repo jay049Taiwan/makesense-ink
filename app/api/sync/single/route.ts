@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { translateRow } from "@/lib/translate";
 
 export const maxDuration = 30;
 
@@ -56,6 +57,13 @@ export async function POST(req: NextRequest) {
         break;
       default:
         return NextResponse.json({ error: `Unknown db: ${db}` }, { status: 400 });
+    }
+
+    // 同步完成後，背景觸發 AI 翻譯（不阻擋回應）
+    if (result?.table && result?.title) {
+      triggerTranslation(result.table, cleanId, result).catch((e) =>
+        console.warn(`[translate] background error: ${e.message}`)
+      );
     }
 
     return NextResponse.json({ success: true, db, pageId: cleanId, result });
@@ -305,4 +313,33 @@ async function syncSingleRelation(nid: string, props: any) {
   }
 
   return { table: "unknown", note: `經營類型=${type}, 對象選項=${objectType}，無對應同步邏輯`, nid };
+}
+
+// ── 背景翻譯觸發 ──
+async function triggerTranslation(table: string, notionId: string, syncResult: any) {
+  // 只翻需要顯示在前端的表
+  const fieldMap: Record<string, string[]> = {
+    products: ["name", "description"],
+    events: ["title", "description"],
+    articles: ["title"],  // content 太長，單獨翻譯
+    topics: ["name", "summary"],
+  };
+  const fields = fieldMap[table];
+  if (!fields) return;
+
+  // 查 Supabase 取得 UUID 和欄位值
+  const { data: row } = await supabase
+    .from(table)
+    .select(`id, ${fields.join(", ")}`)
+    .eq("notion_id", notionId)
+    .maybeSingle();
+
+  if (!row) return;
+
+  const translateFields: Record<string, string | null> = {};
+  for (const f of fields) {
+    translateFields[f] = row[f] || null;
+  }
+
+  await translateRow({ tableName: table, rowId: row.id, fields: translateFields });
 }

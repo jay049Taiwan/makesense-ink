@@ -1,0 +1,398 @@
+{
+  "common": {
+    "loading": "読み込み中…",
+    "loadingDots": "読み込み中...",
+    "error": "エラーが発生しました",
+    "retry": "再読み込み",
+    "backHome": "ホームへ戻る",
+    "viewAll": "すべて見る",
+    "viewMore": "もっと見る",
+    "learnMore": "詳しく見る",
+    "search": "検索",
+    "noResults": "結果が見つかりません",
+    "nt": "NT$",
+    "free": "無料",
+    "items": "件",
+    "sessions": "回",
+    "people": "人",
+    "save": "保存",
+    "saving": "保存中...",
+    "saved": "保存済み",
+    "cancel": "キャンセル",
+    "confirm": "確認",
+    "delete": "削除",
+    "edit": "編集",
+    "submit": "送信",
+    "close": "閉じる",
+    "share": "シェア",
+    "copyLink": "リンクをコピー",
+    "addToCart": "カートに入れる",
+    "added": "追加済み",
+    "viewDetails": "詳細を見る",
+    "notFound": "ページが見つかりません",
+    "notFoundDesc": "お探しのページは存在しないか、削除されています。",
+    "errorTitle": "問題が発生しました",
+    "errorDesc": "ページの読み込み中にエラーが発生しました。再読み込みしてください。"
+  },
+  "header": {
+    "bookstore": "旅人書店",
+    "cultureclub": "宜蘭カルチャークラブ",
+    "searchPlaceholder": "書籍、イベント、記事を検索...",
+    "cart": "カート",
+    "member": "会員",
+    "logout": "ログアウト",
+    "myRecords": "マイページ",
+    "registerLogin": "新規登録 / ログイン"
+  },
+  "footer": {
+    "about": "私たちについて",
+    "marketBooking": "出展協力",
+    "readingTour": "読書散歩",
+    "spaceExperience": "空間体験",
+    "contentCuration": "地域調査",
+    "phone": "039-325957",
+    "address": "台湾宜蘭県羅東鎮文化街55号",
+    "company": "現思文化創藝術有限公司",
+    "lineOA": "LINE公式アカウント"
+  },
+  "home": {
+    "heroTitle": "文化を日常の風景に",
+    "exploreBookstore": "書店を探索",
+    "joinCultureclub": "カルチャークラブに参加",
+    "aboutUs": "私たちについて",
+    "joinMember": "会員になる",
+    "recentEvents": "近日開催",
+    "featuredEvents": "おすすめイベント",
+    "twoBrands": "二つのブランド",
+    "bookstoreName": "旅人書店",
+    "cultureclubName": "宜蘭カルチャークラブ",
+    "noRecentEvents": "現在予定されているイベントはありません。後ほどご確認ください。",
+    "joinCTA": "一緒に文化を育てましょう"
+  },
+  "bookstore": {
+    "title": "旅人書店",
+    "themeBooks": "テーマ選書",
+    "styleGoods": "スタイル雑貨",
+    "themeCuration": "テーマ企画展",
+    "moreThemeBooks": "もっとテーマ選書を見る →",
+    "moreStyleGoods": "もっとスタイル雑貨を見る →",
+    "localNewsletter": "地域通信",
+    "noBooksYet": "現在掲載中の書籍はありません",
+    "noGoodsYet": "現在掲載中の商品はありません",
+    "viewpointExplorer": "視点探索"
+  },
+  "cultureclub": {
+    "title": "宜蘭カルチャークラブ",
+    "recentEvents": "近日開催",
+    "localNewsletter": "地域通信",
+    "topicViewpoints": "トピック視点",
+    "booksAndGoods": "選書＆雑貨",
+    "calendar": "カレンダー",
+    "farming": "農業",
+    "environment": "環境",
+    "culture": "文化",
+    "business": "起業",
+    "moreNewsletter": "もっと地域通信を見る →",
+    "moreViewpoints": "もっと視点を見る →",
+    "moreBooksGoods": "もっと選書＆雑貨を見る →"
+  },
+  "events": {
+    "registration": "申込受付中",
+    "closed": "申込締切",
+    "ended": "終了",
+    "date": "開催日",
+    "location": "会場",
+    "guide": "ガイド",
+    "capacity": "定員",
+    "price": "参加費",
+    "tickets": "チケット選択",
+    "addons": "追加オプション",
+    "register": "申し込む",
+    "routeStops": "ルートスポット",
+    "keywords": "キーワード",
+    "relatedArticles": "関連記事",
+    "eventTypes": {
+      "walkingTour": "読書散歩",
+      "lecture": "講座",
+      "workshop": "ワークショップ",
+      "market": "マーケット",
+      "exhibition": "企画展",
+      "screening": "上映会",
+      "other": "その他"
+    }
+  },
+  "products": {
+    "price": "価格",
+    "stock": "在庫あり",
+    "outOfStock": "在庫切れ",
+    "author": "著者",
+    "publisher": "出版社",
+    "category": "カテゴリ",
+    "description": "商品紹介",
+    "recommendations": "おすすめ商品",
+    "addToCart": "カートに入れる"
+  },
+  "articles": {
+    "publishedAt": "公開日",
+    "relatedEvent": "関連イベント",
+    "relatedArticles": "こちらもおすすめ",
+    "readMore": "続きを読む"
+  },
+  "viewpoints": {
+    "title": "文化の視点",
+    "region": "地域",
+    "summary": "概要",
+    "relatedTopics": "関連トピック"
+  },
+  "bookSelection": {
+    "title": "テーマ選書",
+    "allTopics": "すべてのテーマ",
+    "sort": {
+      "default": "デフォルト",
+      "newest": "新着順",
+      "price": "価格順",
+      "views": "閲覧数順"
+    },
+    "totalItems": "全{count}件",
+    "category": "書籍カテゴリ"
+  },
+  "goodsSelection": {
+    "title": "スタイル雑貨",
+    "allTopics": "すべてのテーマ",
+    "sort": {
+      "default": "デフォルト",
+      "newest": "新着順",
+      "price": "価格順",
+      "views": "閲覧数順"
+    },
+    "totalItems": "全{count}件",
+    "category": "商品カテゴリ"
+  },
+  "marketBooking": {
+    "title": "出展協力",
+    "ownProducts": "自社商品",
+    "localProducts": "地域特産品",
+    "marketEvents": "マーケットイベント"
+  },
+  "readingTour": {
+    "title": "読書散歩",
+    "keywords": "読書旅行キーワード",
+    "visitedPlaces": "訪れた場所"
+  },
+  "spaceExperience": {
+    "title": "空間体験",
+    "rentalCalendar": "スペース貸出カレンダー",
+    "morning": "午前",
+    "afternoon": "午後",
+    "available": "予約可能",
+    "booked": "予約済み"
+  },
+  "contentCuration": {
+    "title": "地域調査",
+    "stats": "統計データ",
+    "curationThemes": "企画テーマ"
+  },
+  "localNewsletter": {
+    "title": "地域通信",
+    "archive": "全アーカイブ"
+  },
+  "viewpointStroll": {
+    "title": "文化の視点一覧"
+  },
+  "sense": {
+    "title": "私たちについて",
+    "intro": "カルチャーメイクセンスは宜蘭を拠点に、読書ツアー、マーケット、講座、スペースを通じて地元の職人・ブランド・コミュニティをつなぎ、地域文化の持続可能なエコシステムを構築しています。"
+  },
+  "checkout": {
+    "title": "カート＆お支払い",
+    "cartContents": "カート内容",
+    "registrationInfo": "申込情報",
+    "contactInfo": "連絡先情報",
+    "pickupMethod": "受取方法",
+    "pickupSelf": "店頭受取（旅人書店）",
+    "pickupMail": "郵送（送料 NT$80）",
+    "paymentMethod": "お支払い方法",
+    "payAtStore": "店頭で現金払い",
+    "notes": "備考",
+    "orderSummary": "注文概要",
+    "shipping": "送料",
+    "total": "合計",
+    "terms": "利用規約",
+    "privacy": "プライバシーポリシー",
+    "refundPolicy": "イベント返金規定",
+    "eventNotice": "この注文にはイベントチケットが含まれています。お支払い完了後、受付手続きを行います。結果はメールとLINEでお知らせします。",
+    "emptyCart": "カートは空です",
+    "placeOrder": "注文確定",
+    "agreeTerms": "同意する"
+  },
+  "checkoutSuccess": {
+    "eventTitle": "お支払い完了 — 申込受付中",
+    "eventDesc": "お支払いを確認しました。申込を受付中です。",
+    "eventNotify": "結果はメールとLINEでお知らせします。",
+    "processing": "受付中",
+    "shopTitle": "お支払い完了！",
+    "shopDesc": "ご購入ありがとうございます。確認メールを送信しました。",
+    "orderId": "注文番号",
+    "paymentStatus": "支払い状況",
+    "paid": "支払い済み",
+    "regStatus": "申込状況",
+    "viewOrders": "注文を見る",
+    "continueShopping": "お買い物を続ける",
+    "eventFollowUp": "申込を確認次第、メールとLINE公式アカウントでお知らせします。",
+    "contactUs": "ご不明な点がございましたら、LINE公式アカウントからお問い合わせください。"
+  },
+  "login": {
+    "title": "会員ログイン",
+    "chooseMethod": "ログイン方法を選択",
+    "google": "Googleでログイン",
+    "line": "LINEでログイン",
+    "safeRegister": "安心登録、データ保護",
+    "privacyProtection": "プライバシー保護",
+    "accountSecurity": "アカウント保護",
+    "dataEncryption": "データ暗号化"
+  },
+  "dashboard": {
+    "myRecords": "マイページ",
+    "workbench": "ワークベンチ",
+    "partnerPlatform": "パートナー管理",
+    "participation": "参加分析",
+    "purchaseHistory": "購入履歴",
+    "orders": "注文履歴",
+    "profile": "プロフィール",
+    "productMgmt": "商品管理",
+    "proposalMgmt": "提案管理"
+  },
+  "orders": {
+    "title": "注文履歴",
+    "all": "すべて",
+    "eventReg": "イベント申込",
+    "noRecords": "記録がありません",
+    "noRecordsDesc": "イベント申込完了後にここに表示されます",
+    "unnamed": "（無題）",
+    "registration": "申込"
+  },
+  "profile": {
+    "title": "プロフィール",
+    "loadError": "データの読み込みに失敗しました",
+    "saveError": "保存に失敗しました",
+    "networkError": "ネットワークエラー。後ほどお試しください。",
+    "email": "メールアドレス",
+    "emailReadonly": "メールアドレスは変更できません",
+    "memberType": "会員タイプ",
+    "displayName": "表示名",
+    "namePlaceholder": "お名前",
+    "phone": "電話番号",
+    "phonePlaceholder": "090-1234-5678",
+    "notificationPref": "通知設定",
+    "lineNotify": "LINE公式アカウント通知",
+    "emailNotify": "メール通知",
+    "saveChanges": "変更を保存",
+    "staff": "スタッフ",
+    "vendor": "パートナー",
+    "member": "一般会員"
+  },
+  "productMgmt": {
+    "title": "商品管理",
+    "noProducts": "商品がまだありません",
+    "noProductsDesc": "商品はNotionで作成後、自動同期されます",
+    "name": "商品名",
+    "status": "ステータス",
+    "price": "価格",
+    "stock": "在庫",
+    "sold": "販売数",
+    "rating": "評価",
+    "type": "タイプ",
+    "active": "公開中",
+    "inactive": "非公開",
+    "outOfStock": "在庫切れ",
+    "preorder": "予約受付中"
+  },
+  "workbench": {
+    "hello": "さん、こんにちは",
+    "tabs": {
+      "activity": "フィード",
+      "handover": "引継ぎ",
+      "inventory": "在庫",
+      "attendance": "勤怠",
+      "expense": "経費"
+    },
+    "inventoryOps": "在庫作業",
+    "shipOut": "出荷",
+    "shipIn": "入荷",
+    "stocktake": "棚卸",
+    "detail": "詳細",
+    "normalShip": "通常出荷",
+    "channelShip": "チャネル出荷",
+    "returnExchange": "返品・交換",
+    "todayRevenue": "本日の売上",
+    "todayOrders": "本日の注文",
+    "pendingShip": "出荷待ち",
+    "lowStock": "低在庫",
+    "scanPrompt": "スキャンまたは商品名を入力...",
+    "clockIn": "出勤",
+    "clockOut": "退勤",
+    "punch": "打刻",
+    "journal": "日誌",
+    "leave": "休暇",
+    "overtime": "残業",
+    "schedule": "シフト",
+    "handoverItems": "引継ぎ項目",
+    "incomplete": "未完了",
+    "completed": "完了",
+    "selectHandover": "左の引継ぎ項目を選択",
+    "execTime": "実行日：",
+    "assignee": "担当者：",
+    "relatedTxn": "関連取引（DB06）—",
+    "allCompleted": "すべて完了、このタスクはクローズされました",
+    "closed": "クローズ"
+  },
+  "partner": {
+    "title": "パートナー管理",
+    "hello": "さん、こんにちは",
+    "since": "提携開始：",
+    "toNow": "現在",
+    "tabs": {
+      "overview": "概要",
+      "info": "情報",
+      "projects": "プロジェクト",
+      "cashflow": "収支",
+      "settings": "設定"
+    },
+    "overview": "期間概要",
+    "scanCheckin": "スキャンチェックイン",
+    "listedProducts": "掲載商品",
+    "totalSales": "総販売数",
+    "totalRevenue": "総売上",
+    "avgRating": "平均評価",
+    "eventCount": "イベント数",
+    "totalRegistrants": "総申込者数",
+    "outOfStockProducts": "在庫切れ",
+    "productInfo": "商品情報",
+    "productInfoDesc": "ここで掲載商品を管理できます。データはショップページとマーケット予約システムに表示されます。",
+    "addProduct": "＋ 商品追加",
+    "noProducts": "商品がまだありません",
+    "noProductsDesc": "「商品追加」をクリックして開始 — 30秒で完了"
+  },
+  "recommend": {
+    "articles": "こちらもおすすめ",
+    "products": "あなたにおすすめ"
+  },
+  "bottomSheet": {
+    "addToCart": "カートに入れる",
+    "viewDetails": "詳細を見る"
+  },
+  "buy": {
+    "preorderTitle": "マーケット予約",
+    "vendorProducts": "出店商品",
+    "preorderForm": "予約フォーム"
+  },
+  "privacy": {
+    "title": "プライバシーポリシー"
+  },
+  "terms": {
+    "title": "利用規約"
+  },
+  "languageSwitcher": {
+    "label": "言語"
+  }
+}

@@ -1,0 +1,398 @@
+{
+  "common": {
+    "loading": "Loading…",
+    "loadingDots": "Loading...",
+    "error": "An error occurred",
+    "retry": "Reload",
+    "backHome": "Back to Home",
+    "viewAll": "View All",
+    "viewMore": "See More",
+    "learnMore": "Learn More",
+    "search": "Search",
+    "noResults": "No results found",
+    "nt": "NT$",
+    "free": "Free",
+    "items": "items",
+    "sessions": "sessions",
+    "people": "people",
+    "save": "Save",
+    "saving": "Saving...",
+    "saved": "Saved",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "delete": "Delete",
+    "edit": "Edit",
+    "submit": "Submit",
+    "close": "Close",
+    "share": "Share",
+    "copyLink": "Copy Link",
+    "addToCart": "Add to Cart",
+    "added": "Added",
+    "viewDetails": "View Details",
+    "notFound": "Page Not Found",
+    "notFoundDesc": "The page you're looking for doesn't exist or has been removed.",
+    "errorTitle": "Something went wrong",
+    "errorDesc": "An error occurred while loading the page. Please try reloading."
+  },
+  "header": {
+    "bookstore": "Traveler Bookstore",
+    "cultureclub": "Yilan Culture Club",
+    "searchPlaceholder": "Search books, events, articles...",
+    "cart": "Cart",
+    "member": "Member",
+    "logout": "Log Out",
+    "myRecords": "My Records",
+    "registerLogin": "Sign Up / Log In"
+  },
+  "footer": {
+    "about": "About Us",
+    "marketBooking": "Market Collaboration",
+    "readingTour": "Reading Tours",
+    "spaceExperience": "Space Experience",
+    "contentCuration": "Local Research",
+    "phone": "039-325957",
+    "address": "No. 55, Wenhua St, Luodong, Yilan, Taiwan",
+    "company": "Culture Makes Sense Co., Ltd.",
+    "lineOA": "LINE Official Account"
+  },
+  "home": {
+    "heroTitle": "Making Culture Part of Everyday Life",
+    "exploreBookstore": "Explore the Bookstore",
+    "joinCultureclub": "Join the Culture Club",
+    "aboutUs": "About Us",
+    "joinMember": "Become a Member",
+    "recentEvents": "Upcoming Events",
+    "featuredEvents": "Featured Events",
+    "twoBrands": "Two Brands",
+    "bookstoreName": "Traveler Bookstore",
+    "cultureclubName": "Yilan Culture Club",
+    "noRecentEvents": "No upcoming events at the moment. Check back soon!",
+    "joinCTA": "Join us in keeping culture alive"
+  },
+  "bookstore": {
+    "title": "Traveler Bookstore",
+    "themeBooks": "Curated Books",
+    "styleGoods": "Style Goods",
+    "themeCuration": "Themed Exhibitions",
+    "moreThemeBooks": "More Curated Books →",
+    "moreStyleGoods": "More Style Goods →",
+    "localNewsletter": "Local Newsletter",
+    "noBooksYet": "No books available at the moment",
+    "noGoodsYet": "No goods available at the moment",
+    "viewpointExplorer": "Viewpoint Explorer"
+  },
+  "cultureclub": {
+    "title": "Yilan Culture Club",
+    "recentEvents": "Upcoming Events",
+    "localNewsletter": "Local Newsletter",
+    "topicViewpoints": "Viewpoints",
+    "booksAndGoods": "Books & Goods",
+    "calendar": "Calendar",
+    "farming": "Farming",
+    "environment": "Environment",
+    "culture": "Culture",
+    "business": "Startups",
+    "moreNewsletter": "More Local Newsletter →",
+    "moreViewpoints": "More Viewpoints →",
+    "moreBooksGoods": "More Books & Goods →"
+  },
+  "events": {
+    "registration": "Registration Open",
+    "closed": "Registration Closed",
+    "ended": "Event Ended",
+    "date": "Date",
+    "location": "Location",
+    "guide": "Guide",
+    "capacity": "Capacity",
+    "price": "Fee",
+    "tickets": "Ticket Options",
+    "addons": "Add-ons",
+    "register": "Register Now",
+    "routeStops": "Route Stops",
+    "keywords": "Keywords",
+    "relatedArticles": "Related Articles",
+    "eventTypes": {
+      "walkingTour": "Reading Tour",
+      "lecture": "Lecture & Course",
+      "workshop": "Workshop",
+      "market": "Market Festival",
+      "exhibition": "Exhibition",
+      "screening": "Screening",
+      "other": "Other Events"
+    }
+  },
+  "products": {
+    "price": "Price",
+    "stock": "In Stock",
+    "outOfStock": "Out of Stock",
+    "author": "Author",
+    "publisher": "Publisher",
+    "category": "Category",
+    "description": "Description",
+    "recommendations": "You May Also Like",
+    "addToCart": "Add to Cart"
+  },
+  "articles": {
+    "publishedAt": "Published",
+    "relatedEvent": "Related Event",
+    "relatedArticles": "You Should Also Read",
+    "readMore": "Read More"
+  },
+  "viewpoints": {
+    "title": "Cultural Viewpoints",
+    "region": "Region",
+    "summary": "Summary",
+    "relatedTopics": "Related Topics"
+  },
+  "bookSelection": {
+    "title": "Curated Books",
+    "allTopics": "All Topics",
+    "sort": {
+      "default": "Default",
+      "newest": "Newest",
+      "price": "Price",
+      "views": "Views"
+    },
+    "totalItems": "{count} items",
+    "category": "Book Category"
+  },
+  "goodsSelection": {
+    "title": "Style Goods",
+    "allTopics": "All Topics",
+    "sort": {
+      "default": "Default",
+      "newest": "Newest",
+      "price": "Price",
+      "views": "Views"
+    },
+    "totalItems": "{count} items",
+    "category": "Product Category"
+  },
+  "marketBooking": {
+    "title": "Market Collaboration",
+    "ownProducts": "Our Products",
+    "localProducts": "Local Featured Products",
+    "marketEvents": "Market Events"
+  },
+  "readingTour": {
+    "title": "Reading Tours",
+    "keywords": "Reading Tour Keywords",
+    "visitedPlaces": "Places We've Been"
+  },
+  "spaceExperience": {
+    "title": "Space Experience",
+    "rentalCalendar": "Space Rental Calendar",
+    "morning": "Morning",
+    "afternoon": "Afternoon",
+    "available": "Available",
+    "booked": "Booked"
+  },
+  "contentCuration": {
+    "title": "Local Research",
+    "stats": "Statistics",
+    "curationThemes": "Curation Themes"
+  },
+  "localNewsletter": {
+    "title": "Local Newsletter",
+    "archive": "Full Archive"
+  },
+  "viewpointStroll": {
+    "title": "Cultural Viewpoints"
+  },
+  "sense": {
+    "title": "About Us",
+    "intro": "Culture Makes Sense is rooted in Yilan, connecting local artisans, brands and communities through reading tours, markets, lectures and spaces — building a sustainable local culture ecosystem."
+  },
+  "checkout": {
+    "title": "Cart & Checkout",
+    "cartContents": "Cart Items",
+    "registrationInfo": "Registration Info",
+    "contactInfo": "Contact Info",
+    "pickupMethod": "Pickup Method",
+    "pickupSelf": "Self Pickup (Traveler Bookstore)",
+    "pickupMail": "Shipping (NT$80)",
+    "paymentMethod": "Payment Method",
+    "payAtStore": "Pay in Cash at Store",
+    "notes": "Notes",
+    "orderSummary": "Order Summary",
+    "shipping": "Shipping",
+    "total": "Total",
+    "terms": "Terms of Service",
+    "privacy": "Privacy Policy",
+    "refundPolicy": "Event Refund Policy",
+    "eventNotice": "This order includes event tickets. After payment, your registration will be reviewed. We'll notify you via Email and LINE.",
+    "emptyCart": "Your cart is empty",
+    "placeOrder": "Place Order",
+    "agreeTerms": "I agree to the"
+  },
+  "checkoutSuccess": {
+    "eventTitle": "Payment Complete — Registration Under Review",
+    "eventDesc": "Payment received. Your registration is being processed.",
+    "eventNotify": "We'll notify you of the result via Email and LINE.",
+    "processing": "Processing",
+    "shopTitle": "Payment Successful!",
+    "shopDesc": "Thank you for your purchase. A confirmation email has been sent.",
+    "orderId": "Order ID",
+    "paymentStatus": "Payment Status",
+    "paid": "Paid",
+    "regStatus": "Registration Status",
+    "viewOrders": "View Orders",
+    "continueShopping": "Continue Shopping",
+    "eventFollowUp": "We'll confirm your registration soon and notify you via Email and LINE Official Account.",
+    "contactUs": "If you have any questions, feel free to contact us through our LINE Official Account."
+  },
+  "login": {
+    "title": "Member Login",
+    "chooseMethod": "Choose Login Method",
+    "google": "Sign in with Google",
+    "line": "Sign in with LINE",
+    "safeRegister": "Secure Registration, Data Protected",
+    "privacyProtection": "Privacy Protection",
+    "accountSecurity": "Account Security",
+    "dataEncryption": "Data Encryption"
+  },
+  "dashboard": {
+    "myRecords": "My Records",
+    "workbench": "Workbench",
+    "partnerPlatform": "Partner Platform",
+    "participation": "Participation Analytics",
+    "purchaseHistory": "Purchase History",
+    "orders": "Order History",
+    "profile": "Profile",
+    "productMgmt": "Product Management",
+    "proposalMgmt": "Proposal Management"
+  },
+  "orders": {
+    "title": "Order History",
+    "all": "All",
+    "eventReg": "Event Registration",
+    "noRecords": "No records yet",
+    "noRecordsDesc": "Records will appear here after completing an event registration",
+    "unnamed": "(Unnamed)",
+    "registration": "Registration"
+  },
+  "profile": {
+    "title": "Profile",
+    "loadError": "Failed to load data",
+    "saveError": "Failed to save",
+    "networkError": "Network error. Please try again later.",
+    "email": "Email",
+    "emailReadonly": "Email cannot be changed",
+    "memberType": "Member Type",
+    "displayName": "Display Name",
+    "namePlaceholder": "Your name",
+    "phone": "Phone Number",
+    "phonePlaceholder": "0912-345-678",
+    "notificationPref": "Notification Preferences",
+    "lineNotify": "LINE Official Account Notifications",
+    "emailNotify": "Email Notifications",
+    "saveChanges": "Save Changes",
+    "staff": "Staff",
+    "vendor": "Partner",
+    "member": "Member"
+  },
+  "productMgmt": {
+    "title": "Product Management",
+    "noProducts": "No products listed yet",
+    "noProductsDesc": "Products are created by the makesense team in Notion and auto-synced",
+    "name": "Product Name",
+    "status": "Status",
+    "price": "Price",
+    "stock": "Stock",
+    "sold": "Sold",
+    "rating": "Rating",
+    "type": "Type",
+    "active": "Active",
+    "inactive": "Inactive",
+    "outOfStock": "Out of Stock",
+    "preorder": "Pre-order"
+  },
+  "workbench": {
+    "hello": "Hello",
+    "tabs": {
+      "activity": "Feed",
+      "handover": "Handover",
+      "inventory": "Inventory",
+      "attendance": "Attendance",
+      "expense": "Expenses"
+    },
+    "inventoryOps": "Inventory Operations",
+    "shipOut": "Ship Out",
+    "shipIn": "Receive Stock",
+    "stocktake": "Stocktake",
+    "detail": "Details",
+    "normalShip": "Standard Shipping",
+    "channelShip": "Channel Shipping",
+    "returnExchange": "Returns & Exchanges",
+    "todayRevenue": "Today's Revenue",
+    "todayOrders": "Today's Orders",
+    "pendingShip": "Pending Shipments",
+    "lowStock": "Low Stock",
+    "scanPrompt": "Scan or enter product name...",
+    "clockIn": "Clock In",
+    "clockOut": "Clock Out",
+    "punch": "Punch",
+    "journal": "Journal",
+    "leave": "Leave",
+    "overtime": "Overtime",
+    "schedule": "Schedule",
+    "handoverItems": "Handover Items",
+    "incomplete": "Incomplete",
+    "completed": "Completed",
+    "selectHandover": "Select a handover item on the left",
+    "execTime": "Execution time:",
+    "assignee": "Assignee:",
+    "relatedTxn": "Related transactions (DB06) —",
+    "allCompleted": "All items completed, this task is closed",
+    "closed": "Closed"
+  },
+  "partner": {
+    "title": "Partner Platform",
+    "hello": "Hello",
+    "since": "Partnership since:",
+    "toNow": "to present",
+    "tabs": {
+      "overview": "Overview",
+      "info": "Info",
+      "projects": "Projects",
+      "cashflow": "Cash Flow",
+      "settings": "Settings"
+    },
+    "overview": "Period Overview",
+    "scanCheckin": "Scan Check-in",
+    "listedProducts": "Listed Products",
+    "totalSales": "Total Sales",
+    "totalRevenue": "Total Revenue",
+    "avgRating": "Average Rating",
+    "eventCount": "Events",
+    "totalRegistrants": "Total Registrations",
+    "outOfStockProducts": "Out of Stock",
+    "productInfo": "Product Info",
+    "productInfoDesc": "Manage your listed products here. Data will appear on your storefront and the market pre-order system.",
+    "addProduct": "+ Add Product",
+    "noProducts": "No products added yet",
+    "noProductsDesc": "Click \"Add Product\" to get started — takes 30 seconds"
+  },
+  "recommend": {
+    "articles": "You Should Also Read",
+    "products": "You May Also Like"
+  },
+  "bottomSheet": {
+    "addToCart": "Add to Cart",
+    "viewDetails": "View Details"
+  },
+  "buy": {
+    "preorderTitle": "Market Pre-order",
+    "vendorProducts": "Vendor Products",
+    "preorderForm": "Pre-order Form"
+  },
+  "privacy": {
+    "title": "Privacy Policy"
+  },
+  "terms": {
+    "title": "Terms of Service"
+  },
+  "languageSwitcher": {
+    "label": "Language"
+  }
+}

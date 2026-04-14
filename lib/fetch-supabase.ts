@@ -1,6 +1,67 @@
 import { supabase } from "./supabase";
 
 // ═══════════════════════════════════════════
+// 多語言翻譯覆蓋工具
+// ═══════════════════════════════════════════
+
+/**
+ * 批次覆蓋翻譯到查詢結果上
+ * 用法：const products = await applyTranslations(await fetchSBProducts(), "products", locale, ["name", "description"]);
+ */
+export async function applyTranslations<T extends { id: string }>(
+  rows: T[],
+  tableName: string,
+  locale: string,
+  fields: string[]
+): Promise<T[]> {
+  if (locale === "zh" || rows.length === 0) return rows;
+
+  // 需要用 Supabase UUID 查翻譯，但 rows 裡的 id 可能是 notion_id
+  // 先查出 notion_id → uuid 映射
+  const notionIds = rows.map(r => r.id);
+  const { data: mapping } = await supabase
+    .from(tableName)
+    .select("id, notion_id")
+    .in("notion_id", notionIds);
+
+  const notionToUuid: Record<string, string> = {};
+  for (const m of mapping || []) {
+    if (m.notion_id) notionToUuid[m.notion_id] = m.id;
+  }
+
+  const uuids = notionIds.map(nid => notionToUuid[nid] || nid);
+
+  // 批次取翻譯
+  const { data: translations } = await supabase
+    .from("translations")
+    .select("row_id, field, value")
+    .eq("table_name", tableName)
+    .eq("locale", locale)
+    .in("row_id", uuids);
+
+  if (!translations || translations.length === 0) return rows;
+
+  // 建立翻譯 map: uuid → { field: value }
+  const tMap: Record<string, Record<string, string>> = {};
+  for (const t of translations) {
+    if (!tMap[t.row_id]) tMap[t.row_id] = {};
+    tMap[t.row_id][t.field] = t.value;
+  }
+
+  // 覆蓋
+  return rows.map(row => {
+    const uuid = notionToUuid[row.id] || row.id;
+    const t = tMap[uuid];
+    if (!t) return row;
+    const copy = { ...row };
+    for (const field of fields) {
+      if (t[field]) (copy as any)[field] = t[field];
+    }
+    return copy;
+  });
+}
+
+// ═══════════════════════════════════════════
 // Products（商品）from Supabase
 // ═══════════════════════════════════════════
 export interface SBProduct {
