@@ -1,67 +1,72 @@
-import { NextResponse } from "next/server";
-import { queryDatabase, extractTitle, extractSelect, DB } from "@/lib/notion";
+import { NextRequest, NextResponse } from "next/server";
+import { supabase } from "@/lib/supabase";
 
-// 不在 build 時預渲染，運行時 CDN 快取 60 秒
 export const dynamic = "force-dynamic";
 
-export async function GET() {
-  // dev 環境也走 Supabase（下方 production 路徑也可用，但 Supabase 更快）
+/**
+ * GET /api/search-index?q=關鍵字
+ * 從 Supabase 全文搜尋（products, events, articles, topics）
+ */
+export async function GET(req: NextRequest) {
+  const q = req.nextUrl.searchParams.get("q")?.trim();
+  if (!q || q.length < 1) {
+    return NextResponse.json({ products: [], events: [], articles: [], topics: [] });
+  }
 
-  const [productResults, activityResults, articleResults, keywordResults] = await Promise.all([
-    queryDatabase(DB.DB07_INVENTORY, {
-      property: "庫存售價", number: { greater_than: 0 },
-    }, [{ property: "更新時間", direction: "descending" as const }], 100).catch(() => []),
+  const like = `%${q}%`;
 
-    queryDatabase(DB.DB04_COLLABORATION, {
-      property: "活動類型", select: { is_not_empty: true },
-    }, [{ property: "執行時間", direction: "descending" as const }], 100).catch(() => []),
-
-    queryDatabase(DB.DB05_REGISTRATION, {
-      property: "表單類型", select: { equals: "圖文影音" },
-    }, [{ property: "建立時間", direction: "descending" as const }], 100).catch(() => []),
-
-    queryDatabase(DB.DB08_RELATIONSHIP, {
-      property: "標籤選項", select: { equals: "主題標籤" },
-    }, [{ property: "更新時間", direction: "descending" as const }], 100).catch(() => []),
+  const [products, events, articles, topics] = await Promise.all([
+    supabase.from("products")
+      .select("notion_id, name, price, images, category")
+      .eq("status", "active")
+      .ilike("name", like)
+      .order("updated_at", { ascending: false })
+      .limit(8),
+    supabase.from("events")
+      .select("notion_id, title, event_date, event_type")
+      .eq("status", "active")
+      .ilike("title", like)
+      .order("event_date", { ascending: false })
+      .limit(8),
+    supabase.from("articles")
+      .select("notion_id, title, published_at")
+      .eq("status", "published")
+      .ilike("title", like)
+      .order("published_at", { ascending: false })
+      .limit(8),
+    supabase.from("topics")
+      .select("notion_id, name, tag_type")
+      .eq("status", "active")
+      .ilike("name", like)
+      .limit(8),
   ]);
 
+  // Log search query
+  try {
+    await supabase.from("search_logs").insert({ query: q, results_count:
+      (products.data?.length || 0) + (events.data?.length || 0) +
+      (articles.data?.length || 0) + (topics.data?.length || 0),
+    });
+  } catch {}
+
   const data = {
-    products: productResults.map((p: any) => {
-      const props = p.properties;
-      const photoFile = props["產品照片"]?.files?.[0];
-      const photo = photoFile?.file?.url || photoFile?.external?.url || null;
-      return {
-        n: extractTitle(props["庫存名稱"]?.title),
-        c: extractSelect(props["選書備項"]?.select) || extractSelect(props["庫存類型"]?.select) || "商品",
-        s: p.id.replace(/-/g, ""),
-        p: photo,
-      };
+    products: (products.data || []).map(p => {
+      let photo: string | null = null;
+      try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
+      return { name: p.name, price: p.price, photo, slug: p.notion_id, category: p.category };
     }),
-    activities: activityResults.map((p: any) => {
-      const props = p.properties;
-      return {
-        n: extractTitle(props["協作名稱"]?.title),
-        d: props["執行時間"]?.date?.start || null,
-        t: extractSelect(props["活動類型"]?.select) || "",
-        s: p.id.replace(/-/g, ""),
-      };
-    }),
-    articles: articleResults.map((p: any) => {
-      const props = p.properties;
-      return {
-        n: extractTitle(props["明細名稱"]?.title),
-        t: extractSelect(props["表單類型"]?.select) || "文章",
-        d: p.created_time?.substring(0, 10) || null,
-        s: p.id.replace(/-/g, ""),
-      };
-    }),
-    keywords: keywordResults.map((p: any) => ({
-      n: extractTitle(p.properties["經營名稱"]?.title),
-      s: p.id.replace(/-/g, ""),
+    events: (events.data || []).map(e => ({
+      name: e.title, date: e.event_date, type: e.event_type, slug: e.notion_id,
+    })),
+    articles: (articles.data || []).map(a => ({
+      name: a.title, date: a.published_at, slug: a.notion_id,
+    })),
+    topics: (topics.data || []).map(t => ({
+      name: t.name, type: t.tag_type, slug: t.notion_id,
     })),
   };
 
   return NextResponse.json(data, {
-    headers: { "Cache-Control": "public, s-maxage=60, stale-while-revalidate=120" },
+    headers: { "Cache-Control": "public, s-maxage=30, stale-while-revalidate=60" },
   });
 }

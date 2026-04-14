@@ -1,21 +1,25 @@
+"use client";
+
 import Link from "next/link";
+import { useEffect, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
 /**
- * 「你應該也想知道」— 同類型的其他項目
- * 「你可能也會喜歡」— 跨類型推薦
+ * 「你應該也想知道」— 最新文章
+ * 「你可能也會喜歡」— 熱門商品
  *
- * 用於：單一商品、單一活動、單一文章、單一觀點、結帳頁
+ * 用於：單一商品、單一活動、單一文章、結帳頁
+ * 自動從 Supabase 抓取，不再使用假資料
  */
 
-interface RecommendItem {
-  id: number;
+interface DisplayItem {
   title: string;
   subtitle?: string;
-  icon: string;
+  photo?: string | null;
   href: string;
 }
 
-function ItemCard({ item }: { item: RecommendItem }) {
+function ItemCard({ item }: { item: DisplayItem }) {
   return (
     <Link
       href={item.href}
@@ -23,16 +27,15 @@ function ItemCard({ item }: { item: RecommendItem }) {
       style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
     >
       <div
-        className="aspect-[16/9] flex items-center justify-center"
+        className="aspect-[16/9] flex items-center justify-center overflow-hidden"
         style={{ background: "var(--color-parchment)" }}
       >
-        <span className="text-2xl opacity-20">{item.icon}</span>
+        {item.photo
+          ? <img src={item.photo} alt={item.title} className="w-full h-full object-cover" />
+          : <span className="text-2xl opacity-20">📄</span>}
       </div>
       <div className="p-2.5">
-        <h3
-          className="text-[0.85em] line-clamp-2"
-          style={{ color: "var(--color-ink)" }}
-        >
+        <h3 className="text-[0.85em] line-clamp-2" style={{ color: "var(--color-ink)" }}>
           {item.title}
         </h3>
         {item.subtitle && (
@@ -45,58 +48,77 @@ function ItemCard({ item }: { item: RecommendItem }) {
   );
 }
 
-export function AlsoWantToKnow({
-  items,
-}: {
-  items?: RecommendItem[];
-}) {
-  const defaultItems: RecommendItem[] = items || [
-    { id: 1, title: "同類型項目 1", icon: "📄", href: "#", subtitle: "NT$ 280" },
-    { id: 2, title: "同類型項目 2", icon: "📄", href: "#", subtitle: "NT$ 350" },
-    { id: 3, title: "同類型項目 3", icon: "📄", href: "#", subtitle: "NT$ 420" },
-    { id: 4, title: "同類型項目 4", icon: "📄", href: "#", subtitle: "NT$ 190" },
-  ];
+export function AlsoWantToKnow() {
+  const [items, setItems] = useState<DisplayItem[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("articles")
+        .select("id, notion_id, title, cover_url")
+        .eq("status", "published")
+        .order("published_at", { ascending: false })
+        .limit(4);
+
+      setItems((data || []).map(a => ({
+        title: a.title,
+        photo: a.cover_url,
+        href: `/post/${a.notion_id || a.id}`,
+      })));
+    })();
+  }, []);
+
+  if (items.length === 0) return null;
 
   return (
     <section className="mt-12">
-      <h2
-        className="text-lg font-semibold mb-4"
-        style={{ color: "var(--color-ink)" }}
-      >
+      <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
         你應該也想知道
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {defaultItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
+        {items.map((item, i) => (
+          <ItemCard key={i} item={item} />
         ))}
       </div>
     </section>
   );
 }
 
-export function MightAlsoLike({
-  items,
-}: {
-  items?: RecommendItem[];
-}) {
-  const defaultItems: RecommendItem[] = items || [
-    { id: 1, title: "推薦項目 1", icon: "✨", href: "#", subtitle: "NT$ 300" },
-    { id: 2, title: "推薦項目 2", icon: "✨", href: "#", subtitle: "NT$ 450" },
-    { id: 3, title: "推薦項目 3", icon: "✨", href: "#", subtitle: "NT$ 260" },
-    { id: 4, title: "推薦項目 4", icon: "✨", href: "#", subtitle: "NT$ 380" },
-  ];
+export function MightAlsoLike() {
+  const [items, setItems] = useState<DisplayItem[]>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, notion_id, name, price, images")
+        .eq("status", "active")
+        .order("updated_at", { ascending: false })
+        .limit(4);
+
+      setItems((data || []).map(p => {
+        let photo: string | null = null;
+        try { const imgs = JSON.parse(p.images || "[]"); photo = imgs[0] || null; } catch {}
+        return {
+          title: p.name,
+          subtitle: `NT$ ${p.price.toLocaleString()}`,
+          photo,
+          href: `/product/${p.notion_id || p.id}`,
+        };
+      }));
+    })();
+  }, []);
+
+  if (items.length === 0) return null;
 
   return (
     <section className="mt-12">
-      <h2
-        className="text-lg font-semibold mb-4"
-        style={{ color: "var(--color-ink)" }}
-      >
+      <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>
         你可能也會喜歡
       </h2>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {defaultItems.map((item) => (
-          <ItemCard key={item.id} item={item} />
+        {items.map((item, i) => (
+          <ItemCard key={i} item={item} />
         ))}
       </div>
     </section>

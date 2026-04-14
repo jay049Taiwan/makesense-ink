@@ -79,7 +79,7 @@ export default function SearchDropdown({
       {results.articles.length > 0 && (
         <Section icon="📝" title="文章">
           {results.articles.map((a) => (
-            <ResultRow key={a.slug} href={`/article/${a.slug}`} onClose={onClose} icon="📝" iconBg="#fff8e1" title={a.title} subtitle={`${a.type}${a.date ? `  ${a.date}` : ""}`} />
+            <ResultRow key={a.slug} href={`/post/${a.slug}`} onClose={onClose} icon="📝" iconBg="#fff8e1" title={a.title} subtitle={`${a.type}${a.date ? `  ${a.date}` : ""}`} />
           ))}
         </Section>
       )}
@@ -88,7 +88,7 @@ export default function SearchDropdown({
       {results.keywords.length > 0 && (
         <Section icon="💡" title="觀點">
           {results.keywords.map((kw) => (
-            <ResultRow key={kw.slug} href={`/keyword/${kw.slug}`} onClose={onClose} icon="💡" iconBg="#f3e5f5" title={kw.name} subtitle="觀點" />
+            <ResultRow key={kw.slug} href={`/viewpoint/${kw.slug}`} onClose={onClose} icon="💡" iconBg="#f3e5f5" title={kw.name} subtitle="觀點" />
           ))}
         </Section>
       )}

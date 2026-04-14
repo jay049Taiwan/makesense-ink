@@ -69,3 +69,116 @@ body {
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* ── Notion content (from getPageContent → blocks→HTML) ── */
+.notion-content h2 {
+  font-family: var(--font-serif);
+  font-size: 1.5em;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: 2em;
+  margin-bottom: 0.6em;
+  padding-bottom: 0.3em;
+  border-bottom: 1px solid var(--color-dust);
+}
+.notion-content h3 {
+  font-family: var(--font-serif);
+  font-size: 1.25em;
+  font-weight: 600;
+  color: var(--color-ink);
+  margin-top: 1.6em;
+  margin-bottom: 0.5em;
+}
+.notion-content h4 {
+  font-size: 1.1em;
+  font-weight: 600;
+  color: var(--color-bark);
+  margin-top: 1.4em;
+  margin-bottom: 0.4em;
+}
+.notion-content p {
+  margin-bottom: 1em;
+  line-height: 1.85;
+}
+.notion-content a {
+  color: var(--color-teal);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.notion-content a:hover {
+  color: var(--color-teal-hover);
+}
+.notion-content strong {
+  font-weight: 600;
+  color: var(--color-ink);
+}
+.notion-content em {
+  font-style: italic;
+}
+.notion-content del {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+.notion-content code {
+  font-size: 0.88em;
+  background: var(--color-parchment);
+  color: var(--color-rust);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+.notion-content pre {
+  background: var(--color-ink);
+  color: #e2e8f0;
+  padding: 1em 1.2em;
+  border-radius: 8px;
+  overflow-x: auto;
+  font-size: 0.88em;
+  line-height: 1.6;
+  margin: 1.2em 0;
+}
+.notion-content pre code {
+  background: transparent;
+  color: inherit;
+  padding: 0;
+}
+.notion-content li {
+  margin-left: 1.4em;
+  margin-bottom: 0.4em;
+  line-height: 1.75;
+  list-style: disc;
+}
+.notion-content blockquote {
+  border-left: 3px solid var(--color-teal);
+  padding: 0.8em 1.2em;
+  margin: 1.2em 0;
+  background: var(--color-warm-white);
+  color: var(--color-bark);
+  font-style: italic;
+  border-radius: 0 8px 8px 0;
+}
+.notion-content .callout {
+  background: var(--color-warm-white);
+  border: 1px solid var(--color-dust);
+  border-radius: 8px;
+  padding: 1em 1.2em;
+  margin: 1.2em 0;
+  line-height: 1.7;
+}
+.notion-content figure {
+  margin: 1.5em 0;
+}
+.notion-content figure img {
+  width: 100%;
+  border-radius: 8px;
+}
+.notion-content figcaption {
+  text-align: center;
+  font-size: 0.85em;
+  color: var(--color-mist);
+  margin-top: 0.5em;
+}
+.notion-content hr {
+  border: none;
+  border-top: 1px solid var(--color-dust);
+  margin: 2em 0;
+}

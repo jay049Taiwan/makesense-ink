@@ -223,7 +223,7 @@ async function syncSingleRelation(nid: string, props: any) {
 
   if (type === "連結對象") {
     // 合作單位 → partners
-    if (objectType === "合作單位") {
+    if (objectType === "合作夥伴") {
       const row = {
         notion_id: nid,
         type: sel(props["單位選項"]) || "民間單位",

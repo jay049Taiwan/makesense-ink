@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { useSession, signOut } from "next-auth/react";
 import SearchDropdown from "./SearchDropdown";
 import type { SearchResults } from "./SearchDropdown";
@@ -21,35 +21,35 @@ export default function Header() {
   const userEmail = isDev ? devRole.email : session?.user?.email;
   const userName = isDev ? devRole.displayName : session?.user?.name;
 
-  // 搜尋狀態：索引載入一次，之後純本地搜尋
+  // 搜尋狀態：即時查 Supabase API（debounce 300ms）
   const [query, setQuery] = useState("");
   const [showDropdown, setShowDropdown] = useState(false);
-  const [index, setIndex] = useState<any>(null);
+  const [results, setResults] = useState<SearchResults | null>(null);
+  const [searching, setSearching] = useState(false);
   const searchRef = useRef<HTMLDivElement>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout>>();
 
-  // 載入搜尋索引（只載一次，CDN 快取 5 分鐘）
-  useEffect(() => {
-    fetch("/api/search-index")
-      .then((r) => r.json())
-      .then(setIndex)
-      .catch(() => {});
+  const doSearch = useCallback(async (q: string) => {
+    if (q.length < 2) { setResults(null); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/search-index?q=${encodeURIComponent(q)}`);
+      const data = await res.json();
+      setResults({
+        products: (data.products || []).map((p: any) => ({ name: p.name, category: p.category, slug: p.slug, photo: p.photo })),
+        activities: (data.events || []).map((e: any) => ({ title: e.name, date: e.date, type: e.type, slug: e.slug })),
+        articles: (data.articles || []).map((a: any) => ({ title: a.name, type: "文章", date: a.date, slug: a.slug })),
+        keywords: (data.topics || []).map((t: any) => ({ name: t.name, slug: t.slug })),
+      });
+    } catch { setResults(null); }
+    setSearching(false);
   }, []);
-
-  // 純客戶端即時搜尋 — 零延遲
-  const results: SearchResults | null = useMemo(() => {
-    if (!index || query.length < 2) return null;
-    const q = query.toLowerCase();
-    return {
-      products: index.products?.filter((p: any) => p.n.toLowerCase().includes(q)).slice(0, 5).map((p: any) => ({ name: p.n, category: p.c, slug: p.s, photo: p.p })) || [],
-      activities: index.activities?.filter((a: any) => a.n.toLowerCase().includes(q)).slice(0, 5).map((a: any) => ({ title: a.n, date: a.d, type: a.t, slug: a.s })) || [],
-      articles: index.articles?.filter((a: any) => a.n.toLowerCase().includes(q)).slice(0, 5).map((a: any) => ({ title: a.n, type: a.t, date: a.d, slug: a.s })) || [],
-      keywords: index.keywords?.filter((k: any) => k.n.toLowerCase().includes(q)).slice(0, 5).map((k: any) => ({ name: k.n, slug: k.s })) || [],
-    };
-  }, [index, query]);
 
   const handleInput = (value: string) => {
     setQuery(value);
     setShowDropdown(value.length >= 2);
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(value), 300);
   };
 
   // 點擊外部關閉
