@@ -209,6 +209,7 @@ export async function fetchSBAllEvents(limit = 100) {
   const { data, error } = await supabase
     .from("events")
     .select("id, notion_id, title, theme, event_date, price, capacity, cover_url, description, status")
+    .eq("status", "active")
     .order("event_date", { ascending: false })
     .limit(limit);
 

@@ -22,6 +22,7 @@ export async function GET(req: NextRequest) {
     const { data: events, error } = await supabase
       .from("events")
       .select("id, title, event_date, status")
+      .eq("status", "active")
       .gte("event_date", startDate)
       .lt("event_date", endDate)
       .order("event_date", { ascending: true });
