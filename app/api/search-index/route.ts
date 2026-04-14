@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
     supabase.from("products")
       .select("notion_id, name, price, images, category")
       .eq("status", "active")
-      .or("category.eq.商品/選書,category.eq.商品/選物")
+      .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
       .ilike("name", like)
       .order("updated_at", { ascending: false })
       .limit(8),
