@@ -83,22 +83,51 @@ export default function LiffMemberPage() {
     setBinding(false);
   };
 
-  // 非 LIFF 模式提示
-  if (!isLiffMode && !isLiffReady) {
-    return (
-      <div className="flex items-center justify-center min-h-screen px-4">
-        <div className="text-center">
-          <p className="text-sm" style={{ color: "#999" }}>請在 LINE 中開啟此頁面</p>
-        </div>
-      </div>
-    );
-  }
-
-  // 載入中
+  // 載入中（最多等 5 秒）
   if (loadingMember || (!isLiffReady && isLiffMode)) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="w-8 h-8 border-3 border-gray-200 border-t-[#7a5c40] rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  // LIFF 未登入 — 顯示基本會員頁面（連結到官網登入）
+  if (!liffUser && !needsBind) {
+    return (
+      <div className="pb-4">
+        <div className="px-4 pt-4 pb-3">
+          <h1 className="text-lg font-bold" style={{ color: "#2d2a26" }}>會員中心</h1>
+        </div>
+        <div className="mx-4 p-6 rounded-2xl text-center" style={{ background: "#fff", border: "1px solid #ece8e1" }}>
+          <div className="w-16 h-16 rounded-full mx-auto mb-3 flex items-center justify-center" style={{ background: "#f0ebe4" }}>
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#7a5c40" strokeWidth="2">
+              <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 3a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
+            </svg>
+          </div>
+          <h2 className="text-base font-semibold mb-1" style={{ color: "#2d2a26" }}>歡迎來到會員中心</h2>
+          <p className="text-xs mb-4" style={{ color: "#999" }}>登入後即可查看您的訂單與點數</p>
+          <div className="space-y-2">
+            {QUICK_LINKS.map((link) => (
+              <a
+                key={link.label}
+                href={link.href}
+                className="flex items-center gap-3 p-4 rounded-xl"
+                style={{ background: "#f8f7f4", border: "1px solid #ece8e1" }}
+              >
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: "#f0ebe4" }}>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7a5c40" strokeWidth="2">
+                    <path d={link.icon} />
+                  </svg>
+                </div>
+                <span className="text-sm font-medium flex-1" style={{ color: "#2d2a26" }}>{link.label}</span>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ccc" strokeWidth="2">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </a>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
