@@ -62,10 +62,15 @@ export default function LiffProvider({ children }: { children: ReactNode }) {
 
     setIsLiffMode(true);
 
+    // 超時保護：5 秒內 LIFF 沒初始化完就放棄，標記 ready
+    const timeout = setTimeout(() => {
+      setIsLiffReady(true);
+    }, 5000);
+
     (async () => {
       try {
         const ok = await initLiff();
-        if (!ok) return;
+        if (!ok) { clearTimeout(timeout); setIsLiffReady(true); return; }
 
         // 在 LINE 客戶端內自動登入
         if (isInLineClient()) {
@@ -120,12 +125,16 @@ export default function LiffProvider({ children }: { children: ReactNode }) {
           }
         }
 
+        clearTimeout(timeout);
         setIsLiffReady(true);
       } catch (err) {
         console.error("LiffProvider init error:", err);
+        clearTimeout(timeout);
         setIsLiffReady(true); // 即使失敗也標記 ready，不阻擋渲染
       }
     })();
+
+    return () => clearTimeout(timeout);
   }, []);
 
   return (

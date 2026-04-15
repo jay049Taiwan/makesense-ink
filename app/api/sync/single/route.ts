@@ -61,13 +61,8 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Unknown db: ${db}` }, { status: 400 });
     }
 
-    // 立刻回應（不等回寫和翻譯）
-    const response = NextResponse.json({ success: true, db, pageId: cleanId, result });
-
-    // 背景處理：回寫 Notion + AI 翻譯（不阻擋回應）
-    // Vercel 會在回應後繼續執行這些 promise（waitUntil 語意）
+    // 回寫 Notion（阻塞式，確保執行完成）
     if (result && !result.skipped) {
-      // 回寫發佈狀態和對應連結
       const urlMap: Record<string, string> = {
         events: `${SITE_URL}/events/${cleanId}`,
         articles: `${SITE_URL}/post/${cleanId}`,
@@ -76,18 +71,18 @@ export async function POST(req: NextRequest) {
       };
       const table = result.table;
       if (urlMap[table] && result.status !== "draft" && result.status !== null) {
-        writebackPublish(cleanId, urlMap[table]).catch(e => console.warn(`[writeback] ${e.message}`));
+        await writebackPublish(cleanId, urlMap[table]);
       } else if (result.status === "draft") {
-        writebackUnpublish(cleanId).catch(e => console.warn(`[writeback] ${e.message}`));
+        await writebackUnpublish(cleanId);
       }
 
-      // AI 翻譯
+      // AI 翻譯（非阻塞，背景做就好）
       if (result.title) {
         triggerTranslation(table, cleanId, result).catch(e => console.warn(`[translate] ${e.message}`));
       }
     }
 
-    return response;
+    return NextResponse.json({ success: true, db, pageId: cleanId, result });
   } catch (err: any) {
     console.error("Single sync error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
