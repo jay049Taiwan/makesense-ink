@@ -80,7 +80,7 @@ function t(prop: any) { return extractTitle(prop?.title) || ""; }
 function tx(prop: any) { return extractText(prop?.rich_text) || null; }
 function sel(prop: any) { return extractSelect(prop?.select) || null; }
 function st(prop: any) { return extractStatus(prop?.status) || null; }
-function num(prop: any) { return extractNumber(prop?.number); }
+function num(prop: any) { return extractNumber(prop?.number) ?? extractNumber(prop?.formula?.number) ?? null; }
 function rel(prop: any) { return extractRelation(prop?.relation); }
 function dt(prop: any) { return extractDate(prop?.date); }
 function url(prop: any) { return extractUrl(prop?.url) || null; }
