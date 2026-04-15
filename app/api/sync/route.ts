@@ -210,7 +210,7 @@ async function syncPersons() {
         ig: extractUrl(props["IG粉專"]?.url) || null,
         website: extractUrl(props["網路連結"]?.url) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
@@ -255,7 +255,7 @@ async function syncPartners() {
         address: extractText(props["地址"]?.rich_text) || null,
         contactPerson: extractText(props["聯絡人"]?.rich_text) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
@@ -331,7 +331,7 @@ async function syncProducts(wb = false) {
       publisher_id: pNid ? (pMap[pNid] || null) : null,
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
 
@@ -401,7 +401,7 @@ async function syncEvents(wb = false) {
       description: extractText(props["簡介摘要"]?.rich_text) || null,
       location: locationName,
       guide: guideName,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
 
@@ -438,7 +438,7 @@ async function syncArticles(wb = false) {
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "published" }),
       published_at: dateInfo.start || null,
     };
   });

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl } from "@/lib/notion";
+import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { translateRow } from "@/lib/translate";
+
+const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink";
 
 export const maxDuration = 30;
 
@@ -96,12 +98,40 @@ function fileUrls(prop: any): string[] {
 }
 
 /**
- * 狀態映射：只有「已發佈」→ active/published，「待發佈」→ draft
- * 無發佈 / 空值 → null（不同步）
+ * 狀態映射：
+ * 「已發佈」「待發佈」→ active/published（上架）
+ * 「無發佈」「不發佈」→ "draft"（下架）
+ * 空值（從未設定）→ null（不同步）
  */
 function mapStatus(val: string | null, map: Record<string, string>): string | null {
-  if (!val || val === "無發佈" || val === "不發佈") return null;
+  if (!val) return null; // 從未設定，不同步
+  if (val === "無發佈" || val === "不發佈") return "draft"; // 下架
   return map[val] || "draft";
+}
+
+/** 回寫 Notion：上架 → 狀態改「已發佈」+ 寫入 URL */
+async function writebackPublish(pageId: string, url: string) {
+  try {
+    const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+    await updatePage(uuid, {
+      "發佈狀態": { status: { name: "已發佈" } },
+      "官網連結": { url },
+    });
+  } catch (err: any) {
+    console.warn(`[writeback] Publish failed for ${pageId}: ${err.message}`);
+  }
+}
+
+/** 回寫 Notion：下架 → 狀態改「待發佈」 */
+async function writebackUnpublish(pageId: string) {
+  try {
+    const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+    await updatePage(uuid, {
+      "發佈狀態": { status: { name: "待發佈" } },
+    });
+  } catch (err: any) {
+    console.warn(`[writeback] Unpublish failed for ${pageId}: ${err.message}`);
+  }
 }
 
 async function lookupPersonName(notionId: string): Promise<string | null> {
@@ -133,11 +163,13 @@ async function syncSingleEvent(nid: string, props: any) {
     description: tx(props["簡介摘要"]),
     location: locationName,
     guide: guideName,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`events upsert: ${error.message}`);
+  if (row.status === "draft") await writebackUnpublish(nid);
+  else await writebackPublish(nid, `${SITE_URL}/events/${nid}`);
   return { table: "events", title: row.title, status: row.status };
 }
 
@@ -168,7 +200,7 @@ async function syncSingleArticle(nid: string, props: any) {
     title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "待發佈": "published" }),
     published_at: dateInfo.start || null,
   };
   if (content) row.content = content;
@@ -176,6 +208,8 @@ async function syncSingleArticle(nid: string, props: any) {
   if (row.status === null) return { table: "articles", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("articles").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`articles upsert: ${error.message}`);
+  if (row.status === "draft") await writebackUnpublish(nid);
+  else await writebackPublish(nid, `${SITE_URL}/post/${nid}`);
   return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
 }
 
@@ -222,11 +256,13 @@ async function syncSingleProduct(nid: string, props: any) {
     publisher_id: publisherId,
     sub_category: sub || null,
     supplier_type: sel(props["進貨屬性"]) || null,
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`products upsert: ${error.message}`);
+  if (row.status === "draft") await writebackUnpublish(nid);
+  else await writebackPublish(nid, `${SITE_URL}/product/${nid}`);
   return { table: "products", title: row.name, status: row.status };
 }
 
@@ -234,7 +270,7 @@ async function syncSingleProduct(nid: string, props: any) {
 async function syncSingleRelation(nid: string, props: any) {
   const type = sel(props["經營類型"]);
   const objectType = sel(props["對象選項"]);
-  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active" });
+  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
 
   // 根據「經營類型」決定寫入哪張表
   if (type === "主題標籤") {
@@ -261,6 +297,8 @@ async function syncSingleRelation(nid: string, props: any) {
     if (status === null) return { table: "topics", title: row.name, status: null, skipped: true };
     const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
     if (error) throw new Error(`topics upsert: ${error.message}`);
+    if (status === "draft") await writebackUnpublish(nid);
+    else await writebackPublish(nid, `${SITE_URL}/viewpoint/${nid}`);
     return { table: "topics", title: row.name, status, hasContent: !!content };
   }
 
