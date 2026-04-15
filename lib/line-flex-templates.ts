@@ -391,7 +391,7 @@ export function buildEventReminderFlex(data: {
           type: "text",
           text: `${data.timeLabel}即將開始！`,
           size: "sm",
-          color: data.timeLabel === "明天" ? "#e74c3c" : "#e8935a",
+          color: data.timeLabel === "3 天後" ? "#e74c3c" : "#e8935a",
           weight: "bold",
           margin: "md",
         },

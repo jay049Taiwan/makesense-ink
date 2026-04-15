@@ -21,15 +21,15 @@ export async function POST(req: NextRequest) {
   const now = new Date();
   const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  // 計算目標日期：5 天後和 1 天後
-  const fiveDaysLater = new Date(today);
-  fiveDaysLater.setDate(fiveDaysLater.getDate() + 5);
-  const oneDayLater = new Date(today);
-  oneDayLater.setDate(oneDayLater.getDate() + 1);
+  // 計算目標日期：7 天後和 3 天後
+  const sevenDaysLater = new Date(today);
+  sevenDaysLater.setDate(sevenDaysLater.getDate() + 7);
+  const threeDaysLater = new Date(today);
+  threeDaysLater.setDate(threeDaysLater.getDate() + 3);
 
   const targetDates = [
-    { date: fiveDaysLater.toISOString().split("T")[0], label: "5 天後" },
-    { date: oneDayLater.toISOString().split("T")[0], label: "明天" },
+    { date: sevenDaysLater.toISOString().split("T")[0], label: "7 天後" },
+    { date: threeDaysLater.toISOString().split("T")[0], label: "3 天後" },
   ];
 
   let totalSent = 0;

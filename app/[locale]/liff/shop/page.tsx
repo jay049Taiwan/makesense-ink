@@ -320,7 +320,7 @@ export default function LiffShopPage() {
           {recommend1.length > 0 && (
             <section>
               <h2 className="text-base font-semibold mb-3" style={{ color: "#2d2a26" }}>
-                你可能會喜歡
+                你可能會喜歡 📚
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {recommend1.map((item) => (
@@ -334,7 +334,7 @@ export default function LiffShopPage() {
           {recommend2.length > 0 && (
             <section>
               <h2 className="text-base font-semibold mb-3" style={{ color: "#2d2a26" }}>
-                你應該感興趣
+                你應該會關注 🗺️
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {recommend2.map((item) => (

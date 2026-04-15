@@ -3,6 +3,7 @@ import { lineClient, verifyWebhookSignature } from "@/lib/line";
 import { generateChatReply } from "@/lib/line-chat";
 import { buildWelcomeFlex } from "@/lib/line-flex-templates";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { checkAiReplyThrottle } from "@/lib/line-ratelimit";
 
 export const maxDuration = 10;
 
@@ -50,6 +51,17 @@ async function handleEvent(event: any) {
     case "message":
       if (event.message?.type === "text") {
         const userText = event.message.text;
+
+        // AI 回覆節流：同一用戶每分鐘最多 3 則
+        const canReply = await checkAiReplyThrottle(userId);
+        if (!canReply) {
+          await lineClient.replyMessage({
+            replyToken,
+            messages: [{ type: "text", text: "你打字好快！讓我喘口氣，稍等一下再問我吧 😊" }],
+          });
+          break;
+        }
+
         const reply = await generateChatReply(userText, userId);
 
         await lineClient.replyMessage({
