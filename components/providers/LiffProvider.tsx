@@ -41,12 +41,27 @@ export default function LiffProvider({ children }: { children: ReactNode }) {
   const [needsBind, setNeedsBind] = useState(false);
 
   useEffect(() => {
-    // 偵測 LIFF 模式：URL 帶 liff_mode=true 或在 LINE 客戶端內
+    // 偵測 LIFF 模式：URL 帶 liff_mode=true 或 liff.state（LINE app 內開啟）
     const params = new URLSearchParams(window.location.search);
     const liffMode = params.get("liff_mode") === "true";
+    const liffState = params.get("liff.state");
 
-    if (!liffMode) {
+    if (!liffMode && !liffState) {
       // 不是 LIFF 模式，不初始化
+      return;
+    }
+
+    // 如果有 liff.state，先初始化 SDK 讓它處理重導向
+    // liff.init() 會自動讀取 liff.state 並 redirect 到正確路徑
+    if (!liffMode && liffState) {
+      (async () => {
+        try {
+          await initLiff();
+          // SDK 初始化後會自動 redirect，不需要額外處理
+        } catch (err) {
+          console.error("LIFF redirect init error:", err);
+        }
+      })();
       return;
     }
 
