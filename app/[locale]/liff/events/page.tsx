@@ -76,11 +76,23 @@ function EventCard({ event }: { event: EventItem }) {
             </p>
           )}
         </div>
-        {event.price != null && event.price > 0 && (
-          <p className="text-sm font-bold mt-2" style={{ color: "#4ECDC4" }}>
-            NT$ {event.price.toLocaleString()}
-          </p>
-        )}
+        <div className="flex items-center justify-between mt-2">
+          {event.price != null && event.price > 0 ? (
+            <span className="text-sm font-bold" style={{ color: "#4ECDC4" }}>
+              NT$ {event.price.toLocaleString()}
+            </span>
+          ) : (
+            <span className="text-xs" style={{ color: "#4ECDC4" }}>免費</span>
+          )}
+          <a
+            href={`/events/${event.slug}?liff_mode=true`}
+            onClick={(e) => e.stopPropagation()}
+            className="px-3 py-1.5 rounded-lg text-xs font-semibold"
+            style={{ background: "#4ECDC4", color: "#fff" }}
+          >
+            立即報名
+          </a>
+        </div>
       </div>
     </a>
   );

@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
+import { useLiff } from "@/components/providers/LiffProvider";
 import SafeImage from "@/components/ui/SafeImage";
 import BottomSheet, { type BottomSheetItem } from "@/components/ui/BottomSheet";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
@@ -49,21 +50,143 @@ export default function LiffShopPage() {
   const [showScanner, setShowScanner] = useState(false);
   const [scanError, setScanError] = useState("");
   const { addItem } = useCart();
+  const { liffUser } = useLiff();
 
-  // 載入推薦商品
+  const mapProduct = (p: any): ProductItem => {
+    let photo: string | null = null;
+    try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
+    return { id: p.notion_id || p.id, name: p.name, price: p.price, photo, slug: p.notion_id || p.id };
+  };
+
+  // 載入推薦商品（個人化）
   useEffect(() => {
     (async () => {
-      // 你可能會喜歡 — 最新商品
-      const { data: latest } = await supabase
+      let purchasedIds: string[] = [];
+      let preferredCategory = "";
+      let relatedTopicIds: string[] = [];
+
+      // 如果有登入，查購買紀錄做個人化推薦
+      if (liffUser?.email) {
+        const { data: member } = await supabase
+          .from("members")
+          .select("id")
+          .eq("email", liffUser.email)
+          .maybeSingle();
+
+        if (member) {
+          const { data: orders } = await supabase
+            .from("orders")
+            .select("id")
+            .eq("member_id", member.id)
+            .neq("status", "cancelled")
+            .limit(20);
+
+          if (orders && orders.length > 0) {
+            const orderIds = orders.map(o => o.id);
+            const { data: items } = await supabase
+              .from("order_items")
+              .select("item_id, meta")
+              .in("order_id", orderIds);
+
+            if (items && items.length > 0) {
+              purchasedIds = items.map(i => i.item_id).filter(Boolean);
+
+              // 統計購買類別偏好
+              const categories: Record<string, number> = {};
+              for (const item of items) {
+                const cat = (item.meta as any)?.category || "";
+                if (cat) categories[cat] = (categories[cat] || 0) + 1;
+              }
+              // 找最常買的類別
+              const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+              if (sorted.length > 0) preferredCategory = sorted[0][0];
+            }
+
+            // 查購買商品的相關觀點
+            if (purchasedIds.length > 0) {
+              const { data: prods } = await supabase
+                .from("products")
+                .select("related_topic_ids")
+                .in("notion_id", purchasedIds.slice(0, 10));
+
+              if (prods) {
+                for (const p of prods) {
+                  const topics = (p.related_topic_ids as string[]) || [];
+                  relatedTopicIds.push(...topics);
+                }
+                relatedTopicIds = [...new Set(relatedTopicIds)];
+              }
+            }
+          }
+        }
+      }
+
+      // 「你可能會喜歡」— 偏好類別優先，否則最新
+      let query1 = supabase
         .from("products")
-        .select("id, notion_id, name, price, images, author_id")
+        .select("id, notion_id, name, price, images, author_id, category")
         .eq("status", "active")
         .gt("stock", 0)
-        .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
-        .order("updated_at", { ascending: false })
-        .limit(4);
+        .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位");
 
-      // 你應該感興趣 — 隨機 4 件（用不同排序模擬）
+      if (preferredCategory) {
+        query1 = query1.eq("category", preferredCategory);
+      }
+
+      const { data: rec1 } = await query1
+        .order("updated_at", { ascending: false })
+        .limit(8);
+
+      // 排除已買過的
+      const filtered1 = (rec1 || [])
+        .filter(p => !purchasedIds.includes(p.notion_id || p.id))
+        .slice(0, 4);
+
+      // 如果偏好類別不夠 4 件，補最新商品
+      if (filtered1.length < 4) {
+        const { data: fallback } = await supabase
+          .from("products")
+          .select("id, notion_id, name, price, images, author_id")
+          .eq("status", "active")
+          .gt("stock", 0)
+          .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+          .order("updated_at", { ascending: false })
+          .limit(8);
+
+        const existingIds = new Set(filtered1.map(p => p.notion_id || p.id));
+        const extra = (fallback || [])
+          .filter(p => !purchasedIds.includes(p.notion_id || p.id) && !existingIds.has(p.notion_id || p.id))
+          .slice(0, 4 - filtered1.length);
+        filtered1.push(...extra);
+      }
+
+      setRecommend1(filtered1.map(mapProduct));
+
+      // 「你應該感興趣」— 同觀點商品優先，否則隨機
+      if (relatedTopicIds.length > 0) {
+        const { data: topicProds } = await supabase
+          .from("products")
+          .select("id, notion_id, name, price, images, author_id, related_topic_ids")
+          .eq("status", "active")
+          .gt("stock", 0)
+          .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+          .limit(20);
+
+        const matched = (topicProds || [])
+          .filter(p => {
+            if (purchasedIds.includes(p.notion_id || p.id)) return false;
+            const topics = (p.related_topic_ids as string[]) || [];
+            return topics.some(t => relatedTopicIds.includes(t));
+          })
+          .slice(0, 4);
+
+        if (matched.length > 0) {
+          setRecommend2(matched.map(mapProduct));
+          return;
+        }
+      }
+
+      // Fallback: 用不同排序
       const { data: random } = await supabase
         .from("products")
         .select("id, notion_id, name, price, images, author_id")
@@ -71,18 +194,15 @@ export default function LiffShopPage() {
         .gt("stock", 0)
         .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
         .order("created_at", { ascending: true })
-        .limit(4);
+        .limit(8);
 
-      const mapProduct = (p: any): ProductItem => {
-        let photo: string | null = null;
-        try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
-        return { id: p.notion_id || p.id, name: p.name, price: p.price, photo, slug: p.notion_id || p.id };
-      };
-
-      setRecommend1((latest || []).map(mapProduct));
-      setRecommend2((random || []).map(mapProduct));
+      const rec1Ids = new Set(filtered1.map(p => p.notion_id || p.id));
+      const filtered2 = (random || [])
+        .filter(p => !purchasedIds.includes(p.notion_id || p.id) && !rec1Ids.has(p.notion_id || p.id))
+        .slice(0, 4);
+      setRecommend2(filtered2.map(mapProduct));
     })();
-  }, []);
+  }, [liffUser]);
 
   // 搜尋
   const handleSearch = useCallback(async (q: string) => {

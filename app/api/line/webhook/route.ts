@@ -81,9 +81,13 @@ async function handleEvent(event: any) {
       });
       break;
 
-    // ── postback → Rich Menu「問問我們」按鈕 ──
-    case "postback":
-      if (event.postback?.data === "action=ask") {
+    // ── postback 事件 ──
+    case "postback": {
+      const postData = event.postback?.data || "";
+      const params = new URLSearchParams(postData);
+      const action = params.get("action");
+
+      if (action === "ask") {
         await lineClient.replyMessage({
           replyToken,
           messages: [{
@@ -91,8 +95,26 @@ async function handleEvent(event: any) {
             text: "你好！我是旅人書店的 AI 助手小旅 🙋‍♀️\n\n隨時可以用中文、英文、日文或韓文問我問題喔！\n\n例如：\n• 最近有什麼活動？\n• 書店在哪裡？\n• What events do you have?",
           }],
         });
+      } else if (action === "confirm_attend") {
+        const orderId = params.get("orderId") || "";
+        await lineClient.replyMessage({
+          replyToken,
+          messages: [{
+            type: "text",
+            text: "收到！期待見到你 🎉\n\n活動當天請記得準時到場，有任何問題隨時問我～",
+          }],
+        });
+        // 記錄確認出席
+        await supabase.from("line_message_log").insert({
+          user_id: userId,
+          message_type: "reply",
+          template: "confirm_attend",
+          payload: { orderId },
+        });
       }
+      // cancel_attend 不需要在這裡處理，因為按鈕直接開啟 LIFF 頁面
       break;
+    }
 
     // ── 取消追蹤 → 記錄 ──
     case "unfollow":

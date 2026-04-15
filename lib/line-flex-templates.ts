@@ -341,3 +341,150 @@ export function buildWelcomeFlex(): FlexMessage {
 
   return { type: "flex", altText: "👋 歡迎加入旅人書店！", contents: bubble };
 }
+
+// ═══════════════════════════════════════════
+// 活動提醒（前 5 天 / 前 1 天）
+// ═══════════════════════════════════════════
+export function buildEventReminderFlex(data: {
+  title: string;
+  date: string;
+  location?: string | null;
+  timeLabel: string; // "5 天後" 或 "明天"
+  orderId: string;
+  slug: string;
+}): FlexMessage {
+  const dateStr = new Date(data.date).toLocaleDateString("zh-TW", {
+    month: "long", day: "numeric", weekday: "short",
+  });
+
+  const bubble: FlexBubble = {
+    type: "bubble",
+    size: "mega",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        { type: "text", text: "🔔 活動提醒", size: "md", weight: "bold", color: "#e8935a" },
+        { type: "separator" },
+        {
+          type: "box", layout: "vertical", margin: "md", spacing: "sm",
+          contents: [
+            {
+              type: "box", layout: "horizontal", spacing: "sm",
+              contents: [
+                { type: "text", text: "📅", size: "sm", flex: 0 },
+                { type: "text", text: dateStr, size: "sm", color: "#666", flex: 1 },
+              ],
+            },
+            ...(data.location ? [{
+              type: "box" as const, layout: "horizontal" as const, spacing: "sm" as const,
+              contents: [
+                { type: "text" as const, text: "📍", size: "sm" as const, flex: 0 },
+                { type: "text" as const, text: data.location, size: "sm" as const, color: "#666", flex: 1 },
+              ],
+            }] : []),
+          ],
+        },
+        { type: "text", text: data.title, size: "lg", weight: "bold", wrap: true, margin: "md" },
+        {
+          type: "text",
+          text: `${data.timeLabel}即將開始！`,
+          size: "sm",
+          color: data.timeLabel === "明天" ? "#e74c3c" : "#e8935a",
+          weight: "bold",
+          margin: "md",
+        },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "horizontal",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          action: {
+            type: "postback",
+            label: "確定參加 ✓",
+            data: `action=confirm_attend&orderId=${data.orderId}`,
+            displayText: "確定參加 ✓",
+          },
+          style: "primary",
+          color: "#4ECDC4",
+          height: "sm",
+        },
+        {
+          type: "button",
+          action: {
+            type: "uri",
+            label: "臨時取消 ✗",
+            uri: buildLiffUrl(`liff/cancel-event?orderId=${data.orderId}&eventName=${encodeURIComponent(data.title)}`),
+          },
+          style: "secondary",
+          height: "sm",
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `🔔 活動提醒：${data.title}（${data.timeLabel}）`,
+    contents: bubble,
+  };
+}
+
+// ═══════════════════════════════════════════
+// 訂單狀態變更通知
+// ═══════════════════════════════════════════
+export function buildOrderStatusFlex(data: {
+  orderId: string;
+  status: string;
+  statusLabel: string;
+  message: string;
+  icon: string;
+  color: string;
+}): FlexMessage {
+  const bubble: FlexBubble = {
+    type: "bubble",
+    size: "mega",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "md",
+      contents: [
+        {
+          type: "box", layout: "horizontal",
+          contents: [
+            { type: "text", text: `${data.icon} 訂單狀態更新`, size: "md", weight: "bold", flex: 1 },
+            { type: "text", text: data.statusLabel, size: "xs", color: data.color, weight: "bold", align: "end", gravity: "center" },
+          ],
+        },
+        { type: "separator" },
+        { type: "text", text: `訂單 ${data.orderId.slice(0, 8)}`, size: "xs", color: "#999", margin: "sm" },
+        { type: "text", text: data.message, size: "sm", color: "#333", wrap: true, margin: "md" },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        {
+          type: "button",
+          action: { type: "uri", label: "查看訂單", uri: buildLiffUrl("dashboard/orders") },
+          style: "primary",
+          color: "#7a5c40",
+          height: "sm",
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `${data.icon} ${data.statusLabel} — 訂單 ${data.orderId.slice(0, 8)}`,
+    contents: bubble,
+  };
+}
