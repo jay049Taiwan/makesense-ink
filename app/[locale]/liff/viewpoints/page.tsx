@@ -37,18 +37,38 @@ export default function LiffViewpointsPage() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         try {
-          // Nominatim reverse geocoding
+          // Nominatim reverse geocoding — 用 zoom=12 取得鄉鎮級別
           const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&accept-language=zh-TW`,
+            `https://nominatim.openstreetmap.org/reverse?lat=${pos.coords.latitude}&lon=${pos.coords.longitude}&format=json&accept-language=zh-TW&zoom=14`,
             { headers: { "User-Agent": "makesense-ink/1.0" } }
           );
           const data = await res.json();
-          const addr = data.display_name || "";
+          const addr = data.address || {};
+          const display = data.display_name || "";
 
-          // 比對鄉鎮名稱
-          const matched = TOWNSHIPS.find(t => addr.includes(t.replace(/[市鎮鄉]$/, "")));
+          // 優先用 Nominatim 的結構化地址欄位
+          const townField = addr.town || addr.city_district || addr.suburb || addr.city || "";
+
+          // 先嘗試精確匹配 address 結構化欄位
+          let matched = TOWNSHIPS.find(t => townField.includes(t.replace(/[市鎮鄉]$/, "")));
+
+          // 如果結構化欄位沒有，用 display_name 匹配
+          // 但要排除「宜蘭縣」的干擾 — 先去掉「宜蘭縣」再匹配
+          if (!matched) {
+            const cleanAddr = display.replace(/宜蘭縣/g, "");
+            // 先比長名稱（羅東鎮、頭城鎮），避免短的「宜蘭」先匹配
+            const sorted = [...TOWNSHIPS].sort((a, b) => b.length - a.length);
+            matched = sorted.find(t => {
+              const core = t.replace(/[市鎮鄉]$/, "");
+              return cleanAddr.includes(core);
+            });
+          }
+
           if (matched) {
             setSelected(matched);
+          } else if (display.includes("宜蘭")) {
+            // 在宜蘭但無法判斷鄉鎮，預設宜蘭市
+            setSelected("宜蘭市");
           } else {
             setLocationError("您目前似乎不在宜蘭縣，請手動選擇鄉鎮");
           }

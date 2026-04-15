@@ -118,8 +118,10 @@ export default function LiffShopPage() {
           photo: data.product.photo, type: "product",
         });
       } else {
-        setScanError(`找不到條碼「${code}」對應的商品`);
-        setTimeout(() => setScanError(""), 3000);
+        // 掃到條碼但找不到商品 — 提示並自動帶入搜尋
+        const scanned = data.scannedCode || code;
+        setScanError(`條碼「${scanned}」尚未建檔，請嘗試用名稱搜尋`);
+        setTimeout(() => setScanError(""), 5000);
       }
     } catch { setScanError("查詢失敗，請再試一次"); setTimeout(() => setScanError(""), 3000); }
     finally { setSearching(false); }
