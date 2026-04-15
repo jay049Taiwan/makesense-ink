@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
         result = await syncSingleEvent(cleanId, props);
         break;
       case "DB05":
-        result = await syncSingleArticle(cleanId, props);
+        result = await syncSingleDB05(cleanId, props);
         break;
       case "DB06":
         result = await syncSingleTransaction(cleanId, props);
@@ -171,6 +171,103 @@ async function syncSingleEvent(nid: string, props: any) {
   if (row.status === "draft") await writebackUnpublish(nid);
   else await writebackPublish(nid, `${SITE_URL}/events/${nid}`);
   return { table: "events", title: row.title, status: row.status };
+}
+
+// ── DB05 分流：文章 or 庫存批次 ──
+async function syncSingleDB05(nid: string, props: any) {
+  const formType = sel(props["表單類型"]);
+  const interactionOption = sel(props["互動選項"]);
+
+  // 庫存批次：表單類型=共識互動 + 互動選項=紀錄庫存
+  if (formType === "共識互動" && interactionOption === "紀錄庫存") {
+    return await syncStockBatch(nid, props);
+  }
+
+  // 其他：當作文章處理
+  return await syncSingleArticle(nid, props);
+}
+
+// ── DB05 庫存批次（一次更新所有關聯 DB06 的庫存）──
+async function syncStockBatch(nid: string, props: any) {
+  const action = sel(props["庫存選項"]); // 進貨 / 出貨 / 盤點
+  if (!action) {
+    return { table: "stock_batch", note: "缺少庫存選項（進貨/出貨/盤點）", nid, skipped: true };
+  }
+
+  // 讀取「對應明細」relation → DB06 page IDs
+  const db06Rels = rel(props["對應明細"]);
+  if (!db06Rels || db06Rels.length === 0) {
+    return { table: "stock_batch", note: "沒有對應明細（DB06）", nid, skipped: true };
+  }
+
+  let updated = 0;
+  let errors = 0;
+  const details: { product: string; action: string; qty: number; before: number; after: number }[] = [];
+
+  for (const db06Ref of db06Rels) {
+    try {
+      const db06Id = db06Ref.replace(/-/g, "");
+      const db06Uuid = db06Ref.length === 32
+        ? db06Ref.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5")
+        : db06Ref;
+
+      // 讀取 DB06 頁面
+      const db06Page = await getPage(db06Uuid);
+      const db06Props: Record<string, any> = (db06Page as any).properties || {};
+
+      const quantity = num(db06Props["登記數量"]) || 0;
+      if (quantity === 0) continue;
+
+      // 找對應庫存（DB07 商品）
+      const productRels = rel(db06Props["對應庫存"]);
+      if (!productRels || productRels.length === 0) continue;
+
+      const productNotionId = productRels[0].replace(/-/g, "");
+      const { data: product } = await supabase
+        .from("products")
+        .select("id, name, stock")
+        .eq("notion_id", productNotionId)
+        .maybeSingle();
+
+      if (!product) continue;
+
+      const currentStock = product.stock || 0;
+      let newStock = currentStock;
+
+      if (action === "進貨") newStock = currentStock + quantity;
+      else if (action === "出貨") newStock = Math.max(0, currentStock - quantity);
+      else if (action === "盤點") newStock = quantity;
+      else continue;
+
+      const { error } = await supabase
+        .from("products")
+        .update({ stock: newStock, updated_at: new Date().toISOString() })
+        .eq("id", product.id);
+
+      if (error) { errors++; continue; }
+
+      details.push({ product: product.name, action, qty: quantity, before: currentStock, after: newStock });
+      updated++;
+    } catch (err: any) {
+      console.warn(`[stock_batch] DB06 error: ${err.message}`);
+      errors++;
+    }
+  }
+
+  // 回寫 DB05 發佈狀態
+  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
+  if (status && status !== "draft") {
+    await writebackPublish(nid, `${SITE_URL}/dashboard/workbench`);
+  }
+
+  return {
+    table: "stock_batch",
+    action,
+    totalDB06: db06Rels.length,
+    updated,
+    errors,
+    details: details.slice(0, 10), // 只回傳前 10 筆避免 response 太大
+  };
 }
 
 // ── DB05 → articles ──
