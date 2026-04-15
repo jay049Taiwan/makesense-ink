@@ -213,11 +213,65 @@ async function syncSingleArticle(nid: string, props: any) {
   return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
 }
 
-// ── DB06 → order_items (進銷明細) ──
+// ── DB06 → 庫存異動（進貨/出貨直接更新 products.stock）──
 async function syncSingleTransaction(nid: string, props: any) {
-  // DB06 的同步邏輯較特殊，目前先記錄 log
-  // TODO: 完善 DB06 → order_items 的欄位對應
-  return { table: "order_items", note: "DB06 單筆同步待完善", nid };
+  // 讀取 DB06 欄位
+  const action = sel(props["進出退換"]); // 進貨 / 出貨 / 盤點
+  const quantity = num(props["登記數量"]) || 0;
+
+  if (!action || quantity === 0) {
+    return { table: "stock_update", note: "缺少進出退換或登記數量", nid, skipped: true };
+  }
+
+  // 「對應庫存」是 relation → DB07，取得對應商品的 notion_id
+  const productRels = rel(props["對應庫存"]);
+  if (!productRels || productRels.length === 0) {
+    return { table: "stock_update", note: "缺少對應庫存（未連結商品）", nid, skipped: true };
+  }
+
+  const productNotionId = productRels[0].replace(/-/g, "");
+
+  // 查 Supabase 找到對應商品
+  const { data: product } = await supabase
+    .from("products")
+    .select("id, name, stock")
+    .eq("notion_id", productNotionId)
+    .maybeSingle();
+
+  if (!product) {
+    return { table: "stock_update", note: `找不到商品 notion_id=${productNotionId}`, nid, skipped: true };
+  }
+
+  const currentStock = product.stock || 0;
+  let newStock = currentStock;
+
+  if (action === "進貨") {
+    newStock = currentStock + quantity;
+  } else if (action === "出貨") {
+    newStock = Math.max(0, currentStock - quantity);
+  } else if (action === "盤點") {
+    // 盤點 = 直接設定為登記數量（覆蓋）
+    newStock = quantity;
+  } else {
+    return { table: "stock_update", note: `未知的進出退換類型: ${action}`, nid, skipped: true };
+  }
+
+  // 更新 Supabase 庫存
+  const { error } = await supabase
+    .from("products")
+    .update({ stock: newStock, updated_at: new Date().toISOString() })
+    .eq("id", product.id);
+
+  if (error) throw new Error(`stock update: ${error.message}`);
+
+  return {
+    table: "stock_update",
+    product: product.name,
+    action,
+    quantity,
+    before: currentStock,
+    after: newStock,
+  };
 }
 
 // ── DB07 → products ──
