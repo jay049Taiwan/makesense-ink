@@ -51,17 +51,12 @@ export default function LiffProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    // 如果有 liff.state，先初始化 SDK 讓它處理重導向
-    // liff.init() 會自動讀取 liff.state 並 redirect 到正確路徑
+    // 如果有 liff.state，手動重導向到正確路徑
+    // LINE app 內打開 LIFF 時，路徑藏在 liff.state 裡
     if (!liffMode && liffState) {
-      (async () => {
-        try {
-          await initLiff();
-          // SDK 初始化後會自動 redirect，不需要額外處理
-        } catch (err) {
-          console.error("LIFF redirect init error:", err);
-        }
-      })();
+      // liff.state 的值就是原始路徑，例如 "/liff/shop?liff_mode=true"
+      const targetUrl = window.location.origin + liffState;
+      window.location.replace(targetUrl);
       return;
     }
 
