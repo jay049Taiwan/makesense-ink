@@ -71,7 +71,7 @@ export interface SBProduct {
   stock: number;
   category: string;
   description: string | null;
-  images: string;
+  images: unknown;
   author_name: string | null;
   publisher_name: string | null;
   status: string;

@@ -3,7 +3,7 @@ import { getPage, getPageContent, extractTitle, extractText, extractSelect, extr
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { translateRow } from "@/lib/translate";
 
-const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink";
+const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink").trim();
 
 export const maxDuration = 60;
 
