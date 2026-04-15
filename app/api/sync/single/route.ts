@@ -216,7 +216,9 @@ async function syncSingleArticle(nid: string, props: any) {
 // ── DB06 → 庫存異動（進貨/出貨直接更新 products.stock）──
 async function syncSingleTransaction(nid: string, props: any) {
   // 讀取 DB06 欄位
-  const action = sel(props["進出退換"]); // 進貨 / 出貨 / 盤點
+  // 「進出退換」是 rollup（來自 DB05 的 select），需要特殊讀法
+  const rawRollup = props["進出退換"]?.rollup?.array;
+  const action = rawRollup?.[0]?.select?.name || sel(props["進出退換"]) || null;
   const quantity = num(props["登記數量"]) || 0;
 
   if (!action || quantity === 0) {
