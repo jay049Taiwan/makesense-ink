@@ -166,7 +166,37 @@ export async function getPageContent(pageId: string): Promise<string> {
     cursor = res.has_more ? res.next_cursor : undefined;
   } while (cursor);
 
-  return blocks.map(blockToHtml).filter(Boolean).join("\n");
+  // 轉換每個 block，然後合併相鄰的列表項
+  const rawHtml = blocks.map(blockToHtml).filter(Boolean);
+
+  // 把相鄰的 <li> 包上 <ul> 或 <ol>
+  const merged: string[] = [];
+  let listBuffer: string[] = [];
+  let listType: "ul" | "ol" | null = null;
+
+  for (const html of rawHtml) {
+    if (html.startsWith("<li-bullet>")) {
+      if (listType === "ol") { merged.push(`<ol>${listBuffer.join("")}</ol>`); listBuffer = []; }
+      listType = "ul";
+      listBuffer.push(html.replace("<li-bullet>", "<li>").replace("</li-bullet>", "</li>"));
+    } else if (html.startsWith("<li-number>")) {
+      if (listType === "ul") { merged.push(`<ul>${listBuffer.join("")}</ul>`); listBuffer = []; }
+      listType = "ol";
+      listBuffer.push(html.replace("<li-number>", "<li>").replace("</li-number>", "</li>"));
+    } else {
+      if (listBuffer.length > 0) {
+        merged.push(`<${listType}>${listBuffer.join("")}</${listType}>`);
+        listBuffer = [];
+        listType = null;
+      }
+      merged.push(html);
+    }
+  }
+  if (listBuffer.length > 0) {
+    merged.push(`<${listType}>${listBuffer.join("")}</${listType}>`);
+  }
+
+  return merged.join("\n");
 }
 
 function richTextToHtml(rt: any[]): string {
@@ -175,6 +205,8 @@ function richTextToHtml(rt: any[]): string {
     let text = t.plain_text || "";
     // 轉義 HTML
     text = text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // 換行轉 <br>
+    text = text.replace(/\n/g, "<br>");
     if (t.annotations?.bold) text = `<strong>${text}</strong>`;
     if (t.annotations?.italic) text = `<em>${text}</em>`;
     if (t.annotations?.strikethrough) text = `<del>${text}</del>`;
@@ -189,8 +221,10 @@ function blockToHtml(block: any): string {
   if (!type) return "";
 
   switch (type) {
-    case "paragraph":
-      return `<p>${richTextToHtml(block.paragraph?.rich_text)}</p>`;
+    case "paragraph": {
+      const html = richTextToHtml(block.paragraph?.rich_text);
+      return html ? `<p>${html}</p>` : "";  // 跳過空段落
+    }
     case "heading_1":
       return `<h2>${richTextToHtml(block.heading_1?.rich_text)}</h2>`;
     case "heading_2":
@@ -198,24 +232,38 @@ function blockToHtml(block: any): string {
     case "heading_3":
       return `<h4>${richTextToHtml(block.heading_3?.rich_text)}</h4>`;
     case "bulleted_list_item":
-      return `<li>${richTextToHtml(block.bulleted_list_item?.rich_text)}</li>`;
+      return `<li-bullet>${richTextToHtml(block.bulleted_list_item?.rich_text)}</li-bullet>`;
     case "numbered_list_item":
-      return `<li>${richTextToHtml(block.numbered_list_item?.rich_text)}</li>`;
+      return `<li-number>${richTextToHtml(block.numbered_list_item?.rich_text)}</li-number>`;
     case "quote":
       return `<blockquote>${richTextToHtml(block.quote?.rich_text)}</blockquote>`;
-    case "callout":
-      return `<div class="callout">${block.callout?.icon?.emoji || ""} ${richTextToHtml(block.callout?.rich_text)}</div>`;
+    case "callout": {
+      const icon = block.callout?.icon?.emoji || "💡";
+      return `<div class="callout"><span class="callout-icon">${icon}</span> ${richTextToHtml(block.callout?.rich_text)}</div>`;
+    }
     case "divider":
       return "<hr />";
     case "image": {
       const url = block.image?.file?.url || block.image?.external?.url || "";
       const caption = richTextToHtml(block.image?.caption) || "";
-      return url ? `<figure><img src="${url}" alt="${caption}" />${caption ? `<figcaption>${caption}</figcaption>` : ""}</figure>` : "";
+      return url ? `<figure><img src="${url}" alt="${caption}" loading="lazy" />${caption ? `<figcaption>${caption}</figcaption>` : ""}</figure>` : "";
     }
     case "toggle":
       return `<details><summary>${richTextToHtml(block.toggle?.rich_text)}</summary></details>`;
     case "code":
       return `<pre><code>${richTextToHtml(block.code?.rich_text)}</code></pre>`;
+    case "bookmark": {
+      const bookmarkUrl = block.bookmark?.url || "";
+      return bookmarkUrl ? `<p><a href="${bookmarkUrl}" target="_blank" rel="noopener">${bookmarkUrl}</a></p>` : "";
+    }
+    case "embed": {
+      const embedUrl = block.embed?.url || "";
+      return embedUrl ? `<p><a href="${embedUrl}" target="_blank" rel="noopener">${embedUrl}</a></p>` : "";
+    }
+    case "video": {
+      const videoUrl = block.video?.external?.url || block.video?.file?.url || "";
+      return videoUrl ? `<p><a href="${videoUrl}" target="_blank" rel="noopener">📹 影片連結</a></p>` : "";
+    }
     default:
       return "";
   }
