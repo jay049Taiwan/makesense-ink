@@ -42,53 +42,54 @@ export default async function CultureClubPage() {
         }))} />
       </section>
 
-      {/* ── 區塊 2: 近期活動（原「地方通訊」）── */}
+      {/* ── 區塊 2: 近期活動 ── */}
       <section className="py-6">
         <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>近期活動</h2>
         <div className="hscroll-track">
-          {articles.map((post) => (
+          {events.length > 0 ? events.map((ev) => (
             <Link
-              key={post.id}
-              href={`/post/${post.slug}`}
+              key={ev.id}
+              href={`/events/${ev.slug}`}
               className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
               <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <SafeImage src={post.cover_url} alt={post.title} placeholderType="article" />
+                <SafeImage src={ev.cover_url} alt={ev.title} placeholderType="event" />
               </div>
               <div className="p-3">
-                <h3 className="text-[0.9em] line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{post.title}</h3>
-                <p className="text-[0.75em]" style={{ color: "#999" }}>{post.date?.substring(0, 10)}</p>
+                <h3 className="text-[0.9em] line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{ev.title}</h3>
+                <p className="text-[0.75em]" style={{ color: "#999" }}>{ev.date?.substring(0, 10)}</p>
               </div>
             </Link>
-          ))}
+          )) : (
+            <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有近期活動</p>
+          )}
         </div>
       </section>
 
-      {/* ── 區塊 3: 地方通訊（原「話題熱搜」）── */}
+      {/* ── 區塊 3: 地方通訊 ── */}
       <section className="py-6">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>地方通訊</h2>
           <Link href="/local-newsletter" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多地方通訊 →</Link>
         </div>
-        <div className="hscroll-track">
-          {tags.length > 0 ? tags.map((tag) => (
+        <div>
+          {articles.length > 0 ? articles.map((article) => (
             <Link
-              key={tag.id}
-              href={`/viewpoint/${tag.slug}`}
-              className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid #e8e0d4", background: "#fff" }}
+              key={article.id}
+              href={`/post/${article.slug}`}
+              className="flex items-start gap-4 py-4 px-2 -mx-2 rounded transition-colors hover:bg-[#faf8f5]"
+              style={{ borderBottom: "1px solid #f0f0f0" }}
             >
-              <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <ImagePlaceholder type="topic" />
-              </div>
-              <div className="p-3">
-                <h3 className="text-[0.9em] font-semibold line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{tag.name}</h3>
-                {tag.summary && <p className="text-[0.75em] line-clamp-2" style={{ color: "#8b7355" }}>{tag.summary}</p>}
-              </div>
+              <span className="text-[0.8em] flex-shrink-0 min-w-[100px]" style={{ color: "#999" }}>
+                {article.date ? new Date(article.date).toLocaleDateString("zh-TW") : ""}
+              </span>
+              <span className="text-[0.95em]" style={{ color: "#1a1612" }}>
+                {article.title}
+              </span>
             </Link>
           )) : (
-            <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有標籤</p>
+            <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有文章</p>
           )}
         </div>
       </section>
