@@ -126,18 +126,32 @@ function mapStatus(val: string | null, map: Record<string, string>): string | nu
 /** 回寫 Notion：上架 → 狀態改「已發佈」+ 寫入 URL */
 async function writebackPublish(pageId: string, url: string) {
   const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
-  // 先寫 status（最重要），再寫 URL
+  const NOTION_KEY = process.env.NOTION_API_KEY;
+
+  // 用 fetch 直接呼叫 Notion REST API（繞過 SDK 可能的 bug）
   try {
-    await updatePage(uuid, { "發佈狀態": { status: { name: "已發佈" } } });
-    console.log(`[writeback] Status OK for ${pageId}`);
+    const res = await fetch(`https://api.notion.com/v1/pages/${uuid}`, {
+      method: "PATCH",
+      headers: {
+        "Authorization": `Bearer ${NOTION_KEY}`,
+        "Content-Type": "application/json",
+        "Notion-Version": "2022-06-28",
+      },
+      body: JSON.stringify({
+        properties: {
+          "發佈狀態": { status: { name: "已發佈" } },
+          "對應連結": { url },
+        },
+      }),
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      console.warn(`[writeback] Notion API ${res.status}: ${JSON.stringify(data).slice(0, 200)}`);
+    } else {
+      console.log(`[writeback] OK for ${pageId}`);
+    }
   } catch (err: any) {
-    console.warn(`[writeback] Status FAILED for ${pageId}: ${err.message}`);
-  }
-  try {
-    await updatePage(uuid, { "對應連結": { url } });
-    console.log(`[writeback] URL OK for ${pageId}`);
-  } catch (err: any) {
-    console.warn(`[writeback] URL FAILED for ${pageId}: ${err.message}`);
+    console.warn(`[writeback] Failed for ${pageId}: ${err.message}`);
   }
 }
 
