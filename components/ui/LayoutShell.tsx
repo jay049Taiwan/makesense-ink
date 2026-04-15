@@ -13,6 +13,7 @@ function LayoutShellInner({ children }: { children: React.ReactNode }) {
     pathname.startsWith("/telegram") ||
     pathname.startsWith("/buy") ||
     pathname.startsWith("/dev/") ||
+    pathname.startsWith("/liff") ||
     isLiffMode;
 
   if (isNoChrome) {

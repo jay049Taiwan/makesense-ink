@@ -24,11 +24,11 @@ SUBTITLE_COLOR = "#d4c5b0"
 # 6 格內容
 BUTTONS = [
     {"emoji": "📚", "label": "選書選物", "sub": "Books & Goods", "bg": BG_TOP},
-    {"emoji": "🎪", "label": "近期活動", "sub": "Events", "bg": "#4ECDC4"},
+    {"emoji": "🎪", "label": "活動體驗", "sub": "Events", "bg": "#4ECDC4"},
     {"emoji": "🗺️", "label": "觀點漫遊", "sub": "Viewpoints", "bg": BG_TOP},
     {"emoji": "🛒", "label": "確認結帳", "sub": "Checkout", "bg": BG_BOT},
+    {"emoji": "📮", "label": "地方通訊", "sub": "Newsletter", "bg": "#4A7C59"},
     {"emoji": "👤", "label": "會員中心", "sub": "My Account", "bg": BG_BOT},
-    {"emoji": "💬", "label": "問問我們", "sub": "Ask Us", "bg": "#4A7C59"},
 ]
 
 

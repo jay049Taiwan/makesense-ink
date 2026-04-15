@@ -36,15 +36,15 @@ async function main() {
       // 第一排
       {
         bounds: { x: 0, y: 0, width: 833, height: 843 },
-        action: { type: "uri" as const, label: "選書選物", uri: liffUrl("bookstore") },
+        action: { type: "uri" as const, label: "選書選物", uri: liffUrl("liff/shop") },
       },
       {
         bounds: { x: 833, y: 0, width: 834, height: 843 },
-        action: { type: "uri" as const, label: "近期活動", uri: liffUrl("cultureclub") },
+        action: { type: "uri" as const, label: "活動體驗", uri: liffUrl("liff/events") },
       },
       {
         bounds: { x: 1667, y: 0, width: 833, height: 843 },
-        action: { type: "uri" as const, label: "觀點漫遊", uri: liffUrl("viewpoint-stroll") },
+        action: { type: "uri" as const, label: "觀點漫遊", uri: liffUrl("liff/viewpoints") },
       },
       // 第二排
       {
@@ -53,11 +53,11 @@ async function main() {
       },
       {
         bounds: { x: 833, y: 843, width: 834, height: 843 },
-        action: { type: "uri" as const, label: "會員中心", uri: liffUrl("dashboard") },
+        action: { type: "uri" as const, label: "地方通訊", uri: liffUrl("liff/newsletter") },
       },
       {
         bounds: { x: 1667, y: 843, width: 833, height: 843 },
-        action: { type: "postback" as const, label: "問問我們", data: "action=ask" },
+        action: { type: "uri" as const, label: "會員中心", uri: liffUrl("liff/member") },
       },
     ],
   };
@@ -76,12 +76,12 @@ async function main() {
     console.log(`\n⚠️  注意：還需要上傳 Rich Menu 圖片（2500x1686 PNG）`);
     console.log(`   用法：npx tsx scripts/upload-rich-menu-image.ts ${richMenuId} <image-path>`);
     console.log(`\n📱 按鈕配置：`);
-    console.log(`   📚 選書選物 → ${liffUrl("bookstore")}`);
-    console.log(`   🎪 近期活動 → ${liffUrl("cultureclub")}`);
-    console.log(`   🗺️ 觀點漫遊 → ${liffUrl("viewpoint-stroll")}`);
+    console.log(`   📚 選書選物 → ${liffUrl("liff/shop")}`);
+    console.log(`   🎪 活動體驗 → ${liffUrl("liff/events")}`);
+    console.log(`   🗺️ 觀點漫遊 → ${liffUrl("liff/viewpoints")}`);
     console.log(`   🛒 確認結帳 → ${liffUrl("checkout")}`);
-    console.log(`   👤 會員中心 → ${liffUrl("dashboard")}`);
-    console.log(`   💬 問問我們 → postback:action=ask`);
+    console.log(`   📮 地方通訊 → ${liffUrl("liff/newsletter")}`);
+    console.log(`   👤 會員中心 → ${liffUrl("liff/member")}`);
   } catch (err: any) {
     console.error("❌ 建立失敗:", err.message);
     if (err.statusCode === 401) {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import AskPanel from "./AskPanel";
+// AskPanel removed — 問問我們 replaced by 會員中心
 
 // ═══ 顏色（完全保留原設計）═══
 const C = {
@@ -10,14 +10,14 @@ const C = {
   border: "#e0e0e0", accent: "#4A7C59", gold: "#DAA520",
 };
 
-// ═══ Rich Menu 按鈕定義（不可更改）═══
+// ═══ Rich Menu 按鈕定義 ═══
 const MENU_BUTTONS = [
-  { id: "books", icon: "📚", label: "選書選物", desc: "瀏覽·掃碼·加入購物車", path: "/bookstore" },
-  { id: "events", icon: "🎪", label: "近期活動", desc: "活動報名·行程查詢", path: "/cultureclub" },
-  { id: "explore", icon: "🗺️", label: "觀點漫遊", desc: "探索宜蘭·文化地圖", path: "/viewpoint-stroll" },
+  { id: "books", icon: "📚", label: "選書選物", desc: "搜尋·掃碼·商品推薦", path: "/liff/shop" },
+  { id: "events", icon: "🎪", label: "活動體驗", desc: "即將到來的精彩活動", path: "/liff/events" },
+  { id: "explore", icon: "🗺️", label: "觀點漫遊", desc: "定位·鄉鎮·文化觀點", path: "/liff/viewpoints" },
   { id: "checkout", icon: "🛒", label: "確認結帳", desc: "查看購物車·付款", path: "/checkout", highlight: true },
-  { id: "member", icon: "👤", label: "會員中心", desc: "消費紀錄·帳戶管理", path: "/dashboard" },
-  { id: "ask", icon: "💬", label: "問問我們", desc: "AI智慧客服·多語言", path: null },
+  { id: "newsletter", icon: "📮", label: "地方通訊", desc: "在地文化觀察與書寫", path: "/liff/newsletter" },
+  { id: "member", icon: "👤", label: "會員中心", desc: "會員狀態·訂單·資料", path: "/liff/member" },
 ];
 
 // ═══ 來源切換器選項 ═══
@@ -58,9 +58,7 @@ export default function LineSimulatorPage() {
   };
 
   const openPage = (btn: typeof MENU_BUTTONS[0]) => {
-    if (btn.id === "ask") {
-      setActivePage("ask");
-    } else if (btn.path) {
+    if (btn.path) {
       setActivePage(btn.id);
     }
   };
@@ -193,9 +191,7 @@ export default function LineSimulatorPage() {
 
             {/* LIFF Content */}
             <div style={{ flex: 1, overflow: "hidden" }}>
-              {activePage === "ask" ? (
-                <AskPanel />
-              ) : activeBtn?.path ? (
+              {activeBtn?.path ? (
                 <iframe
                   ref={iframeRef}
                   src={getIframeSrc(activeBtn.path)}
