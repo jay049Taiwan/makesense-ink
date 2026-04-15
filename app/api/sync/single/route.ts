@@ -115,7 +115,7 @@ async function writebackPublish(pageId: string, url: string) {
     const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
     await updatePage(uuid, {
       "發佈狀態": { status: { name: "已發佈" } },
-      "官網連結": { url },
+      "對應連結": { url },
     });
   } catch (err: any) {
     console.warn(`[writeback] Publish failed for ${pageId}: ${err.message}`);
