@@ -45,7 +45,7 @@ export default function LiffLayout({ children }: { children: React.ReactNode }) 
             加入旅人書店 LINE 官方帳號<br/>即可使用選書選物、活動體驗等功能
           </p>
           <a
-            href="https://lin.ee/your-line-oa-link"
+            href="https://line.me/R/ti/p/@964ervay"
             className="inline-block px-8 py-3 rounded-xl text-sm font-semibold"
             style={{ background: "#06C755", color: "#fff" }}
           >
