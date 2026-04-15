@@ -11,6 +11,7 @@ import WishlistButton from "@/components/ui/WishlistButton";
 interface EventData {
   title: string;
   date: string;
+  rawDate: string | null; // ISO date for expiry check
   location: string;
   guide: string;
   type: "走讀" | "講座" | "市集" | "空間";
@@ -25,6 +26,7 @@ interface EventData {
 const fallbackEvent: EventData = {
   title: "載入中…",
   date: "",
+  rawDate: null,
   location: "",
   guide: "",
   type: "走讀",
@@ -64,6 +66,7 @@ function mapEventData(row: any): EventData {
   return {
     title,
     date: dateStr,
+    rawDate: row.event_date || null,
     location: row.location || "",
     guide: row.guide || "",
     type,
@@ -294,115 +297,125 @@ export default function EventPage({
             )}
           </div>
 
-          {/* Right: Ticket + Add-ons sidebar (sticky, compact) */}
+          {/* Right: Ticket sidebar or 敲碗按鈕 */}
           <aside className="lg:sticky lg:top-6">
-            <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
-              <div className="p-4" style={{ background: "var(--color-warm-white)" }}>
-                {/* 票券 */}
-                {event.tickets.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>票券</p>
-                    <div className="grid grid-cols-2 gap-2 mb-4">
-                      {event.tickets.map((t) => {
-                        const q = ticketQtys[t.name] || 0;
-                        return (
-                          <div key={t.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                            <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{t.name}</p>
-                            <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{t.price}</p>
-                            <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
-                              <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
-                              <span className="w-5 h-6 flex items-center justify-center text-xs">{q}</span>
-                              <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
+            {(() => {
+              // 判斷活動是否已過期
+              const isExpired = event.rawDate ? new Date(event.rawDate).getTime() < Date.now() : false;
 
-                {/* 加購 */}
-                {event.addons.length > 0 && (
-                  <>
-                    <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>加購</p>
-                    <div className="grid grid-cols-2 gap-2">
-                      {event.addons.map((a) => {
-                        const q = addonQtys[a.name] || 0;
-                        return (
-                          <div key={a.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                            <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{a.name}</p>
-                            <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{a.price}</p>
-                            <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
-                              <button onClick={() => setAddonQtys(p => ({ ...p, [a.name]: Math.max(0, q - 1) }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
-                              <span className="w-5 h-6 flex items-center justify-center text-xs">{q}</span>
-                              <button onClick={() => setAddonQtys(p => ({ ...p, [a.name]: q + 1 }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </>
-                )}
-              </div>
+              if (isExpired) {
+                return <ExpiredEventPanel eventTitle={event.title} eventSlug={slug} />;
+              }
 
-              {(() => {
-                const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, "")) || 0;
-                const ticketTotal = event.tickets.reduce((s, t) => s + parsePrice(t.price) * (ticketQtys[t.name] || 0), 0);
-                const addonTotal = event.addons.reduce((s, a) => s + parsePrice(a.price) * (addonQtys[a.name] || 0), 0);
-                const grandTotal = ticketTotal + addonTotal;
-                const hasSelection = Object.values(ticketQtys).some(q => q > 0);
+              return (
+                <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
+                  <div className="p-4" style={{ background: "var(--color-warm-white)" }}>
+                    {/* 票券 */}
+                    {event.tickets.length > 0 && (
+                      <>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>票券</p>
+                        <div className="grid grid-cols-2 gap-2 mb-4">
+                          {event.tickets.map((t) => {
+                            const q = ticketQtys[t.name] || 0;
+                            return (
+                              <div key={t.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                                <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{t.name}</p>
+                                <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{t.price}</p>
+                                <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
+                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
+                                  <span className="w-5 h-6 flex items-center justify-center text-xs">{q}</span>
+                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
 
-                return (
-                  <div className="p-4">
-                    <div className="flex justify-between mb-3">
-                      <span className="text-sm" style={{ color: "var(--color-muted)" }}>合計</span>
-                      <span className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>NT$ {grandTotal.toLocaleString()}</span>
-                    </div>
-                    <button
-                      disabled={!hasSelection}
-                      onClick={() => {
-                        // 加入購物車：每個票種一筆
-                        for (const t of event.tickets) {
-                          const q = ticketQtys[t.name] || 0;
-                          if (q > 0) {
-                            addItem({
-                              id: `ticket-${slug}-${t.name}`,
-                              name: event.title,
-                              subtitle: t.name,
-                              type: event.type,
-                              price: parsePrice(t.price),
-                              qty: q,
-                              eventId: slug,
-                              meta: { date: event.date, guide: event.guide },
-                            });
-                          }
-                        }
-                        for (const a of event.addons) {
-                          const q = addonQtys[a.name] || 0;
-                          if (q > 0) {
-                            addItem({
-                              id: `addon-${slug}-${a.name}`,
-                              name: event.title,
-                              subtitle: a.name + "（加購）",
-                              type: event.type,
-                              price: parsePrice(a.price),
-                              qty: q,
-                              eventId: slug,
-                            });
-                          }
-                        }
-                        setShowRegistration(true);
-                        setAdded(true);
-                        setTimeout(() => setAdded(false), 2000);
-                      }}
-                      className="w-full h-10 rounded text-sm font-medium text-white transition-colors"
-                      style={{ background: !hasSelection ? "var(--color-mist)" : added ? "var(--color-teal)" : "var(--color-moss)" }}>
-                      {added ? "✓ 已加入購物車" : hasSelection ? "立即報名" : "請先選擇票券"}
-                    </button>
+                    {/* 加購 */}
+                    {event.addons.length > 0 && (
+                      <>
+                        <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>加購</p>
+                        <div className="grid grid-cols-2 gap-2">
+                          {event.addons.map((a) => {
+                            const q = addonQtys[a.name] || 0;
+                            return (
+                              <div key={a.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                                <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{a.name}</p>
+                                <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{a.price}</p>
+                                <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
+                                  <button onClick={() => setAddonQtys(p => ({ ...p, [a.name]: Math.max(0, q - 1) }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
+                                  <span className="w-5 h-6 flex items-center justify-center text-xs">{q}</span>
+                                  <button onClick={() => setAddonQtys(p => ({ ...p, [a.name]: q + 1 }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
                   </div>
-                );
-              })()}
-            </div>
+
+                  {(() => {
+                    const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, "")) || 0;
+                    const ticketTotal = event.tickets.reduce((s, t) => s + parsePrice(t.price) * (ticketQtys[t.name] || 0), 0);
+                    const addonTotal = event.addons.reduce((s, a) => s + parsePrice(a.price) * (addonQtys[a.name] || 0), 0);
+                    const grandTotal = ticketTotal + addonTotal;
+                    const hasSelection = Object.values(ticketQtys).some(q => q > 0);
+
+                    return (
+                      <div className="p-4">
+                        <div className="flex justify-between mb-3">
+                          <span className="text-sm" style={{ color: "var(--color-muted)" }}>合計</span>
+                          <span className="text-lg font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>NT$ {grandTotal.toLocaleString()}</span>
+                        </div>
+                        <button
+                          disabled={!hasSelection}
+                          onClick={() => {
+                            for (const t of event.tickets) {
+                              const q = ticketQtys[t.name] || 0;
+                              if (q > 0) {
+                                addItem({
+                                  id: `ticket-${slug}-${t.name}`,
+                                  name: event.title,
+                                  subtitle: t.name,
+                                  type: event.type,
+                                  price: parsePrice(t.price),
+                                  qty: q,
+                                  eventId: slug,
+                                  meta: { date: event.date, guide: event.guide },
+                                });
+                              }
+                            }
+                            for (const a of event.addons) {
+                              const q = addonQtys[a.name] || 0;
+                              if (q > 0) {
+                                addItem({
+                                  id: `addon-${slug}-${a.name}`,
+                                  name: event.title,
+                                  subtitle: a.name + "（加購）",
+                                  type: event.type,
+                                  price: parsePrice(a.price),
+                                  qty: q,
+                                  eventId: slug,
+                                });
+                              }
+                            }
+                            setShowRegistration(true);
+                            setAdded(true);
+                            setTimeout(() => setAdded(false), 2000);
+                          }}
+                          className="w-full h-10 rounded text-sm font-medium text-white transition-colors"
+                          style={{ background: !hasSelection ? "var(--color-mist)" : added ? "var(--color-teal)" : "var(--color-moss)" }}>
+                          {added ? "✓ 已加入購物車" : hasSelection ? "立即報名" : "請先選擇票券"}
+                        </button>
+                      </div>
+                    );
+                  })()}
+                </div>
+              );
+            })()}
           </aside>
         </div>
 
@@ -421,6 +434,88 @@ export default function EventPage({
         eventTitle={event.title}
         ticketSummary="成人票 ×1"
       />
+    </div>
+  );
+}
+
+/** 活動結束 → 敲碗再辦表單 */
+function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; eventSlug: string }) {
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState("");
+  const [contact, setContact] = useState("");
+  const [note, setNote] = useState("");
+  const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !contact.trim()) return;
+    setSubmitting(true);
+    try {
+      await supabase.from("registrations").insert({
+        order_item_id: null,
+        attendee_name: name,
+        attendee_phone: contact.includes("@") ? "" : contact,
+        attendee_email: contact.includes("@") ? contact : "",
+        custom_fields: { type: "encore_request", event_slug: eventSlug, event_title: eventTitle, note },
+      });
+      setSubmitted(true);
+    } catch {
+      alert("送出失敗，請稍後再試");
+    }
+    setSubmitting(false);
+  };
+
+  if (submitted) {
+    return (
+      <div className="rounded-lg p-6 text-center" style={{ border: "1px solid var(--color-teal)", background: "var(--color-warm-white)" }}>
+        <span className="text-3xl mb-3 block">🎉</span>
+        <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>已收到你的敲碗！</p>
+        <p className="text-xs" style={{ color: "var(--color-mist)" }}>如果這場活動再次舉辦，我們會第一時間通知你。</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
+      <div className="p-5 text-center" style={{ background: "var(--color-warm-white)" }}>
+        <span className="text-2xl mb-2 block">🕐</span>
+        <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>活動已結束</p>
+        <p className="text-xs mb-4" style={{ color: "var(--color-mist)" }}>錯過了？留下聯絡方式，再辦的時候通知你！</p>
+
+        {!showForm ? (
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full h-10 rounded text-sm font-medium text-white transition-colors hover:opacity-90"
+            style={{ background: "var(--color-teal)" }}>
+            🔔 敲碗再辦！
+          </button>
+        ) : (
+          <div className="text-left space-y-3">
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: "var(--color-bark)" }}>姓名</label>
+              <input value={name} onChange={e => setName(e.target.value)} placeholder="你的名字"
+                className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "var(--color-dust)" }} />
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: "var(--color-bark)" }}>聯絡方式（Email 或電話）</label>
+              <input value={contact} onChange={e => setContact(e.target.value)} placeholder="email@example.com 或 0912-345-678"
+                className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "var(--color-dust)" }} />
+            </div>
+            <div>
+              <label className="text-xs font-medium block mb-1" style={{ color: "var(--color-bark)" }}>備註（選填）</label>
+              <input value={note} onChange={e => setNote(e.target.value)} placeholder="例：希望改在週末"
+                className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "var(--color-dust)" }} />
+            </div>
+            <button
+              onClick={handleSubmit}
+              disabled={!name.trim() || !contact.trim() || submitting}
+              className="w-full h-10 rounded text-sm font-medium text-white transition-colors"
+              style={{ background: submitting ? "var(--color-mist)" : "var(--color-teal)" }}>
+              {submitting ? "送出中..." : "送出敲碗"}
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
