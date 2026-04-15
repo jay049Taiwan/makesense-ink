@@ -111,14 +111,28 @@ function mapStatus(val: string | null, map: Record<string, string>): string | nu
 
 /** 回寫 Notion：上架 → 狀態改「已發佈」+ 寫入 URL */
 async function writebackPublish(pageId: string, url: string) {
+  const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+  // 分開寫：先發佈狀態，再連結（避免一個欄位失敗導致全部失敗）
   try {
-    const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
     await updatePage(uuid, {
       "發佈狀態": { status: { name: "已發佈" } },
+    });
+  } catch (err: any) {
+    console.warn(`[writeback] Status update failed for ${pageId}: ${err.message}`);
+  }
+  try {
+    await updatePage(uuid, {
       "對應連結": { url },
     });
   } catch (err: any) {
-    console.warn(`[writeback] Publish failed for ${pageId}: ${err.message}`);
+    // 如果「對應連結」是 rich_text 不是 url，試用 rich_text 格式
+    try {
+      await updatePage(uuid, {
+        "對應連結": { rich_text: [{ text: { content: url, link: { url } } }] },
+      });
+    } catch {
+      console.warn(`[writeback] URL update failed for ${pageId}: ${err.message}`);
+    }
   }
 }
 
