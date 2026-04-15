@@ -93,10 +93,12 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         )}
       </header>
 
-      {/* Cover image */}
-      <div className="aspect-[16/9] rounded-lg mb-8 overflow-hidden" style={{ background: "var(--color-parchment)" }}>
-        <SafeImage src={article.cover_url} alt={article.title} placeholderType="article" />
-      </div>
+      {/* Cover image — 只在有圖片時顯示 */}
+      {article.cover_url && (
+        <div className="aspect-[16/9] rounded-lg mb-8 overflow-hidden" style={{ background: "var(--color-parchment)" }}>
+          <SafeImage src={article.cover_url} alt={article.title} placeholderType="article" />
+        </div>
+      )}
 
       {/* Article body */}
       {contentHtml ? (
