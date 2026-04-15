@@ -27,8 +27,9 @@ export default function BookSelectionPage() {
     async function load() {
       const { data } = await supabase
         .from("products")
-        .select("id, notion_id, name, price, category, images, status, author_id, publisher_id")
+        .select("id, notion_id, name, price, stock, category, images, status, author_id, publisher_id")
         .eq("status", "active")
+        .gt("stock", 0)
         .ilike("category", "%選書%")
         .order("updated_at", { ascending: false })
         .limit(60);

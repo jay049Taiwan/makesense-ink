@@ -29,8 +29,9 @@ export default function GoodsSelectionPage() {
       // Fetch products with category containing "選物"
       const { data } = await supabase
         .from("products")
-        .select("id, notion_id, name, price, category, images, status, publisher_id")
+        .select("id, notion_id, name, price, stock, category, images, status, publisher_id")
         .eq("status", "active")
+        .gt("stock", 0)
         .eq("category", "商品/選物")
         .order("updated_at", { ascending: false })
         .limit(60);

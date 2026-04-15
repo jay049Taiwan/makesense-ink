@@ -114,8 +114,9 @@ export function MightAlsoLike() {
     (async () => {
       const { data } = await supabase
         .from("products")
-        .select("id, notion_id, name, price, images")
+        .select("id, notion_id, name, price, images, stock")
         .eq("status", "active")
+        .gt("stock", 0)  // 只推薦有庫存的
         .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
         .order("updated_at", { ascending: false })
         .limit(4);

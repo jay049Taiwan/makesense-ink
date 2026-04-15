@@ -165,9 +165,15 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
             style={{ fontFamily: "var(--font-display)", color: "var(--color-rust)" }}>
             NT$ {product.price.toLocaleString()}
           </p>
-          <p className="text-xs mb-6" style={{ color: product.stock === 0 ? "#e53e3e" : "var(--color-mist)" }}>
-            {product.stock === 0 ? "目前缺貨" : `庫存 ${product.stock} 件`}
-          </p>
+          {product.stock === 0 ? (
+            <span className="inline-block px-3 py-1 rounded text-xs font-bold text-white mb-6" style={{ background: "#e53e3e" }}>
+              無庫存
+            </span>
+          ) : (
+            <p className="text-xs mb-6" style={{ color: "var(--color-mist)" }}>
+              庫存 {product.stock} 件
+            </p>
+          )}
 
           {/* Add to cart */}
           <div className="flex items-center gap-3 mb-8">
@@ -193,7 +199,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               }}
               className="flex-1 h-10 rounded text-sm font-medium text-white transition-colors"
               style={{ background: added ? "var(--color-teal)" : product.stock > 0 ? "var(--color-moss)" : "#ccc" }}>
-              {added ? "✓ 已加入" : product.stock > 0 ? "加入購物車" : "缺貨中"}
+              {added ? "✓ 已加入" : product.stock > 0 ? "加入購物車" : "無庫存"}
             </button>
           </div>
 

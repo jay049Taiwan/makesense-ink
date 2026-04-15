@@ -77,11 +77,16 @@ export interface SBProduct {
   status: string;
 }
 
+/**
+ * 列表用：只取庫存 > 0 的商品（主題選書、風格選物、推薦區等）
+ * 庫存為 0 的商品不在列表主動顯示，但可透過搜尋和觀點頁找到
+ */
 export async function fetchSBProducts(subCategory?: string, limit = 12) {
   let query = supabase
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, author_id, publisher_id")
     .eq("status", "active")
+    .gt("stock", 0)  // 只顯示有庫存的
     .order("updated_at", { ascending: false })
     .limit(limit);
 
@@ -140,6 +145,7 @@ export async function fetchSBOwnProducts(limit = 24) {
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, publisher_id")
     .eq("status", "active")
+    .gt("stock", 0)  // 只顯示有庫存的
     .in("publisher_id", brandIds)
     .order("updated_at", { ascending: false })
     .limit(limit);
