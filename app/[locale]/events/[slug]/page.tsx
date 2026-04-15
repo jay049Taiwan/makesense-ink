@@ -459,15 +459,15 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
     })();
   }, [eventSlug, submitted]);
 
-  // 自動填入會員資訊
+  // 自動填入會員資訊（從 NextAuth session）
   useEffect(() => {
     (async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch("/api/auth/session");
+        const session = await res.json();
         if (session?.user?.email) {
           setContact(session.user.email);
-          const { data: member } = await supabase.from("members").select("name").eq("email", session.user.email).maybeSingle();
-          if (member?.name) setName(member.name);
+          setName(session.user.name || "");
         }
       } catch {}
     })();
