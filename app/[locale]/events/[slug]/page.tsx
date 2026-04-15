@@ -452,24 +452,38 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
   useEffect(() => {
     (async () => {
       const { count } = await supabase
-        .from("registrations")
+        .from("encore_requests")
         .select("*", { count: "exact", head: true })
-        .eq("custom_fields->>type", "encore_request")
-        .eq("custom_fields->>event_slug", eventSlug);
+        .eq("event_slug", eventSlug);
       setEncoreCount(count || 0);
     })();
   }, [eventSlug, submitted]);
+
+  // 自動填入會員資訊
+  useEffect(() => {
+    (async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user?.email) {
+          setContact(session.user.email);
+          const { data: member } = await supabase.from("members").select("name").eq("email", session.user.email).maybeSingle();
+          if (member?.name) setName(member.name);
+        }
+      } catch {}
+    })();
+  }, []);
 
   const handleSubmit = async () => {
     if (!name.trim() || !contact.trim()) return;
     setSubmitting(true);
     try {
-      await supabase.from("registrations").insert({
-        order_item_id: null,
-        attendee_name: name,
-        attendee_phone: contact.includes("@") ? "" : contact,
-        attendee_email: contact.includes("@") ? contact : "",
-        custom_fields: { type: "encore_request", event_slug: eventSlug, event_title: eventTitle, note },
+      await supabase.from("encore_requests").insert({
+        event_slug: eventSlug,
+        event_title: eventTitle,
+        name: name.trim(),
+        email: contact.includes("@") ? contact.trim() : null,
+        phone: !contact.includes("@") ? contact.trim() : null,
+        note: note.trim() || null,
       });
       setSubmitted(true);
     } catch {
