@@ -61,14 +61,33 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: `Unknown db: ${db}` }, { status: 400 });
     }
 
-    // 同步完成後，背景觸發 AI 翻譯（不阻擋回應）
-    if (result?.table && result?.title) {
-      triggerTranslation(result.table, cleanId, result).catch((e) =>
-        console.warn(`[translate] background error: ${e.message}`)
-      );
+    // 立刻回應（不等回寫和翻譯）
+    const response = NextResponse.json({ success: true, db, pageId: cleanId, result });
+
+    // 背景處理：回寫 Notion + AI 翻譯（不阻擋回應）
+    // Vercel 會在回應後繼續執行這些 promise（waitUntil 語意）
+    if (result && !result.skipped) {
+      // 回寫發佈狀態和對應連結
+      const urlMap: Record<string, string> = {
+        events: `${SITE_URL}/events/${cleanId}`,
+        articles: `${SITE_URL}/post/${cleanId}`,
+        products: `${SITE_URL}/product/${cleanId}`,
+        topics: `${SITE_URL}/viewpoint/${cleanId}`,
+      };
+      const table = result.table;
+      if (urlMap[table] && result.status !== "draft" && result.status !== null) {
+        writebackPublish(cleanId, urlMap[table]).catch(e => console.warn(`[writeback] ${e.message}`));
+      } else if (result.status === "draft") {
+        writebackUnpublish(cleanId).catch(e => console.warn(`[writeback] ${e.message}`));
+      }
+
+      // AI 翻譯
+      if (result.title) {
+        triggerTranslation(table, cleanId, result).catch(e => console.warn(`[translate] ${e.message}`));
+      }
     }
 
-    return NextResponse.json({ success: true, db, pageId: cleanId, result });
+    return response;
   } catch (err: any) {
     console.error("Single sync error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
@@ -182,8 +201,7 @@ async function syncSingleEvent(nid: string, props: any) {
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`events upsert: ${error.message}`);
-  if (row.status === "draft") await writebackUnpublish(nid);
-  else await writebackPublish(nid, `${SITE_URL}/events/${nid}`);
+  // 回寫在主函式統一處理（非阻塞）
   return { table: "events", title: row.title, status: row.status };
 }
 
@@ -271,7 +289,7 @@ async function syncStockBatch(nid: string, props: any) {
   // 回寫 DB05 發佈狀態
   const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
   if (status && status !== "draft") {
-    await writebackPublish(nid, `${SITE_URL}/dashboard/workbench`);
+    // 庫存批次回寫在主函式統一處理
   }
 
   return {
@@ -319,8 +337,7 @@ async function syncSingleArticle(nid: string, props: any) {
   if (row.status === null) return { table: "articles", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("articles").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`articles upsert: ${error.message}`);
-  if (row.status === "draft") await writebackUnpublish(nid);
-  else await writebackPublish(nid, `${SITE_URL}/post/${nid}`);
+  // 回寫在主函式統一處理（非阻塞）
   return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
 }
 
@@ -448,8 +465,7 @@ async function syncSingleProduct(nid: string, props: any) {
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`products upsert: ${error.message}`);
-  if (row.status === "draft") await writebackUnpublish(nid);
-  else await writebackPublish(nid, `${SITE_URL}/product/${nid}`);
+  // 回寫在主函式統一處理（非阻塞）
   return { table: "products", title: row.name, status: row.status };
 }
 
@@ -484,8 +500,7 @@ async function syncSingleRelation(nid: string, props: any) {
     if (status === null) return { table: "topics", title: row.name, status: null, skipped: true };
     const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
     if (error) throw new Error(`topics upsert: ${error.message}`);
-    if (status === "draft") await writebackUnpublish(nid);
-    else await writebackPublish(nid, `${SITE_URL}/viewpoint/${nid}`);
+    // 回寫在主函式統一處理（非阻塞）
     return { table: "topics", title: row.name, status, hasContent: !!content };
   }
 
