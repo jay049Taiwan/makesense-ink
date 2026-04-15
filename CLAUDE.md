@@ -350,11 +350,16 @@ npm run lint   # ESLint
 ## LINE LIFF 整合（2026/04/14 建立）
 - **模擬器**：`/dev/line-simulator` — LINE 聊天室模擬器，iframe 載入真實頁面帶 `?liff_mode=true`
 - **LIFF 模式偵測**：`LayoutShell.tsx` 讀 URL 參數 `?liff_mode=true` → 隱藏 Header/Footer
-- **Rich Menu 六宮格（不可更改）**：
+- **Rich Menu 六宮格**（2026/04/15 重新設計，LIFF 原生體驗）：
   ```
-  📚 選書選物 → /bookstore    | 🎪 近期活動 → /cultureclub    | 🗺️ 觀點漫遊 → /viewpoint-stroll
-  🛒 確認結帳 → /checkout     | 👤 會員中心 → /dashboard      | 💬 問問我們 → AI 客服面板
+  📚 選書選物 → /liff/shop       | 🎪 活動體驗 → /liff/events      | 🗺️ 觀點漫遊 → /liff/viewpoints
+  🛒 確認結帳 → /checkout        | 📮 地方通訊 → /liff/newsletter   | 👤 會員中心 → /liff/member
   ```
+  - /liff/shop：搜尋 + 條碼掃描（html5-qrcode）+ 商品推薦
+  - /liff/events：未來活動卡片列表（過期不顯示）
+  - /liff/viewpoints：GPS 定位 → 鄉鎮篩選 → 觀點列表
+  - /liff/newsletter：最近 20 則文章 + 底部「查看全部」連結
+  - /liff/member：會員資訊 + LINE 綁定 + 快捷連結
 - **來源切換器**：LINE LIFF / Google 地圖 / Facebook / QR Code / 官網正常
 - **購物車持久化**：localStorage（跨 Rich Menu 切換不會清空）+ postMessage 通知模擬器
 - **訂單來源追蹤**：checkout API 接收 `source` 參數（web / liff / telegram / preorder）

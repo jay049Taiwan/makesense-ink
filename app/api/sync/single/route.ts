@@ -5,7 +5,7 @@ import { translateRow } from "@/lib/translate";
 
 const SITE_URL = process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink";
 
-export const maxDuration = 30;
+export const maxDuration = 60;
 
 /**
  * POST /api/sync/single — 單筆 Notion → Supabase 同步

@@ -7,6 +7,8 @@
  */
 
 import { messagingApi } from "@line/bot-sdk";
+import * as fs from "fs";
+import * as path from "path";
 
 const TOKEN = process.env.LINE_CHANNEL_ACCESS_TOKEN;
 const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || "2009300819-5OyjRae6";
@@ -18,6 +20,7 @@ if (!TOKEN) {
 }
 
 const client = new messagingApi.MessagingApiClient({ channelAccessToken: TOKEN });
+const blobClient = new messagingApi.MessagingApiBlobClient({ channelAccessToken: TOKEN });
 
 function liffUrl(path: string) {
   return `${LIFF_BASE}/${path}?liff_mode=true`;
@@ -68,13 +71,24 @@ async function main() {
     const richMenuId = result.richMenuId;
     console.log(`✅ Rich Menu 建立成功: ${richMenuId}`);
 
-    // 2. 設為預設 Rich Menu
+    // 2. 上傳 Rich Menu 圖片
+    const imagePath = path.resolve(__dirname, "../public/images/rich-menu.png");
+    if (fs.existsSync(imagePath)) {
+      const imageBuffer = fs.readFileSync(imagePath);
+      const blob = new Blob([imageBuffer], { type: "image/png" });
+      await blobClient.setRichMenuImage(richMenuId, blob);
+      console.log(`✅ 圖片已上傳`);
+    } else {
+      console.error(`⚠️  找不到圖片: ${imagePath}`);
+      console.error(`   請先執行: python3 scripts/generate-rich-menu-image.py`);
+      process.exit(1);
+    }
+
+    // 3. 設為預設 Rich Menu
     await client.setDefaultRichMenu(richMenuId);
     console.log(`✅ 已設為預設 Rich Menu`);
 
     console.log(`\n📋 Rich Menu ID: ${richMenuId}`);
-    console.log(`\n⚠️  注意：還需要上傳 Rich Menu 圖片（2500x1686 PNG）`);
-    console.log(`   用法：npx tsx scripts/upload-rich-menu-image.ts ${richMenuId} <image-path>`);
     console.log(`\n📱 按鈕配置：`);
     console.log(`   📚 選書選物 → ${liffUrl("liff/shop")}`);
     console.log(`   🎪 活動體驗 → ${liffUrl("liff/events")}`);
