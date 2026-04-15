@@ -446,6 +446,19 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
   const [note, setNote] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [encoreCount, setEncoreCount] = useState(0);
+
+  // 讀取敲碗人數
+  useEffect(() => {
+    (async () => {
+      const { count } = await supabase
+        .from("registrations")
+        .select("*", { count: "exact", head: true })
+        .eq("custom_fields->>type", "encore_request")
+        .eq("custom_fields->>event_slug", eventSlug);
+      setEncoreCount(count || 0);
+    })();
+  }, [eventSlug, submitted]);
 
   const handleSubmit = async () => {
     if (!name.trim() || !contact.trim()) return;
@@ -470,7 +483,12 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
       <div className="rounded-lg p-6 text-center" style={{ border: "1px solid var(--color-teal)", background: "var(--color-warm-white)" }}>
         <span className="text-3xl mb-3 block">🎉</span>
         <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>已收到你的敲碗！</p>
-        <p className="text-xs" style={{ color: "var(--color-mist)" }}>如果這場活動再次舉辦，我們會第一時間通知你。</p>
+        <p className="text-xs mb-2" style={{ color: "var(--color-mist)" }}>如果這場活動再次舉辦，我們會第一時間通知你。</p>
+        {encoreCount > 0 && (
+          <p className="text-xs font-bold" style={{ color: "var(--color-teal)" }}>
+            🔔 已有 {encoreCount} 人敲碗
+          </p>
+        )}
       </div>
     );
   }
@@ -480,6 +498,9 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
       <div className="p-5 text-center" style={{ background: "var(--color-warm-white)" }}>
         <span className="text-2xl mb-2 block">🕐</span>
         <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>活動已結束</p>
+        {encoreCount > 0 && (
+          <p className="text-xs font-bold mb-2" style={{ color: "var(--color-teal)" }}>🔔 已有 {encoreCount} 人敲碗</p>
+        )}
         <p className="text-xs mb-4" style={{ color: "var(--color-mist)" }}>錯過了？留下聯絡方式，再辦的時候通知你！</p>
 
         {!showForm ? (
