@@ -15,11 +15,11 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ product: null, error: "missing code" }, { status: 400 });
   }
 
-  // 1. 先查 barcode 完全匹配
+  // 1. 先查 sku 完全匹配（Notion「商品ID」→ Supabase sku）
   const { data: exactMatch } = await supabase
     .from("products")
     .select("id, notion_id, name, price, images, stock, category, status")
-    .eq("barcode", code)
+    .eq("sku", code)
     .eq("status", "active")
     .single();
 
@@ -27,19 +27,32 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ product: formatProduct(exactMatch) });
   }
 
-  // 2. 去掉 ISBN 前綴的連字號，嘗試不同格式
+  // 2. 去掉連字號/空白，嘗試不同格式
   const cleanCode = code.replace(/[-\s]/g, "");
   if (cleanCode !== code) {
     const { data: cleanMatch } = await supabase
       .from("products")
       .select("id, notion_id, name, price, images, stock, category, status")
-      .eq("barcode", cleanCode)
+      .eq("sku", cleanCode)
       .eq("status", "active")
       .single();
 
     if (cleanMatch) {
       return NextResponse.json({ product: formatProduct(cleanMatch) });
     }
+  }
+
+  // 3. 模糊匹配（sku 包含掃描值，或掃描值包含 sku）
+  const { data: fuzzyMatch } = await supabase
+    .from("products")
+    .select("id, notion_id, name, price, images, stock, category, status")
+    .ilike("sku", `%${cleanCode}%`)
+    .eq("status", "active")
+    .limit(1)
+    .single();
+
+  if (fuzzyMatch) {
+    return NextResponse.json({ product: formatProduct(fuzzyMatch) });
   }
 
   // 3. 找不到 — 回傳掃描到的條碼值，讓前端可以顯示
