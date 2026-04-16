@@ -1,7 +1,7 @@
 import { supabase } from "@/lib/supabase";
 
 const SITE_URL = "https://makesense.ink";
-const SITE_TITLE = "現思文化創藝術";
+const SITE_TITLE = "旅人書店/宜蘭文化俱樂部";
 const SITE_DESC = "旅人書店・宜蘭文化俱樂部 — 地方通訊、文化活動、走讀漫遊";
 
 function escapeXml(s: string): string {

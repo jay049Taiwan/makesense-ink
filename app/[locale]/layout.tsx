@@ -27,10 +27,10 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
   const titles: Record<string, string> = {
-    zh: "現思文化創藝術 | makesense",
-    en: "Culture Makes Sense | makesense",
-    ja: "カルチャーメイクセンス | makesense",
-    ko: "컬처메이크센스 | makesense",
+    zh: "旅人書店/宜蘭文化俱樂部",
+    en: "Traveler Bookstore / Yilan Culture Club",
+    ja: "旅人書店／宜蘭文化クラブ",
+    ko: "여행자서점 / 이란문화클럽",
   };
   const descriptions: Record<string, string> = {
     zh: "現思文化創藝術有限公司 — 旅人書店、宜蘭文化俱樂部，以宜蘭在地文化為核心的品牌事業。",
@@ -48,14 +48,14 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
   return {
     title: {
       default: titles[locale] || titles.zh,
-      template: `%s | ${locale === "zh" ? "現思文化創藝術" : "makesense"}`,
+      template: `%s | ${locale === "zh" ? "旅人書店/宜蘭文化俱樂部" : "Traveler Bookstore / Yilan Culture Club"}`,
     },
     description: descriptions[locale] || descriptions.zh,
     metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink"),
     openGraph: {
       type: "website",
       locale: locale === "zh" ? "zh_TW" : locale,
-      siteName: locale === "zh" ? "現思文化創藝術" : "Culture Makes Sense",
+      siteName: locale === "zh" ? "旅人書店/宜蘭文化俱樂部" : "Traveler Bookstore / Yilan Culture Club",
       title: titles[locale] || titles.zh,
       description: ogDescs[locale] || ogDescs.zh,
     },
@@ -92,7 +92,7 @@ export default async function LocaleLayout({ children, params }: Props) {
           href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
           rel="stylesheet"
         />
-        <link rel="alternate" type="application/rss+xml" title="現思文化創藝術" href="/feed.xml" />
+        <link rel="alternate" type="application/rss+xml" title="旅人書店/宜蘭文化俱樂部" href="/feed.xml" />
         <meta name="theme-color" content="#7a5c40" />
         <script
           type="application/ld+json"

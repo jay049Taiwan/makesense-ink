@@ -2,8 +2,8 @@ import type { MetadataRoute } from "next";
 
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "現思文化創藝術",
-    short_name: "現思文化",
+    name: "旅人書店/宜蘭文化俱樂部",
+    short_name: "旅人書店",
     description: "旅人書店・宜蘭文化俱樂部 — 以宜蘭為根的地方文化永續生態系",
     start_url: "/",
     display: "standalone",

@@ -6,8 +6,8 @@ import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
 
 export const metadata: Metadata = {
-  title: "Culture Makes Sense | 現思文化創藝術",
-  description: "現思文化創藝術有限公司 — 以宜蘭在地文化為核心，打造地方文化永續生態系。",
+  title: "旅人書店/宜蘭文化俱樂部",
+  description: "現思文化創藝術有限公司 — 旅人書店、宜蘭文化俱樂部，以宜蘭在地文化為核心，打造地方文化永續生態系。",
 };
 
 const EVENT_TYPE_COLORS: Record<string, string> = {
