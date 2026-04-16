@@ -44,7 +44,7 @@ export async function GET(req: NextRequest) {
 
   // Log search query
   try {
-    await supabase.from("search_logs").insert({ query: q, results_count:
+    await supabase.from("search_logs").insert({ keyword: q, result_count:
       (products.data?.length || 0) + (events.data?.length || 0) +
       (articles.data?.length || 0) + (topics.data?.length || 0),
     });

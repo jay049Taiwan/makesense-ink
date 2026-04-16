@@ -34,24 +34,23 @@ function ItemCard({ item, onSheet, addLabel }: { item: DisplayItem; onSheet?: (i
       </div>
       <div className="p-2.5">
         <h3 className="text-[0.85em] line-clamp-2 mb-1" style={{ color: "var(--color-ink)" }}>{item.title}</h3>
-        {item.price > 0 && (
-          <div className="flex items-center justify-between mt-1">
+        <div className="flex items-center justify-between mt-1">
+          {item.price > 0 ? (
             <span className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>
               NT$ {item.price.toLocaleString()}
             </span>
-            <span
-              className="text-[0.7em] px-2 py-0.5 rounded-full font-medium"
-              style={{ background: "var(--color-teal)", color: "#fff" }}
-            >
-              {addLabel}
+          ) : (
+            <span className="text-[0.7em]" style={{ color: "#999" }}>
+              {item.subtitle || "\u00A0"}
             </span>
-          </div>
-        )}
-        {item.type === "article" && (
-          <p className="text-[0.7em] mt-1" style={{ color: "#999" }}>
-            {item.subtitle}
-          </p>
-        )}
+          )}
+          <span
+            className="text-[0.7em] px-2 py-0.5 rounded-full font-medium"
+            style={{ background: "var(--color-teal)", color: "#fff" }}
+          >
+            {addLabel}
+          </span>
+        </div>
       </div>
     </button>
   );
