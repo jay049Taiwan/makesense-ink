@@ -25,12 +25,15 @@ export function proxy(request: NextRequest) {
   const hostname = request.headers.get("host") || "";
   const { pathname } = request.nextUrl;
 
-  // 跳過 API、靜態資源、Telegram、feed
+  // 跳過 API、靜態資源、Telegram、feed、SEO 檔案
   if (
     pathname.startsWith("/api/") ||
     pathname.startsWith("/_next/") ||
     pathname.startsWith("/telegram/") ||
     pathname.startsWith("/feed.xml") ||
+    pathname.startsWith("/sitemap.xml") ||
+    pathname.startsWith("/robots.txt") ||
+    pathname.startsWith("/manifest.webmanifest") ||
     pathname === "/favicon.ico" ||
     pathname.startsWith("/images")
   ) {
@@ -78,5 +81,5 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|images|feed\\.xml|telegram).*)"],
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico|images|feed\\.xml|sitemap\\.xml|robots\\.txt|manifest\\.webmanifest|telegram).*)"],
 };
