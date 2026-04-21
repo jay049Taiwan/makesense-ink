@@ -1,9 +1,61 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 
+// n8n webhook：接收官網訂單，在 Notion 建立 DB05（表單頭）+ DB06（明細）
+const N8N_ORDER_WEBHOOK = "https://makesense.zeabur.app/webhook/order-created";
+
+/**
+ * 把 notion_id（32 hex, no dash）轉成 UUID 格式（8-4-4-4-12）
+ * 方便跟 products.notion_id（無 dash）比對
+ */
+function normalizeNotionId(id: string): string {
+  const clean = id.replace(/-/g, "").toLowerCase();
+  return clean;
+}
+
+/**
+ * 查商品：接受 notion_id（無 dash）、UUID（有 dash）、或 Supabase id（UUID）
+ * 回傳 { id, notion_id, name, stock, price } 或 null
+ */
+async function resolveProduct(input: string) {
+  const normalized = normalizeNotionId(input);
+  // 先試 notion_id 比對
+  const byNotion = await supabase
+    .from("products")
+    .select("id, notion_id, name, stock, price")
+    .eq("notion_id", normalized)
+    .maybeSingle();
+  if (byNotion.data) return byNotion.data;
+  // 再試 Supabase id（UUID）比對
+  const byId = await supabase
+    .from("products")
+    .select("id, notion_id, name, stock, price")
+    .eq("id", input)
+    .maybeSingle();
+  return byId.data;
+}
+
+async function resolveEvent(input: string) {
+  const normalized = normalizeNotionId(input);
+  const byNotion = await supabase
+    .from("events")
+    .select("id, notion_id, title")
+    .eq("notion_id", normalized)
+    .maybeSingle();
+  if (byNotion.data) return byNotion.data;
+  const byId = await supabase
+    .from("events")
+    .select("id, notion_id, title")
+    .eq("id", input)
+    .maybeSingle();
+  return byId.data;
+}
+
 /**
  * POST /api/checkout
  * 接收購物車資料 → 寫入 Supabase orders + order_items + registrations
+ * + 扣 products.stock
+ * + 非同步呼叫 n8n webhook 在 Notion 建 DB05+DB06
  */
 export async function POST(req: NextRequest) {
   try {
@@ -81,11 +133,51 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "建立訂單失敗" }, { status: 500 });
     }
 
-    // 4. 建立訂單明細
-    const orderItems = items.map((item) => ({
+    // 4. 解析每個 item 的 Supabase UUID（item_id 欄位型別是 UUID，不能存 notion_id）
+    //    同時記下 products/events 的完整資訊供後續扣庫存與 n8n webhook 使用
+    const resolvedItems = await Promise.all(
+      items.map(async (item) => {
+        let supabaseId: string | null = null;
+        let productInfo: Awaited<ReturnType<typeof resolveProduct>> | null = null;
+        let eventInfo: Awaited<ReturnType<typeof resolveEvent>> | null = null;
+
+        if (item.productId) {
+          productInfo = await resolveProduct(item.productId);
+          if (productInfo) supabaseId = productInfo.id;
+        }
+        if (!supabaseId && item.eventId) {
+          eventInfo = await resolveEvent(item.eventId);
+          if (eventInfo) supabaseId = eventInfo.id;
+        }
+        if (!supabaseId && item.id) {
+          // fallback：item.id 可能已是 UUID
+          productInfo = await resolveProduct(item.id);
+          if (productInfo) {
+            supabaseId = productInfo.id;
+          } else {
+            eventInfo = await resolveEvent(item.id);
+            if (eventInfo) supabaseId = eventInfo.id;
+          }
+        }
+
+        return { item, supabaseId, productInfo, eventInfo };
+      })
+    );
+
+    // 檢查是否有找不到對應的 item
+    const unresolved = resolvedItems.filter((r) => !r.supabaseId);
+    if (unresolved.length > 0) {
+      console.error("找不到對應的商品/活動:", unresolved.map((r) => r.item.name));
+      return NextResponse.json(
+        { error: `找不到商品：${unresolved.map((r) => r.item.name).join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const orderItems = resolvedItems.map(({ item, supabaseId, productInfo }) => ({
       order_id: order.id,
       item_type: item.type,
-      item_id: item.productId || item.eventId || item.id,
+      item_id: supabaseId!,
       quantity: item.qty,
       price: item.price,
       meta: {
@@ -93,6 +185,7 @@ export async function POST(req: NextRequest) {
         subtitle: item.subtitle || null,
         eventId: item.eventId || null,
         productId: item.productId || null,
+        productNotionId: productInfo?.notion_id || null,
         ...item.meta,
       },
     }));
@@ -105,6 +198,19 @@ export async function POST(req: NextRequest) {
     if (itemsError) {
       console.error("建立訂單明細失敗:", itemsError);
       return NextResponse.json({ error: "建立訂單明細失敗" }, { status: 500 });
+    }
+
+    // 4.5 扣商品庫存（只扣 productInfo 存在的項目）
+    for (const { supabaseId, productInfo, item } of resolvedItems) {
+      if (!productInfo || !supabaseId) continue;
+      const newStock = Math.max((productInfo.stock ?? 0) - item.qty, 0);
+      const { error: stockError } = await supabase
+        .from("products")
+        .update({ stock: newStock })
+        .eq("id", supabaseId);
+      if (stockError) {
+        console.warn(`[checkout] 扣庫存失敗 ${productInfo.name}:`, stockError.message);
+      }
     }
 
     // 5. 建立報名資料（有 registration 的項目）
@@ -148,6 +254,41 @@ export async function POST(req: NextRequest) {
         ).catch((e) => console.warn("[checkout] LINE notify failed:", e.message))
       ).catch(() => {});
     }
+
+    // 7. 非同步呼叫 n8n webhook 在 Notion 建 DB05（表單頭）+ DB06（明細）
+    //    fire-and-forget：失敗不影響結帳回應
+    const webhookPayload = {
+      orderId: order.id,
+      orderNumber: order.id.slice(0, 8),
+      status: orderStatus,
+      total,
+      source: source || "web",
+      member: {
+        id: memberId,
+        email: contact.email,
+        name: contact.name,
+        phone: contact.phone,
+      },
+      delivery,
+      note: note || "",
+      items: resolvedItems.map(({ item, supabaseId, productInfo, eventInfo }) => ({
+        name: item.name,
+        type: item.type,
+        quantity: item.qty,
+        price: item.price,
+        subtotal: item.qty * item.price,
+        supabaseId,
+        productNotionId: productInfo?.notion_id || null,
+        eventNotionId: eventInfo?.notion_id || null,
+      })),
+      createdAt: new Date().toISOString(),
+    };
+
+    fetch(N8N_ORDER_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(webhookPayload),
+    }).catch((e) => console.warn("[checkout] n8n webhook failed:", e.message));
 
     return NextResponse.json({
       success: true,
