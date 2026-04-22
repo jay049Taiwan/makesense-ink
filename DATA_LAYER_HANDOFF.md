@@ -193,8 +193,8 @@ CREATE TABLE preorders (
 |---|---|---|
 | 表單名稱（title） | title | `[市集/活動名稱] - [買家姓名]` |
 | 明細內容 | rich_text | 商品清單文字（e.g. "蘭東案內×2、散步圖×1"） |
-| 明細類型 | select | `預購報名` |
-| 對應標籤對象 | relation → DB08 | 廠商的 DB08 page ID（如有） |
+| 表單類型 | select | `報名登記`（DB05 只有 3 選項：報名登記/共識互動/圖文影音） |
+| 對應對象 | relation → DB08 | 廠商的 DB08 page ID（如有）（2026/04/17 校正，舊名「對應標籤對象」已搬到 DB06） |
 
 **同步時機**：`preorders` 的 `notion_synced = false` → 定時 job 或 webhook 觸發同步。
 
@@ -207,7 +207,7 @@ CREATE TABLE preorders (
 | DB08 欄位名稱 | 用途 |
 |---|---|
 | 經營名稱 | 廠商顯示名稱（`MarketPreOrderPanel` 的 vendor.name） |
-| 個人細項 | 判斷角色（staff / vendor / member） |
+| 關係選項 | 判斷角色（個人 / 合作夥伴 / 工作團隊）；搭配 會員狀態=會員 判斷是否為會員（2026/04/22 起「對象選項」改名為「關係選項」） |
 | 聯絡方式 | 電話、Email、LINE |
 
 **目前前端讀取方式**：  

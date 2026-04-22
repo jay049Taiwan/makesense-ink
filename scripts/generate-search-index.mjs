@@ -45,16 +45,21 @@ async function main() {
     query(DB07, { property: "庫存售價", number: { greater_than: 0 } }, [{ property: "更新時間", direction: "descending" }]),
     // 活動：有活動類型的
     query(DB04, { property: "活動類型", select: { is_not_empty: true } }, [{ property: "執行時間", direction: "descending" }]),
-    // 文章：明細類型 = 圖文影音
-    query(DB05, { property: "明細類型", select: { equals: "圖文影音" } }, [{ property: "建立時間", direction: "descending" }]),
-    // 觀點：標籤選項 = 主題標籤
-    query(DB08, { property: "標籤選項", select: { equals: "主題標籤" } }, [{ property: "更新時間", direction: "descending" }]),
+    // 文章：文案細項 = 官網內容
+    query(DB05, { property: "文案細項", select: { equals: "官網內容" } }, [{ property: "建立時間", direction: "descending" }]),
+    // 觀點與標籤：經營類型 IN (觀點, 標籤)（DB08，2026/04/22 新 select 選項，取代舊「主題標籤」）
+    query(DB08, {
+      or: [
+        { property: "經營類型", select: { equals: "觀點" } },
+        { property: "經營類型", select: { equals: "標籤" } },
+      ],
+    }, [{ property: "更新時間", direction: "descending" }]),
   ]);
 
   const index = {
-    p: products.map(r => ({ n: extractTitle(r.properties["庫存名稱"]?.title), c: extractSelect(r.properties["選書備項"]?.select) || extractSelect(r.properties["庫存類型"]?.select) || "商品", s: r.id.replace(/-/g, "") })),
-    a: activities.map(r => ({ n: extractTitle(r.properties["協作名稱"]?.title), d: r.properties["執行時間"]?.date?.start || null, t: extractSelect(r.properties["活動類型"]?.select), s: r.id.replace(/-/g, "") })),
-    r: articles.map(r => ({ n: extractTitle(r.properties["明細名稱"]?.title), t: extractSelect(r.properties["明細類型"]?.select) || "文章", d: r.created_time?.substring(0, 10) || null, s: r.id.replace(/-/g, "") })),
+    p: products.map(r => ({ n: extractTitle(r.properties["庫存名稱"]?.title), c: extractSelect(r.properties["選書細項"]?.select) || extractSelect(r.properties["庫存類型"]?.select) || "商品", s: r.id.replace(/-/g, "") })),
+    a: activities.map(r => ({ n: extractTitle(r.properties["交接名稱"]?.title), d: r.properties["執行時間"]?.date?.start || null, t: extractSelect(r.properties["活動類型"]?.select), s: r.id.replace(/-/g, "") })),
+    r: articles.map(r => ({ n: extractTitle(r.properties["表單名稱"]?.title), t: extractSelect(r.properties["表單類型"]?.select) || "文章", d: r.created_time?.substring(0, 10) || null, s: r.id.replace(/-/g, "") })),
     k: keywords.map(r => ({ n: extractTitle(r.properties["經營名稱"]?.title), s: r.id.replace(/-/g, "") })),
   };
 

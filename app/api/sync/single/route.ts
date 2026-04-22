@@ -190,7 +190,7 @@ async function syncSingleEvent(nid: string, props: any) {
     theme: sel(props["活動類型"]),
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
-    price: num(props["實際單價"]) || num(props["預計單價"]) || 0,
+    price: num(props["單價"]) || 0,
     capacity: num(props["數量上限"]),
     cover_url: fileUrl(props["上傳檔案"]),
     description: tx(props["簡介摘要"]),
@@ -208,15 +208,21 @@ async function syncSingleEvent(nid: string, props: any) {
 // ── DB05 分流：文章 or 庫存批次 ──
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["表單類型"]);
-  const interactionOption = sel(props["互動選項"]);
+  const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點（2026/04/22 改為用庫存選項判斷）
+  const copyDetail = sel(props["文案細項"]);
 
-  // 庫存批次：表單類型=共識互動 + 互動選項=紀錄庫存
-  if (formType === "共識互動" && interactionOption === "紀錄庫存") {
+  // 庫存批次：表單類型=共識互動 + 庫存選項有值（進貨/出貨/盤點）
+  if (formType === "共識互動" && stockAction) {
     return await syncStockBatch(nid, props);
   }
 
-  // 其他：當作文章處理
-  return await syncSingleArticle(nid, props);
+  // 官網文章：文案細項=官網內容
+  if (copyDetail === "官網內容") {
+    return await syncSingleArticle(nid, props);
+  }
+
+  // 其他類型不同步為文章
+  return { table: "db05", note: `非官網內容（表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // ── DB05 庫存批次（一次更新所有關聯 DB06 的庫存）──
@@ -470,14 +476,23 @@ async function syncSingleProduct(nid: string, props: any) {
 }
 
 // ── DB08 → persons / topics / partners / members / staff ──
+// 新規則（2026/04/22）：
+// - topics:   經營類型 IN (觀點, 標籤)
+// - persons:  會員狀態=會員 AND 關係選項=個人
+// - partners: 會員狀態=會員 AND 關係選項=合作夥伴
+// - staff:    會員狀態=會員 AND 關係選項=工作團隊
+// - members:  會員狀態=會員（不論 關係選項）
+// 同一筆 DB08 page 可能同時滿足多個條件（例如帶路老師：經營類型=觀點 + 關係選項=個人），一起寫
 async function syncSingleRelation(nid: string, props: any) {
-  const type = sel(props["經營類型"]);
-  const objectType = sel(props["對象選項"]);
+  const category = sel(props["經營類型"]);           // 觀點 / 標籤 / 紀錄
+  const relation = sel(props["關係選項"]);           // 個人 / 合作夥伴 / 工作團隊（原「對象選項」2026/04/22 改名）
+  const isMember = st(props["會員狀態"]) === "會員";
   const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
 
-  // 根據「經營類型」決定寫入哪張表
-  if (type === "主題標籤") {
-    // 抓觀點正文
+  const results: any[] = [];
+
+  // ── 寫入 topics（經營類型 IN 觀點, 標籤）──
+  if (category === "觀點" || category === "標籤") {
     let content: string | null = null;
     try {
       const pageId = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
@@ -490,79 +505,101 @@ async function syncSingleRelation(nid: string, props: any) {
     const row: Record<string, any> = {
       notion_id: nid,
       name: t(props["經營名稱"]) || "未命名",
-      tag_type: mapStatus(st(props["觀點狀態"]), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
+      tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: tx(props["簡介摘要"]),
-      region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
+      region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
       status,
     };
     if (content) row.content = content;
 
-    if (status === null) return { table: "topics", title: row.name, status: null, skipped: true };
-    const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
-    if (error) throw new Error(`topics upsert: ${error.message}`);
-    // 回寫在主函式統一處理（非阻塞）
-    return { table: "topics", title: row.name, status, hasContent: !!content };
+    if (status !== null) {
+      const { error } = await supabase.from("topics").upsert(row, { onConflict: "notion_id" });
+      if (error) throw new Error(`topics upsert: ${error.message}`);
+      results.push({ table: "topics", title: row.name, status, hasContent: !!content });
+    } else {
+      results.push({ table: "topics", title: row.name, status: null, skipped: true });
+    }
   }
 
-  if (type === "連結對象") {
-    // 合作單位 → partners
-    if (objectType === "合作夥伴") {
+  // ── 寫入 members + persons/partners/staff（需 會員狀態=會員）──
+  if (isMember) {
+    const name = t(props["經營名稱"]) || "未命名";
+    const email = tx(props["Email"]);
+
+    // members（email 為主鍵，無 email 則跳過）
+    if (email) {
+      const memberRow = {
+        email,
+        name,
+        phone: tx(props["電話"]),
+        line_uid: tx(props["LINE_UID"]),
+        member_type: relation,
+      };
+      const { error } = await supabase.from("members").upsert(memberRow, { onConflict: "email" });
+      if (error) console.warn(`members upsert: ${error.message}`);
+      else results.push({ table: "members", title: name, email });
+    }
+
+    // partners / staff / persons（依 關係選項）
+    if (relation === "合作夥伴") {
       const row = {
         notion_id: nid,
         type: sel(props["單位選項"]) || "民間單位",
-        name: t(props["經營名稱"]) || "未命名",
+        name,
         contact: {
-          email: tx(props["Email"]),
+          email,
           phone: tx(props["電話"]),
           address: tx(props["地址"]),
           contactPerson: tx(props["聯絡人"]),
         },
         status,
       };
-      if (status === null) return { table: "partners", title: row.name, status: null, skipped: true };
-      const { error } = await supabase.from("partners").upsert(row, { onConflict: "notion_id" });
-      if (error) throw new Error(`partners upsert: ${error.message}`);
-      return { table: "partners", title: row.name, status };
-    }
-
-    // 工作團隊 → staff
-    if (objectType === "工作團隊") {
+      if (status !== null) {
+        const { error } = await supabase.from("partners").upsert(row, { onConflict: "notion_id" });
+        if (error) throw new Error(`partners upsert: ${error.message}`);
+        results.push({ table: "partners", title: name, status });
+      }
+    } else if (relation === "工作團隊") {
       const row = {
         notion_id: nid,
-        name: t(props["經營名稱"]) || "未命名",
+        name,
         role: sel(props["職級細項"]),
       };
       const { error } = await supabase.from("staff").upsert(row, { onConflict: "notion_id" });
       if (error) throw new Error(`staff upsert: ${error.message}`);
-      return { table: "staff", title: row.name, status: "active" };
+      results.push({ table: "staff", title: name, status: "active" });
+    } else if (relation === "個人") {
+      const row = {
+        notion_id: nid,
+        type: relation,
+        name,
+        bio: tx(props["簡介摘要"]),
+        contact: {
+          email,
+          phone: tx(props["電話"]),
+          address: tx(props["地址"]),
+          contactPerson: tx(props["聯絡人"]),
+        },
+        links: {
+          fb: url(props["FB粉專"]),
+          ig: url(props["IG粉專"]),
+          website: url(props["官網ID"]),
+        },
+        status,
+      };
+      if (status !== null) {
+        const { error } = await supabase.from("persons").upsert(row, { onConflict: "notion_id" });
+        if (error) throw new Error(`persons upsert: ${error.message}`);
+        results.push({ table: "persons", title: name, status });
+      }
     }
-
-    // 其他連結對象 → persons
-    const row = {
-      notion_id: nid,
-      type: objectType || "個人",
-      name: t(props["經營名稱"]) || "未命名",
-      bio: tx(props["簡介摘要"]),
-      contact: {
-        email: tx(props["Email"]),
-        phone: tx(props["電話"]),
-        address: tx(props["地址"]),
-        contactPerson: tx(props["聯絡人"]),
-      },
-      links: {
-        fb: url(props["FB粉專"]),
-        ig: url(props["IG粉專"]),
-        website: url(props["網路連結"]),
-      },
-      status,
-    };
-    if (status === null) return { table: "persons", title: row.name, status: null, skipped: true };
-    const { error } = await supabase.from("persons").upsert(row, { onConflict: "notion_id" });
-    if (error) throw new Error(`persons upsert: ${error.message}`);
-    return { table: "persons", title: row.name, status };
   }
 
-  return { table: "unknown", note: `經營類型=${type}, 對象選項=${objectType}，無對應同步邏輯`, nid };
+  if (results.length === 0) {
+    return { table: "unknown", note: `經營類型=${category}, 關係選項=${relation}, 會員狀態=${isMember ? "會員" : "非會員"}，無對應同步邏輯`, nid };
+  }
+  // 返回第一筆結果（向下相容），並在 note 裡列出所有寫入的表
+  return results.length === 1 ? results[0] : { ...results[0], also: results.slice(1).map(r => r.table) };
 }
 
 // ── 背景翻譯觸發 ──

@@ -147,7 +147,7 @@ async function syncEvents() {
           theme: extractSelect(props["活動類型"]?.select) || null,
           event_type: extractSelect(props["活動類型"]?.select) || null,
           event_date: dateInfo.start || null,
-          price: extractNumber(props["實際單價"]?.number) || extractNumber(props["預計單價"]?.number) || 0,
+          price: extractNumber(props["單價"]?.number) || 0,
           capacity: extractNumber(props["數量上限"]?.number) || null,
           cover_url: fileUrl(props["上傳檔案"]) || null,
           description: extractText(props["簡介摘要"]?.rich_text) || null,
@@ -179,7 +179,7 @@ async function syncArticles() {
 
   let totalUpserted = 0, totalErrors = 0;
 
-  const total = await queryAndProcess(DB.DB05, { property: "表單類型", select: { equals: "圖文影音" } },
+  const total = await queryAndProcess(DB.DB05, { property: "文案細項", select: { equals: "官網內容" } },
     async (pages) => {
       const rows = pages.map(page => {
         const props = p(page);

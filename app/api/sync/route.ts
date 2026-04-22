@@ -76,12 +76,15 @@ function fileUrls(prop: any): string[] {
 }
 
 /**
- * 狀態映射：只有「已發佈」才 active/published，「待發佈」= draft
- * 無發佈 / 空值 → 回傳 null（不同步到 Supabase）
+ * 狀態映射：
+ * 「已發佈」「待發佈」→ active/published（上架）
+ * 「無發佈」「不發佈」→ "draft"（下架，仍寫入 Supabase 讓官網不顯示）
+ * 空值（從未設定）→ null（不同步）
  */
 function ms(val: string | null, map: Record<string, string>): string | null {
-  if (!val || val === "無發佈" || val === "不發佈") return null; // 不同步
-  return map[val] || "draft"; // 待發佈等 → draft
+  if (!val) return null; // 從未設定，不同步
+  if (val === "無發佈" || val === "不發佈") return "draft"; // 下架
+  return map[val] || "draft";
 }
 
 const SITE_URL = "https://makesense.ink";
@@ -189,14 +192,34 @@ async function lookup(table: string, notionIds: string[]): Promise<Record<string
   return m;
 }
 
-// ── DB08 → persons ──
+// ── 舊資料清理：刪除 Supabase 中不在新 sync set 裡的殘留 ──
+async function cleanupStaleByNotionId(tableName: string, keepNotionIds: string[]) {
+  if (keepNotionIds.length === 0) return;
+  // Postgres 用 NOT IN 做排除（keepNotionIds 每批上限 1000 筆還安全）
+  const { error, count } = await supabase
+    .from(tableName)
+    .delete({ count: "exact" })
+    .not("notion_id", "in", `(${keepNotionIds.map(id => `"${id}"`).join(",")})`);
+  if (error) {
+    console.warn(`[sync] cleanup ${tableName} failed:`, error.message);
+  } else if (count && count > 0) {
+    console.log(`[sync] cleanup ${tableName}: removed ${count} stale rows`);
+  }
+}
+
+// ── DB08 → persons（會員狀態=會員 AND 關係選項=個人） ──
 async function syncPersons() {
-  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, { property: "經營類型", select: { equals: "連結對象" } });
+  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
+    and: [
+      { property: "會員狀態", status: { equals: "會員" } },
+      { property: "關係選項", select: { equals: "個人" } },
+    ],
+  });
   const rows = pages.map(page => {
     const props = p(page);
     return {
       notion_id: nid(page),
-      type: extractSelect(props["對象選項"]?.select) || "個人",
+      type: extractSelect(props["關係選項"]?.select) || "個人",
       name: extractTitle(props["經營名稱"]?.title) || "未命名",
       bio: extractText(props["簡介摘要"]?.rich_text) || null,
       contact: {
@@ -208,39 +231,49 @@ async function syncPersons() {
       links: {
         fb: extractUrl(props["FB粉專"]?.url) || null,
         ig: extractUrl(props["IG粉專"]?.url) || null,
-        website: extractUrl(props["網路連結"]?.url) || null,
+        website: extractUrl(props["官網ID"]?.url) || null,
       },
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
-  return batchUpsert("persons", validRows, "notion_id");
+  const result = await batchUpsert("persons", validRows, "notion_id");
+  await cleanupStaleByNotionId("persons", validRows.map(r => r.notion_id));
+  return result;
 }
 
-// ── DB08 → topics ──
+// ── DB08 → topics（經營類型 IN 觀點, 標籤） ──
 async function syncTopics() {
-  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, { property: "經營類型", select: { equals: "主題標籤" } });
+  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
+    or: [
+      { property: "經營類型", select: { equals: "觀點" } },
+      { property: "經營類型", select: { equals: "標籤" } },
+    ],
+  });
   const rows = pages.map(page => {
     const props = p(page);
+    const category = extractSelect(props["經營類型"]?.select);
     return {
       notion_id: nid(page),
       name: extractTitle(props["經營名稱"]?.title) || "未命名",
-      tag_type: ms(extractStatus(props["觀點狀態"]?.status), { "標籤": "tag", "觀點": "viewpoint" }) || "tag",
+      tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
-      region: extractMultiSelect(props["觀點區域"]?.multi_select) || [],
-      status: ms(extractStatus(props["觀點專頁"]?.status) || extractStatus(props["觀點狀態"]?.status), { "已發佈": "active", "已完成": "active" }),
+      region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
-  return batchUpsert("topics", validRows, "notion_id");
+  const result = await batchUpsert("topics", validRows, "notion_id");
+  await cleanupStaleByNotionId("topics", validRows.map(r => r.notion_id));
+  return result;
 }
 
-// ── DB08 → partners ──
+// ── DB08 → partners（會員狀態=會員 AND 關係選項=合作夥伴） ──
 async function syncPartners() {
   const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
     and: [
-      { property: "經營類型", select: { equals: "連結對象" } },
-      { property: "對象選項", select: { equals: "合作夥伴" } },
+      { property: "會員狀態", status: { equals: "會員" } },
+      { property: "關係選項", select: { equals: "合作夥伴" } },
     ],
   });
   const rows = pages.map(page => {
@@ -259,10 +292,12 @@ async function syncPartners() {
     };
   });
   const validRows = rows.filter(r => r.status !== null);
-  return batchUpsert("partners", validRows, "notion_id");
+  const result = await batchUpsert("partners", validRows, "notion_id");
+  await cleanupStaleByNotionId("partners", validRows.map(r => r.notion_id));
+  return result;
 }
 
-// ── DB08 → members ──
+// ── DB08 → members（會員狀態=會員，email 為主鍵） ──
 async function syncMembers() {
   const pages = await queryDatabase(DB.DB08_RELATIONSHIP, { property: "會員狀態", status: { equals: "會員" } });
   const rows = pages
@@ -275,16 +310,22 @@ async function syncMembers() {
         name: extractTitle(props["經營名稱"]?.title) || null,
         phone: extractText(props["電話"]?.rich_text) || null,
         line_uid: extractText(props["LINE_UID"]?.rich_text) || null,
-        member_type: extractSelect(props["對象選項"]?.select) || null,
+        member_type: extractSelect(props["關係選項"]?.select) || null,
       };
     })
     .filter(Boolean) as Record<string, any>[];
   return batchUpsert("members", rows, "email");
+  // NOTE: members 以 email 為主鍵、可能有手動建立的（訪客下單），不做 cleanup
 }
 
-// ── DB08 → staff ──
+// ── DB08 → staff（會員狀態=會員 AND 關係選項=工作團隊） ──
 async function syncStaff() {
-  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, { property: "對象選項", select: { equals: "工作團隊" } });
+  const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
+    and: [
+      { property: "會員狀態", status: { equals: "會員" } },
+      { property: "關係選項", select: { equals: "工作團隊" } },
+    ],
+  });
   const rows = pages.map(page => {
     const props = p(page);
     return {
@@ -293,7 +334,9 @@ async function syncStaff() {
       role: extractSelect(props["職級細項"]?.select) || null,
     };
   });
-  return batchUpsert("staff", rows, "notion_id");
+  const result = await batchUpsert("staff", rows, "notion_id");
+  await cleanupStaleByNotionId("staff", rows.map(r => r.notion_id));
+  return result;
 }
 
 // ── DB07 → products ──
@@ -395,7 +438,7 @@ async function syncEvents(wb = false) {
       theme: extractSelect(props["活動類型"]?.select) || null,
       event_type: extractSelect(props["活動類型"]?.select) || null,
       event_date: dateInfo.start || null,
-      price: extractNumber(props["實際單價"]?.number) || extractNumber(props["預計單價"]?.number) || 0,
+      price: extractNumber(props["單價"]?.number) || 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       description: extractText(props["簡介摘要"]?.rich_text) || null,
@@ -422,7 +465,7 @@ async function syncEvents(wb = false) {
 
 // ── DB05 → articles ──
 async function syncArticles(wb = false) {
-  const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "表單類型", select: { equals: "圖文影音" } });
+  const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案細項", select: { equals: "官網內容" } });
 
   const eIds: string[] = [];
   for (const page of pages) { eIds.push(...extractRelation(p(page)["對應協作"]?.relation)); }

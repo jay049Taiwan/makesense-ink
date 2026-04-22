@@ -37,12 +37,14 @@ export async function GET() {
     id: page.id,
     name:    extractTitle(props["經營名稱"]?.title),
     email:   extractText(props["Email"]?.rich_text),
-    phone:   extractText(props["聯繫電話"]?.rich_text) || extractText(props["電話"]?.rich_text),
+    phone:   extractText(props["電話"]?.rich_text),  // 2026/04/17：原「聯繫電話」不存在，改用「電話」
     summary: extractText(props["簡介摘要"]?.rich_text),
-    role:    extractSelect(props["對象選項"]?.select) || "一般會員",
+    role:    extractSelect(props["關係選項"]?.select) || "一般會員",
     lineUid: extractText(props["LINE_UID"]?.rich_text),
-    notifyLine:  (props["通知_LINE"]?.checkbox) ?? true,
-    notifyEmail: (props["通知_Email"]?.checkbox) ?? true,
+    // 通知設定預設值（DB08 目前無 通知_LINE / 通知_Email checkbox 欄位，需新增後才能個別關閉）
+    // TODO: 在 DB08 建立 checkbox 欄位「通知_LINE」「通知_Email」後改讀取 props["通知_LINE"]?.checkbox
+    notifyLine:  true,
+    notifyEmail: true,
   });
 }
 
@@ -55,19 +57,16 @@ export async function PATCH(req: Request) {
   const page = await getNotionPage(email);
   if (!page) return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
 
-  const { name, phone, summary, notifyLine, notifyEmail } = await req.json() as any;
+  const { name, phone, summary } = await req.json() as any;
+  // notifyLine / notifyEmail 目前 DB08 無對應 checkbox 欄位，忽略寫入（見 GET handler 的 TODO）
 
   const properties: Record<string, any> = {};
   if (name !== undefined)
     properties["經營名稱"] = { title: [{ text: { content: String(name) } }] };
   if (phone !== undefined)
-    properties["聯繫電話"] = { rich_text: [{ text: { content: String(phone) } }] };
+    properties["電話"] = { rich_text: [{ text: { content: String(phone) } }] };  // 2026/04/17：原「聯繫電話」不存在
   if (summary !== undefined)
     properties["簡介摘要"] = { rich_text: [{ text: { content: String(summary) } }] };
-  if (notifyLine !== undefined)
-    properties["通知_LINE"] = { checkbox: Boolean(notifyLine) };
-  if (notifyEmail !== undefined)
-    properties["通知_Email"] = { checkbox: Boolean(notifyEmail) };
 
   await updatePage(page.id, properties);
   return NextResponse.json({ ok: true });
