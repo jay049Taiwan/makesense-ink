@@ -481,7 +481,11 @@ async function syncArticles(wb = false) {
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
-      web_tag: extractMultiSelect(props["官網備項"]?.multi_select) || null,  // 2026/04/22 新增
+      // 2026/04/22：官網備項是 select（單值），包成 text[] 儲存以便未來擴展
+      web_tag: (() => {
+        const v = extractSelect(props["官網備項"]?.select);
+        return v ? [v] : null;
+      })(),
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "published" }),
       published_at: dateInfo.start || null,
     };
