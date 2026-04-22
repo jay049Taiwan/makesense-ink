@@ -3,6 +3,7 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { createPage, DB } from "@/lib/notion";
 import { fetchPersonByEmail } from "@/lib/fetch-all";
 import { auth } from "@/lib/auth";
+import { normalizeEmail } from "@/lib/email";
 
 // 把 32 hex（無 dash）Notion ID 轉成 UUID 8-4-4-4-12（relation 必須帶 dash）
 function toDashedNotionId(id: string | null | undefined): string | null {
@@ -96,8 +97,8 @@ export async function POST(req: NextRequest) {
     //    避免 client 沒傳 memberEmail 時，訂單變匿名（member_id=null）
     let memberId: string | null = null;
     const session = await auth();
-    const sessionEmail = session?.user?.email?.toLowerCase().trim() || null;
-    const email = (sessionEmail || memberEmail || contact.email || "").toLowerCase().trim() || null;
+    const sessionEmail = normalizeEmail(session?.user?.email) || null;
+    const email = normalizeEmail(sessionEmail || memberEmail || contact.email) || null;
     if (email) {
       // maybeSingle() 0 筆時回 null 不報錯；比 single() 安全
       const { data: existingMember } = await supabase
@@ -108,6 +109,13 @@ export async function POST(req: NextRequest) {
 
       if (existingMember) {
         memberId = existingMember.id;
+        // 結帳時順手回寫 name/phone（下次 placeholder 會用新的）
+        const memberUpdates: Record<string, any> = {};
+        if (contact.name && contact.name.trim()) memberUpdates.name = contact.name.trim();
+        if (contact.phone && contact.phone.trim()) memberUpdates.phone = contact.phone.trim();
+        if (Object.keys(memberUpdates).length > 0) {
+          await supabase.from("members").update(memberUpdates).eq("id", memberId);
+        }
       } else {
         const { data: newMember, error: memberError } = await supabase
           .from("members")
@@ -254,17 +262,20 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6. 非同步推播 LINE 訂單確認（不阻擋回應）
+    // 6. 推播 LINE 訂單確認（await 以免 serverless 終止）
     if (memberId) {
-      import("@/lib/line-notifications").then(({ notifyOrderCreated }) =>
-        notifyOrderCreated(
+      try {
+        const { notifyOrderCreated } = await import("@/lib/line-notifications");
+        await notifyOrderCreated(
           order.id,
-          memberId!,
+          memberId,
           items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
           total,
           hasTickets
-        ).catch((e) => console.warn("[checkout] LINE notify failed:", e.message))
-      ).catch(() => {});
+        );
+      } catch (e: any) {
+        console.warn("[checkout] LINE notify failed:", e?.message);
+      }
     }
 
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
@@ -279,7 +290,9 @@ export async function POST(req: NextRequest) {
       // 7-1. 先為每個 item 建 DB06 明細
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
-        const productNotionDashed = toDashedNotionId(productInfo?.notion_id);
+        // productInfo 可能為 null（票券類商品常沒在 Supabase products），
+        // 此時 fallback 回 item.productId（前端帶來的 DB07 notion_id）
+        const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
 
         const db06Props: Record<string, any> = {
           "明細名稱": { title: [{ text: { content: item.name } }] },
