@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { createPage, DB } from "@/lib/notion";
 import { fetchPersonByEmail } from "@/lib/fetch-all";
+import { auth } from "@/lib/auth";
 
 // 把 32 hex（無 dash）Notion ID 轉成 UUID 8-4-4-4-12（relation 必須帶 dash）
 function toDashedNotionId(id: string | null | undefined): string | null {
@@ -91,15 +92,19 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "購物車是空的" }, { status: 400 });
     }
 
-    // 1. 找或建會員
+    // 1. 找或建會員（優先用 server-side session email → memberEmail → contact.email）
+    //    避免 client 沒傳 memberEmail 時，訂單變匿名（member_id=null）
     let memberId: string | null = null;
-    const email = memberEmail || contact.email;
+    const session = await auth();
+    const sessionEmail = session?.user?.email?.toLowerCase().trim() || null;
+    const email = (sessionEmail || memberEmail || contact.email || "").toLowerCase().trim() || null;
     if (email) {
+      // maybeSingle() 0 筆時回 null 不報錯；比 single() 安全
       const { data: existingMember } = await supabase
         .from("members")
         .select("id")
         .eq("email", email)
-        .single();
+        .maybeSingle();
 
       if (existingMember) {
         memberId = existingMember.id;
@@ -263,14 +268,13 @@ export async function POST(req: NextRequest) {
     }
 
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
-    //    規格：
-    //      DB05 → 表單類型=報名登記、登記選項=紀錄庫存、庫存細項=出貨、對應明細→DB06、建立日期
-    //      DB06 → 明細類型=庫存紀錄、數量、單價、對應庫存→DB07
+    //    欄位名已對照 Notion live schema 確認：
+    //      DB05: 表單名稱(title), 表單類型=報名登記, 登記選項=紀錄庫存, 庫存細項=出貨, 對應明細→DB06
+    //      DB06: 明細名稱(title), 明細類型=庫存紀錄, 登記數量, 登記單價, 對應庫存→DB07
     //    fire-and-forget：失敗不影響結帳回應
     (async () => {
       try {
         const orderNumber = order.id.slice(0, 8);
-        const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
 
         // 7-1. 先為每個 item 建 DB06 明細
         const db06PageIds: string[] = [];
@@ -280,8 +284,8 @@ export async function POST(req: NextRequest) {
           const db06Props: Record<string, any> = {
             "明細名稱": { title: [{ text: { content: item.name } }] },
             "明細類型": { select: { name: "庫存紀錄" } },
-            "數量": { number: item.qty },
-            "單價": { number: item.price },
+            "登記數量": { number: item.qty },
+            "登記單價": { number: item.price },
           };
           if (productNotionDashed) {
             db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
@@ -301,7 +305,6 @@ export async function POST(req: NextRequest) {
           "表單類型": { select: { name: "報名登記" } },
           "登記選項": { select: { name: "紀錄庫存" } },
           "庫存細項": { select: { name: "出貨" } },
-          "建立日期": { date: { start: today } },
         };
         if (db06PageIds.length > 0) {
           db05Props["對應明細"] = { relation: db06PageIds.map((id) => ({ id })) };
