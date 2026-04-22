@@ -28,7 +28,7 @@ export async function POST(request: NextRequest) {
 
     // Create entry in Notion DB05
     const page = await createPage(DB.DB05_REGISTRATION, {
-      "明細名稱": {
+      "表單名稱": {
         title: [{ text: { content: `空間預約：${body.venue} - ${body.date} ${body.timeSlot}` } }],
       },
       "明細內容": {

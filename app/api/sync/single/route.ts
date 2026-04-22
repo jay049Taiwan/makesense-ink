@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getPage, getPageContent, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { translateRow } from "@/lib/translate";
+import { processAdmission } from "@/lib/admission-notify";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink").trim();
 
@@ -184,14 +185,37 @@ async function syncSingleEvent(nid: string, props: any) {
   const locationName = locRels[0] ? await lookupPersonName(locRels[0]) : null;
   const guideName = guideRels[0] ? await lookupPersonName(guideRels[0]) : null;
 
+  // 對應庫存 relation → DB07 票券（每個都是一種票種）
+  const ticketRels = rel(props["對應庫存"]);
+  const tickets = (await Promise.all(
+    ticketRels.map(async (pid) => {
+      try {
+        const page: any = await getPage(pid);
+        const name = t(page.properties["庫存名稱"]) || "";
+        const price = num(page.properties["庫存售價"]) ?? 0;
+        if (!name) return null;
+        // notion_id 去 dash 存 32 字元（跟 products.notion_id 同格式）
+        const notionId = String(page.id).replace(/-/g, "");
+        return { name, price: String(price), notion_id: notionId };
+      } catch { return null; }
+    })
+  )).filter((x): x is { name: string; price: string; notion_id: string } => x !== null);
+
+  // 基本票價 = 最低票種價；沒票種就看 DB04 單價 fallback
+  const basePrice = tickets.length > 0
+    ? Math.min(...tickets.map(t => Number(t.price) || 0))
+    : (num(props["單價"]) || 0);
+
   const row = {
     notion_id: nid,
     title: tx(props["主題名稱"]) || t(props["交接名稱"]) || "未命名活動",
     theme: sel(props["活動類型"]),
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
-    price: num(props["單價"]) || 0,
+    price: basePrice,
+    tickets,
     capacity: num(props["數量上限"]),
+    min_capacity: num(props["最低數量"]),
     cover_url: fileUrl(props["上傳檔案"]),
     description: tx(props["簡介摘要"]),
     location: locationName,
@@ -205,7 +229,7 @@ async function syncSingleEvent(nid: string, props: any) {
   return { table: "events", title: row.title, status: row.status };
 }
 
-// ── DB05 分流：文章 or 庫存批次 ──
+// ── DB05 分流：文章 / 庫存批次 / 報名登記通知 ──
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["表單類型"]);
   const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點（2026/04/22 改為用庫存選項判斷）
@@ -216,6 +240,11 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncStockBatch(nid, props);
   }
 
+  // 報名登記（官網結帳訂單）：按「發佈更新」時檢查錄取狀態 → 推 LINE + 對衝
+  if (formType === "報名登記") {
+    return await syncSingleRegistration(nid, props);
+  }
+
   // 官網文章：文案細項=官網內容
   if (copyDetail === "官網內容") {
     return await syncSingleArticle(nid, props);
@@ -223,6 +252,77 @@ async function syncSingleDB05(nid: string, props: any) {
 
   // 其他類型不同步為文章
   return { table: "db05", note: `非官網內容（表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
+}
+
+// ── DB05 報名登記 → LINE 錄取/未錄取通知 + DB06 對衝 ──
+async function syncSingleRegistration(nid: string, props: any) {
+  const admissionStatus = st(props["錄取狀態"]);  // status 欄位：錄取 / 未錄取 / 無關錄取
+
+  // 對應 accepted/rejected；其他值（無關錄取、空）跳過
+  let result: "accepted" | "rejected" | null = null;
+  if (admissionStatus === "錄取") result = "accepted";
+  else if (admissionStatus === "未錄取") result = "rejected";
+
+  if (!result) {
+    return { table: "registration", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
+  }
+
+  // 從 DB05 title「官網訂單 xxxxxxxx」prefix 找訂單（用於防重複 + 解析 member）
+  const title = t(props["表單名稱"]);
+  const m = title.match(/官網訂單\s+([0-9a-f]{8})/i);
+  if (!m) {
+    return { table: "registration", note: `表單名稱格式不符（${title}），無法對應訂單`, nid, skipped: true };
+  }
+  const prefix = m[1].toLowerCase();
+
+  const { data: order } = await supabase
+    .from("orders")
+    .select("id, member_id, admission_notified_status")
+    .like("id", `${prefix}%`)
+    .maybeSingle();
+
+  if (!order) {
+    return { table: "registration", note: `找不到訂單 ${prefix}`, nid, skipped: true };
+  }
+
+  // 防重複：已通知過相同狀態就跳過
+  if (order.admission_notified_status === admissionStatus) {
+    return {
+      table: "registration",
+      orderId: order.id,
+      admissionStatus,
+      note: "已通知過相同狀態，跳過",
+      nid,
+      skipped: true,
+    };
+  }
+
+  // 走共用流程：推 LINE + 未錄取時建對衝
+  // 把 dashed page id 傳進去（processAdmission 會用它建 DB06 對應表單 relation）
+  const db05PageIdDashed = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+  const outcome = await processAdmission({
+    db05PageId: db05PageIdDashed,
+    result,
+    db05Page: { properties: props },  // 已經讀過 props，避免 processAdmission 再 fetch 一次
+    memberId: order.member_id,
+  });
+
+  // 更新 orders 的已通知狀態（防下次重複觸發）
+  await supabase
+    .from("orders")
+    .update({ admission_notified_status: admissionStatus })
+    .eq("id", order.id);
+
+  return {
+    table: "registration",
+    orderId: order.id,
+    admissionStatus,
+    result,
+    linePushed: outcome.linePushed,
+    offsetCount: outcome.offsetCount,
+    memberId: outcome.memberId,
+    nid,
+  };
 }
 
 // ── DB05 庫存批次（一次更新所有關聯 DB06 的庫存）──

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart, type CartItem } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
@@ -21,6 +21,16 @@ export default function CheckoutPage() {
   const [activeRegIdx, setActiveRegIdx] = useState(0);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [memberDefaults, setMemberDefaults] = useState<{ name: string; phone: string; email: string } | null>(null);
+
+  // 讀登入會員的上次聯絡資訊，用作 placeholder
+  useEffect(() => {
+    fetch("/api/user/profile").then(r => r.ok ? r.json() : null).then(d => {
+      if (d && !d.error) {
+        setMemberDefaults({ name: d.name || "", phone: d.phone || "", email: d.email || "" });
+      }
+    }).catch(() => {});
+  }, []);
 
 
   // 是否含票券（需審核）
@@ -201,10 +211,10 @@ export default function CheckoutPage() {
             <Section title="聯絡資訊">
               <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--color-warm-white)", border: "1px solid var(--color-dust)" }}>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <InputField label="姓名" required name="contact_name" placeholder="王大明" onChange={(v) => setContactName(v)} />
-                  <InputField label="電話" required name="phone" type="tel" placeholder="0912-345-678" onChange={(v) => setContactPhone(v)} />
+                  <InputField label="姓名" required name="contact_name" placeholder={memberDefaults?.name || "王大明"} defaultValue={memberDefaults?.name || ""} onChange={(v) => setContactName(v)} />
+                  <InputField label="電話" required name="phone" type="tel" placeholder={memberDefaults?.phone || "0912-345-678"} defaultValue={memberDefaults?.phone || ""} onChange={(v) => setContactPhone(v)} />
                 </div>
-                <InputField label="Email" required name="email" type="email" placeholder="you@email.com" />
+                <InputField label="Email" required name="email" type="email" placeholder={memberDefaults?.email || "you@email.com"} defaultValue={memberDefaults?.email || ""} />
               </div>
             </Section>
 
@@ -381,8 +391,8 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-function InputField({ label, required, name, type = "text", placeholder, onChange }: {
-  label: string; required?: boolean; name: string; type?: string; placeholder?: string; onChange?: (value: string) => void;
+function InputField({ label, required, name, type = "text", placeholder, defaultValue, onChange }: {
+  label: string; required?: boolean; name: string; type?: string; placeholder?: string; defaultValue?: string; onChange?: (value: string) => void;
 }) {
   return (
     <div>
@@ -390,7 +400,7 @@ function InputField({ label, required, name, type = "text", placeholder, onChang
         {label} {required && <span style={{ color: "#c87060" }}>*</span>}
       </label>
       <input
-        type={type} name={name} required={required} placeholder={placeholder}
+        type={type} name={name} required={required} placeholder={placeholder} defaultValue={defaultValue}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         className="w-full h-9 px-3 rounded-lg text-sm outline-none transition-all"
         style={{ border: "1px solid var(--color-dust)", background: "#fff" }}

@@ -3,6 +3,31 @@ import Google from "next-auth/providers/google";
 import LINE from "next-auth/providers/line";
 import { fetchPersonByEmail, fetchPersonByLineUid, checkIsStaff, checkIsVendor, checkMemberStatus } from "./fetch-all";
 import { createPage, updatePage, DB } from "./notion";
+import { normalizeEmail } from "./email";
+import { supabaseAdmin } from "./supabase";
+
+// 登入時把會員資料 upsert 到 Supabase members（以正規化 email 為鍵）
+async function upsertSupabaseMember(email: string, name: string, lineUid: string | null) {
+  try {
+    const { data: existing } = await supabaseAdmin
+      .from("members")
+      .select("id, name, line_uid")
+      .eq("email", email)
+      .maybeSingle();
+    if (existing) {
+      const updates: Record<string, any> = {};
+      if (lineUid && !existing.line_uid) updates.line_uid = lineUid;
+      if (name && !existing.name) updates.name = name;
+      if (Object.keys(updates).length > 0) {
+        await supabaseAdmin.from("members").update(updates).eq("id", existing.id);
+      }
+    } else {
+      await supabaseAdmin.from("members").insert({ email, name, line_uid: lineUid });
+    }
+  } catch (e) {
+    console.error("upsertSupabaseMember error:", e);
+  }
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   providers: [
@@ -18,20 +43,25 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
 
   callbacks: {
     async signIn({ user, account }) {
-      const email = user.email;
+      const rawEmail = user.email;
+      const email = normalizeEmail(rawEmail);
       const lineUid = account?.provider === "line" ? account.providerAccountId : null;
       const displayName = user.name || email || lineUid || "會員";
 
-      // 有 email → 用 email 比對 DB08
+      // 有 email → 用正規化 email 比對 DB08
       if (email) {
+        // 同步寫入 Supabase members（不阻擋登入）
+        upsertSupabaseMember(email, user.name || "", lineUid).catch(() => {});
+
         const person = await fetchPersonByEmail(email);
         if (!person) {
           try {
             const props: any = {
               "經營名稱": { title: [{ text: { content: displayName } }] },
               "Email": { rich_text: [{ text: { content: email } }] },
+              "會員狀態": { status: { name: "會員" } },
+              "關係選項": { select: { name: "個人" } },
             };
-            // LINE 登入同時存 LINE_UID
             if (lineUid) {
               props["LINE_UID"] = { rich_text: [{ text: { content: lineUid } }] };
             }
@@ -39,14 +69,18 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           } catch (e) {
             console.error("Failed to create DB08 entry:", e);
           }
-        } else if (lineUid) {
-          // 已存在的用戶，補上 LINE_UID
+        } else {
+          // 已存在：確保 會員狀態=會員 + 關係選項=個人（如果為空）+ 補 LINE_UID
           try {
-            await updatePage(person.id, {
-              "LINE_UID": { rich_text: [{ text: { content: lineUid } }] },
-            });
+            const updates: any = {
+              "會員狀態": { status: { name: "會員" } },
+            };
+            if (lineUid) {
+              updates["LINE_UID"] = { rich_text: [{ text: { content: lineUid } }] };
+            }
+            await updatePage(person.id, updates);
           } catch (e) {
-            console.error("Failed to update LINE_UID:", e);
+            console.error("Failed to update DB08 entry:", e);
           }
         }
         return true;
@@ -73,7 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async session({ session }) {
-      const email = session.user?.email;
+      const email = normalizeEmail(session.user?.email);
 
       if (email) {
         // 有 email → 用 email 查角色（staff > vendor > member）

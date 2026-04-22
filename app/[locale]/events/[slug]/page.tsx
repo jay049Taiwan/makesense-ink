@@ -19,8 +19,9 @@ interface EventData {
   content: string;
   keywords: string[];
   routeStops: { name: string; desc: string }[];
-  tickets: { name: string; price: string }[];
+  tickets: { name: string; price: string; notion_id?: string }[];
   addons: { name: string; price: string }[];
+  minCapacity: number | null;
 }
 
 const fallbackEvent: EventData = {
@@ -36,6 +37,7 @@ const fallbackEvent: EventData = {
   routeStops: [],
   tickets: [],
   addons: [],
+  minCapacity: null,
 };
 
 /** Map Supabase event row to EventData */
@@ -76,6 +78,7 @@ function mapEventData(row: any): EventData {
     routeStops,
     tickets,
     addons,
+    minCapacity: row.min_capacity ?? null,
   };
 }
 
@@ -310,21 +313,29 @@ export default function EventPage({
               return (
                 <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
                   <div className="p-4" style={{ background: "var(--color-warm-white)" }}>
+                    {/* 成團門檻 */}
+                    {event.minCapacity != null && event.minCapacity > 0 && (
+                      <div className="mb-3 p-2 rounded text-[0.75em]" style={{ background: "rgba(232,147,90,0.08)", color: "var(--color-rust)", border: "1px solid rgba(232,147,90,0.2)" }}>
+                        ⚠️ 需 {event.minCapacity} 人以上成團，未達將全額退費
+                      </div>
+                    )}
                     {/* 票券 */}
                     {event.tickets.length > 0 && (
                       <>
                         <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>票券</p>
-                        <div className="grid grid-cols-2 gap-2 mb-4">
+                        <div className="flex flex-col gap-2 mb-4">
                           {event.tickets.map((t) => {
                             const q = ticketQtys[t.name] || 0;
                             return (
-                              <div key={t.name} className="rounded-lg p-2 text-center" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                                <p className="text-[0.8em] font-medium" style={{ color: "var(--color-ink)" }}>{t.name}</p>
-                                <p className="text-[0.7em] mb-1.5" style={{ color: "var(--color-rust)" }}>{t.price}</p>
-                                <div className="flex items-center justify-center border rounded mx-auto" style={{ borderColor: "var(--color-dust)", width: "fit-content" }}>
-                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>−</button>
-                                  <span className="w-5 h-6 flex items-center justify-center text-xs">{q}</span>
-                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-6 h-6 text-xs" style={{ color: "var(--color-bark)" }}>+</button>
+                              <div key={t.name} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+                                <div className="flex items-center gap-2 flex-1 min-w-0">
+                                  <span className="text-[0.85em] font-medium truncate" style={{ color: "var(--color-ink)" }}>{t.name}</span>
+                                  <span className="text-[0.8em] whitespace-nowrap" style={{ color: "var(--color-rust)" }}>NT$ {t.price}</span>
+                                </div>
+                                <div className="flex items-center border rounded shrink-0" style={{ borderColor: "var(--color-dust)" }}>
+                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>−</button>
+                                  <span className="w-6 h-7 flex items-center justify-center text-sm">{q}</span>
+                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>+</button>
                                 </div>
                               </div>
                             );
@@ -384,6 +395,7 @@ export default function EventPage({
                                   price: parsePrice(t.price),
                                   qty: q,
                                   eventId: slug,
+                                  productId: t.notion_id,
                                   meta: { date: event.date, guide: event.guide },
                                 });
                               }

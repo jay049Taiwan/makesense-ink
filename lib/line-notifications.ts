@@ -21,10 +21,17 @@ export async function notifyOrderCreated(
 
   if (!member?.line_uid) return; // 沒有 LINE 帳號，跳過
 
-  const message = buildOrderConfirmFlex({ orderId, items, total, hasEvent });
+  // 純文字訊息（Flex 暫時停用，避開 400 錯誤）
+  const itemLines = items.slice(0, 5).map(i => `・${i.name} ×${i.qty}  NT$${i.price}`).join("\n");
+  const moreText = items.length > 5 ? `\n…等共 ${items.length} 件` : "";
+  const statusText = hasEvent ? "【報名受理中】" : "【付款成功】";
+  const textMessage = {
+    type: "text" as const,
+    text: `🧾 訂單確認 ${statusText}\n訂單編號：${orderId.slice(0, 8).toUpperCase()}\n\n${itemLines}${moreText}\n\n合計：NT$ ${total.toLocaleString()}\n\n查看訂單：https://makesense.ink/dashboard`,
+  };
 
   try {
-    await lineClient.pushMessage({ to: member.line_uid, messages: [message] });
+    await lineClient.pushMessage({ to: member.line_uid, messages: [textMessage] });
 
     await supabase.from("line_message_log").insert({
       user_id: member.line_uid,

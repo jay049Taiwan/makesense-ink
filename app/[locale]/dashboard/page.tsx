@@ -1,6 +1,6 @@
 "use client";
 
-import { useSession } from "next-auth/react";
+import { useSession, signIn } from "next-auth/react";
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -17,9 +17,84 @@ function MemberOverview() {
   const devRole = useDevRole();
   const isDev = process.env.NODE_ENV === "development";
   const displayName = isDev ? devRole.displayName : ((session as any)?.displayName || session?.user?.name || "會員");
-  const email = isDev ? devRole.email : (session?.user?.email || "—");
-  const phone = isDev ? devRole.phone : "—";
-  const lineConnected = isDev ? devRole.lineConnected : false;
+  const [profileEmail, setProfileEmail] = useState<string>("");
+  const [profilePhone, setProfilePhone] = useState<string>("");
+  const [profileLineConnected, setProfileLineConnected] = useState<boolean>(false);
+  const [editingPhone, setEditingPhone] = useState(false);
+  const [phoneDraft, setPhoneDraft] = useState("");
+  const [bindMsg, setBindMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const code = params.get("line_bind");
+    const MSG: Record<string, { type: "success" | "error"; text: string }> = {
+      success: { type: "success", text: "LINE 帳號已綁定" },
+      missing_params: { type: "error", text: "LINE 授權回傳資料不完整" },
+      invalid_state: { type: "error", text: "授權逾時或被竄改" },
+      no_email: { type: "error", text: "找不到登入 email" },
+      token_failed: { type: "error", text: "LINE 授權失敗" },
+      profile_failed: { type: "error", text: "讀取 LINE 個人資料失敗" },
+      already_bound: { type: "error", text: "此 LINE 帳號已綁給別的會員" },
+      save_failed: { type: "error", text: "存入資料失敗" },
+    };
+    if (code && MSG[code]) {
+      setBindMsg(MSG[code]);
+      window.history.replaceState({}, "", window.location.pathname);
+      setTimeout(() => setBindMsg(null), 5000);
+    }
+  }, []);
+  const email = isDev ? devRole.email : (profileEmail || session?.user?.email || "—");
+  const phone = isDev ? devRole.phone : (profilePhone || "—");
+  const lineConnected = isDev ? devRole.lineConnected : profileLineConnected;
+
+  // 從 /api/user/profile 讀真實資料
+  useEffect(() => {
+    if (isDev) return;
+    fetch("/api/user/profile").then(r => r.ok ? r.json() : null).then(d => {
+      if (d && !d.error) {
+        setProfileEmail(d.email || "");
+        setProfilePhone(d.phone || "");
+        setProfileLineConnected(!!d.lineUid);
+      }
+    }).catch(() => {});
+  }, [isDev]);
+
+  // 三顆編輯按鈕的處理
+  const handleEmailRebind = () => {
+    if (!confirm("帳號已綁定 Google。是否要重新綁定（用另一個 Google 帳號登入）？")) return;
+    signIn("google", { callbackUrl: "/dashboard" });
+  };
+  const handleLineBind = () => {
+    if (profileLineConnected && !confirm("LINE 帳號已綁定，是否要重新綁定？")) return;
+    window.location.href = "/api/user/link-line/start";
+  };
+  const handlePhoneEdit = () => {
+    setPhoneDraft(profilePhone || "");
+    setEditingPhone(true);
+  };
+  const [savingPhone, setSavingPhone] = useState(false);
+  const handlePhoneSave = async () => {
+    const next = phoneDraft.trim();
+    setSavingPhone(true);
+    try {
+      const res = await fetch("/api/user/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ phone: next }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.ok) {
+        setProfilePhone(next);
+        setEditingPhone(false);
+      } else {
+        alert(`儲存失敗：${data.error || `HTTP ${res.status}`}`);
+      }
+    } catch (err: any) {
+      alert(`儲存失敗：${err?.message || "網路錯誤"}`);
+    } finally {
+      setSavingPhone(false);
+    }
+  };
   const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
 
   const [purchases, setPurchases] = useState<any[]>([]);
@@ -120,6 +195,13 @@ function MemberOverview() {
 
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+      {/* ── 綁定訊息 toast ── */}
+      {bindMsg && (
+        <div className="rounded-lg px-4 py-2 mb-3 text-sm" style={{ background: bindMsg.type === "success" ? "#d1f5e0" : "#fde2e2", color: bindMsg.type === "success" ? "#0f5132" : "#842029" }}>
+          {bindMsg.text}
+        </div>
+      )}
+
       {/* ── 問候列 ── */}
       <div className="rounded-xl p-5" style={{ background: "#1a1a2e", color: "#fff" }}>
         <p className="text-xl font-bold mb-2">
@@ -132,7 +214,7 @@ function MemberOverview() {
             const shortId = displayId.slice(0, 8).toUpperCase();
             return (
               <span className="flex items-center gap-1.5">
-                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>🎫</span>
+                <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>會員編號</span>
                 <span style={{ fontFamily: "monospace", letterSpacing: "0.05em", color: "#fff", fontSize: 13 }}>{shortId}</span>
                 <button onClick={() => setShowQR(true)} title="顯示 QR Code" style={{ background: "none", border: "1px solid rgba(255,255,255,0.25)", cursor: "pointer", padding: "2px 8px", borderRadius: 4, color: "rgba(255,255,255,0.6)", fontSize: 11 }}>
                   QR
@@ -141,13 +223,48 @@ function MemberOverview() {
             );
           })()}
           <Divider />
-          <span className="flex items-center gap-1">📧 {email}<EditIcon /></span>
+          <span className="flex items-center gap-1">
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>會員信箱</span>
+            <span>{email}</span>
+            <EditIconButton onClick={handleEmailRebind} title="重新綁定 Email（Google）" />
+          </span>
           <Divider />
-          <span className="flex items-center gap-1">💬 {lineConnected ? "LINE 已綁定" : "LINE 未綁定"}<EditIcon /></span>
+          <span className="flex items-center gap-1">
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>LINE帳號</span>
+            <span>{lineConnected ? "已綁定" : "未綁定"}</span>
+            <EditIconButton onClick={handleLineBind} title={lineConnected ? "重新綁定 LINE" : "綁定 LINE"} />
+          </span>
           <Divider />
-          <span className="flex items-center gap-1">📱 {phone}<EditIcon /></span>
+          {editingPhone ? (
+            <span className="flex items-center gap-1">
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>聯繫電話</span>
+              <input
+                type="tel"
+                value={phoneDraft}
+                autoFocus
+                onChange={(e: any) => setPhoneDraft(e.target.value)}
+                onKeyDown={(e: any) => {
+                  if (e.key === "Enter") handlePhoneSave();
+                  if (e.key === "Escape") setEditingPhone(false);
+                }}
+                placeholder="0912-345-678"
+                style={{ background: "rgba(255,255,255,0.1)", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 4, padding: "2px 6px", color: "#fff", fontSize: 13, width: 120 }}
+              />
+              <button type="button" onClick={handlePhoneSave} disabled={savingPhone} style={{ background: "#4ECDC4", border: "none", borderRadius: 4, padding: "2px 8px", color: "#fff", fontSize: 11, cursor: savingPhone ? "wait" : "pointer", opacity: savingPhone ? 0.6 : 1 }}>{savingPhone ? "存中…" : "存"}</button>
+              <button onClick={() => setEditingPhone(false)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 4, padding: "2px 8px", color: "rgba(255,255,255,0.7)", fontSize: 11, cursor: "pointer" }}>取消</button>
+            </span>
+          ) : (
+            <span className="flex items-center gap-1">
+              <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>聯繫電話</span>
+              <span>{phone}</span>
+              <EditIconButton onClick={handlePhoneEdit} title="修改電話" />
+            </span>
+          )}
           <Divider />
-          <span>⭐ 積分 <strong style={{ color: "#ffcc00", fontSize: 16 }}>{stats.points}</strong></span>
+          <span className="flex items-center gap-1">
+            <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>積分</span>
+            <strong style={{ color: "#ffcc00", fontSize: 16 }}>{stats.points}</strong>
+          </span>
         </div>
       </div>
 
@@ -443,13 +560,13 @@ function StarDisplay({ rating }: { rating: number }) {
   );
 }
 
-function EditIcon() {
+function EditIconButton({ onClick, title }: { onClick: () => void; title: string }) {
   return (
-    <Link href="/dashboard/profile" title="編輯">
-      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ cursor: "pointer" }}>
+    <button onClick={onClick} title={title} style={{ background: "none", border: "none", padding: 0, cursor: "pointer", display: "inline-flex" }}>
+      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path d="M17 3a2.83 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z" /><path d="m15 5 4 4" />
       </svg>
-    </Link>
+    </button>
   );
 }
 
