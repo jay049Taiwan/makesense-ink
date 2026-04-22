@@ -15,6 +15,13 @@ function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + "..." : str;
 }
 
+// 取 email @ 之前的 localpart，截斷到最多 10 字
+function emailLocalPart(email: string | null | undefined, max: number = 10) {
+  if (!email) return "";
+  const local = email.split("@")[0] || email;
+  return local.length > max ? local.slice(0, max) + "..." : local;
+}
+
 export default function Header() {
   const t = useTranslations("header");
   const tc = useTranslations("common");
@@ -160,7 +167,7 @@ export default function Header() {
           {isLoggedIn ? (
             <div className="relative group">
               <Link href="/dashboard" className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#b89e7a", textDecoration: "none" }}>
-                {truncate(userEmail || userName || t("member"), 15)}
+                {(userEmail ? emailLocalPart(userEmail) : truncate(userName || "", 10)) || t("member")}你好
               </Link>
               <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-white rounded shadow-lg border py-1 min-w-[120px] z-50">
                 <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>{t("myRecords")}</Link>
