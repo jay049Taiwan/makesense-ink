@@ -20,6 +20,7 @@ import { notifyRegistrationResult } from "@/lib/line-notifications";
  *   - customMessage (optional): 覆寫預設文案
  *   - lineUid     (optional): n8n 若已查好，可直接傳
  *   - memberEmail (optional): fallback 解析 member
+ *   - skipLine    (optional): true 時只做 DB06 對衝，不推 LINE（避免與既有 n8n workflow 重複推播）
  */
 export async function POST(req: NextRequest) {
   try {
@@ -31,6 +32,7 @@ export async function POST(req: NextRequest) {
       customMessage,
       lineUid: inputLineUid,
       memberEmail,
+      skipLine,
     } = body as {
       db05PageId: string;
       result: "accepted" | "rejected";
@@ -38,6 +40,7 @@ export async function POST(req: NextRequest) {
       customMessage?: string;
       lineUid?: string;
       memberEmail?: string;
+      skipLine?: boolean;
     };
 
     if (!db05PageId || !result) {
@@ -121,9 +124,9 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 4. LINE 推播
+    // 4. LINE 推播（skipLine=true 時略過，避免與 n8n workflow 重複推）
     let linePushed = false;
-    if (memberId) {
+    if (!skipLine && memberId) {
       try {
         await notifyRegistrationResult(memberId, eventName, result, customMessage);
         linePushed = true;
