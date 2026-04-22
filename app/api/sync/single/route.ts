@@ -267,7 +267,7 @@ async function syncSingleRegistration(nid: string, props: any) {
     return { table: "registration", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
   }
 
-  // 用 DB05 notion_id 精確匹配訂單（orders.id 是 UUID，LIKE 不適用；改用 notion_db05_id 欄位）
+  // 用 DB05 notion_id 精確匹配訂單（orders.id 是 UUID，.like() 不適用；改用 notion_db05_id 欄位）
   const { data: order } = await supabase
     .from("orders")
     .select("id, member_id, admission_notified_status")
