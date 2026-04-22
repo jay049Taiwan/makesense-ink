@@ -335,6 +335,7 @@ async function syncSingleArticle(nid: string, props: any) {
     title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
+    web_tag: extractMultiSelect(props["官網備項"]?.multi_select) || null,  // 2026/04/22 新增
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "待發佈": "published" }),
     published_at: dateInfo.start || null,
   };

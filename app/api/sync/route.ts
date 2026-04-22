@@ -481,6 +481,7 @@ async function syncArticles(wb = false) {
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
+      web_tag: extractMultiSelect(props["官網備項"]?.multi_select) || null,  // 2026/04/22 新增
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "published" }),
       published_at: dateInfo.start || null,
     };
