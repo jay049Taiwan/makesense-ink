@@ -175,7 +175,7 @@ export default function Header() {
               </div>
             </div>
           ) : (
-            <Link href="/login" className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#4ECDC4", textDecoration: "none" }}>
+            <Link href={`/login?callbackUrl=${encodeURIComponent(pathname || "/")}`} className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#4ECDC4", textDecoration: "none" }}>
               {t("registerLogin")}
             </Link>
           )}
@@ -227,7 +227,7 @@ export default function Header() {
                 <button onClick={() => { setMenuOpen(false); signOut({ callbackUrl: "/" }); }} className="text-left" style={{ color: "#999" }}>{t("logout")}</button>
               </>
             ) : (
-              <Link href="/login" onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>{t("registerLogin")}</Link>
+              <Link href={`/login?callbackUrl=${encodeURIComponent(pathname || "/")}`} onClick={() => setMenuOpen(false)} style={{ color: "#4ECDC4", fontWeight: 500 }}>{t("registerLogin")}</Link>
             )}
           </nav>
         )}
