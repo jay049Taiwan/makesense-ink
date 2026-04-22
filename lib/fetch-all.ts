@@ -58,7 +58,7 @@ export async function fetchPerformance(limit = 10): Promise<PerformanceRecord[]>
     const results = await queryDatabase(DB.DB02_PERFORMANCE, undefined, undefined, limit);
     return results.map((page: any) => ({
       id: page.id,
-      title: extractTitle(page.properties["管考名稱"]?.title || page.properties["績效名稱"]?.title),
+      title: extractTitle(page.properties["管考名稱"]?.title),  // DB02 title = 管考名稱
       status: extractStatus(page.properties["執行狀態"]?.status) || "",
     }));
   } catch (e) { console.error("fetchPerformance error:", e); return []; }
@@ -91,10 +91,10 @@ export async function fetchWorkItems(limit = 20): Promise<WorkItem[]> {
 // ══════════════════════════════════════════
 export interface Registration {
   id: string;
-  title: string;        // 明細名稱
+  title: string;        // 表單名稱（DB05 的 title）
   topicTitle: string;   // 主題名稱
   content: string;      // 明細內容
-  type: string;         // 明細類型
+  type: string;         // 表單類型（DB05 的 select）
   summary: string;      // 簡介摘要
   date: string | null;
   slug: string;
@@ -106,7 +106,7 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "表單類型", select: { equals: "圖文影音" } },
+          { property: "文案細項", select: { equals: "官網內容" } },
         ],
       },
       [{ property: "建立時間", direction: "descending" as const }],
@@ -116,7 +116,7 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["明細名稱"]?.title),
+        title: extractTitle(props["表單名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
         type: extractSelect(props["表單類型"]?.select) || "",
@@ -145,7 +145,7 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["明細名稱"]?.title),
+        title: extractTitle(props["表單名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: "",
         type: extractSelect(props["表單類型"]?.select) || "",
@@ -165,7 +165,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
       {
         and: [
           { property: "表單類型", select: { equals: "報名登記" } },
-          { property: "對應標籤對象", relation: { contains: notionId } },
+          { property: "對應對象", relation: { contains: notionId } },
         ],
       },
       [{ property: "建立時間", direction: "descending" as const }],
@@ -175,7 +175,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["明細名稱"]?.title),
+        title: extractTitle(props["表單名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
         type: extractSelect(props["表單類型"]?.select) || "",
@@ -210,7 +210,7 @@ export async function fetchTransactions(limit = 50): Promise<TransactionItem[]> 
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["明細名稱"]?.title),
+        title: extractTitle(props["明細名稱"]?.title),  // DB06 title 是「明細名稱」
         price: extractNumber(props["登記售價"]?.number) || 0,
         quantity: extractNumber(props["檢查數量"]?.number) || 1,
         date: page.created_time?.substring(0, 10) || null,
@@ -225,7 +225,7 @@ export async function fetchTransactions(limit = 50): Promise<TransactionItem[]> 
 export interface KeywordItem {
   id: string;
   name: string;
-  type: string;        // 標籤選項
+  type: string;        // 經營類型：觀點 / 標籤（DB08，2026/04/22 新選項）
   summary: string;     // 簡介摘要
   slug: string;
 }
@@ -234,7 +234,12 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
-      { property: "標籤選項", select: { equals: "主題標籤" } },
+      {
+        or: [
+          { property: "經營類型", select: { equals: "觀點" } },
+          { property: "經營類型", select: { equals: "標籤" } },
+        ],
+      },
       [{ property: "更新時間", direction: "descending" as const }],
       limit
     );
@@ -243,7 +248,7 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
       return {
         id: page.id,
         name: extractTitle(props["經營名稱"]?.title),
-        type: extractSelect(props["標籤選項"]?.select) || "",
+        type: extractSelect(props["經營類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         slug: page.id.replace(/-/g, ""),
       };
@@ -265,7 +270,7 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
     return {
       id: page.id,
       name: extractTitle(props["經營名稱"]?.title),
-      type: extractSelect(props["標籤選項"]?.select) || "",
+      type: extractSelect(props["經營類型"]?.select) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };
@@ -300,14 +305,14 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
     return {
       id: page.id,
       name: extractTitle(props["經營名稱"]?.title),
-      type: extractSelect(props["標籤選項"]?.select) || "",
+      type: extractSelect(props["經營類型"]?.select) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };
   } catch (e) { console.error("fetchPersonByLineUid error:", e); return null; }
 }
 
-// 判斷是否為合作單位（DB08 對象選項 = 合作單位）
+// 判斷是否為合作夥伴（DB08 會員狀態=會員 AND 關係選項=合作夥伴）
 export async function checkIsVendor(email: string): Promise<boolean> {
   try {
     const results = await queryDatabase(
@@ -315,7 +320,8 @@ export async function checkIsVendor(email: string): Promise<boolean> {
       {
         and: [
           { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
-          { property: "對象選項", select: { equals: "合作單位" } },
+          { property: "會員狀態", status: { equals: "會員" } },
+          { property: "關係選項", select: { equals: "合作夥伴" } },
         ],
       },
       undefined,
@@ -351,13 +357,13 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
       name: extractTitle(props["經營名稱"]?.title),
       email: extractText(props["Email"]?.rich_text),
       since: extractDate(props["建立時間"]?.date) || page.created_time?.substring(0, 10) || "",
-      phone: extractText(props["聯繫電話"]?.rich_text) || extractText(props["電話"]?.rich_text) || "",
+      phone: extractText(props["電話"]?.rich_text) || "",  // 2026/04/17：「聯繫電話」不存在，統一用「電話」
       summary: extractText(props["簡介摘要"]?.rich_text),
     };
   } catch (e) { console.error("fetchVendorProfile error:", e); return null; }
 }
 
-// 判斷是否為工作人員（DB08 對象選項 = 工作團隊）
+// 判斷是否為工作人員（DB08 會員狀態=會員 AND 關係選項=工作團隊）
 export async function checkIsStaff(email: string): Promise<boolean> {
   try {
     const results = await queryDatabase(
@@ -365,7 +371,8 @@ export async function checkIsStaff(email: string): Promise<boolean> {
       {
         and: [
           { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
-          { property: "對象選項", select: { equals: "工作團隊" } },
+          { property: "會員狀態", status: { equals: "會員" } },
+          { property: "關係選項", select: { equals: "工作團隊" } },
         ],
       },
       undefined,

@@ -69,12 +69,12 @@ export interface SBProduct {
   name: string;
   price: number;
   stock: number;
-  category: string;
+  category: string | null;
   description: string | null;
-  images: unknown;
-  author_name: string | null;
-  publisher_name: string | null;
-  status: string;
+  photo: string | null;
+  author: string;
+  publisher: string;
+  slug: string;
 }
 
 /**
@@ -234,11 +234,24 @@ export async function fetchSBAllEvents(limit = 100) {
 // ═══════════════════════════════════════════
 // Articles（文章）from Supabase
 // ═══════════════════════════════════════════
-export async function fetchSBArticles(limit = 10) {
-  const { data, error } = await supabase
+/**
+ * 從 Supabase 撈文章
+ * @param limit 筆數上限
+ * @param webTag 可選：只要特定官網備項標籤（例：「地方通訊」、「關於我們(footer)」）
+ *               傳 null 或不傳 → 所有已發佈文章
+ */
+export async function fetchSBArticles(limit = 10, webTag?: string | null) {
+  let query = supabase
     .from("articles")
-    .select("id, notion_id, title, cover_url, published_at, status")
-    .eq("status", "published")
+    .select("id, notion_id, title, cover_url, published_at, status, web_tag")
+    .eq("status", "published");
+
+  if (webTag) {
+    // web_tag 是 text[]，用 contains 判斷陣列是否包含該值
+    query = query.contains("web_tag", [webTag]);
+  }
+
+  const { data, error } = await query
     .order("published_at", { ascending: false })
     .limit(limit);
 
@@ -249,6 +262,7 @@ export async function fetchSBArticles(limit = 10) {
     cover_url: a.cover_url,
     date: a.published_at,
     slug: a.notion_id || a.id,
+    web_tag: a.web_tag as string[] | null,
   }));
 }
 

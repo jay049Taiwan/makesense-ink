@@ -6,7 +6,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  category: string; // 選書備項 or 選物備項
+  category: string; // 選書細項 / 選物細項 (2026/04/22 改名，原「選書備項」「選物備項」)
   photo: string | null;
   author: string;
   publisher: string;
@@ -14,9 +14,9 @@ export interface Product {
 }
 
 export async function fetchProducts(category: string, limit = 12): Promise<Product[]> {
-  // 書籍刊物 → 選書備項；商品 → 庫存類型
+  // 書籍刊物 → 選書細項；商品 → 庫存類型
   const isBook = category === "書籍刊物" || category === "書籍";
-  const filterProp = isBook ? "選書備項" : "庫存類型";
+  const filterProp = isBook ? "選書細項" : "庫存類型";
   const filterValue = isBook ? "書籍刊物" : "商品";
 
   const results = await queryDatabase(
@@ -52,7 +52,7 @@ export async function fetchProducts(category: string, limit = 12): Promise<Produ
       id: page.id,
       name: extractTitle(props["庫存名稱"]?.title),
       price: extractNumber(props["庫存售價"]?.number) || 0,
-      category: extractSelect(props["選書備項"]?.select) || extractSelect(props["庫存類型"]?.select) || "",
+      category: extractSelect(props["選書細項"]?.select) || extractSelect(props["庫存類型"]?.select) || "",
       photo: photoUrl,
       // relation 欄位優先，fallback 舊版純文字欄位
       author: nameMap[authorId] || extractText(props["登記作者"]?.rich_text),
@@ -90,7 +90,7 @@ export async function fetchActivities(limit = 5): Promise<Activity[]> {
     const props = page.properties;
     return {
       id: page.id,
-      title: extractTitle(props["協作名稱"]?.title),
+      title: extractTitle(props["交接名稱"]?.title),
       date: props["執行時間"]?.date?.start || null,
       endDate: props["執行時間"]?.date?.end || null,
       type: extractSelect(props["活動類型"]?.select) || "",
@@ -111,8 +111,10 @@ export async function fetchKeywords(limit = 12): Promise<Keyword[]> {
   const results = await queryDatabase(
     DB.DB08_RELATIONSHIP,
     {
-      property: "標籤選項",
-      select: { equals: "主題標籤" },
+      or: [
+        { property: "經營類型", select: { equals: "觀點" } },
+        { property: "經營類型", select: { equals: "標籤" } },
+      ],
     },
     [{ property: "更新時間", direction: "descending" as const }],
     limit
@@ -123,7 +125,7 @@ export async function fetchKeywords(limit = 12): Promise<Keyword[]> {
     return {
       id: page.id,
       name: extractTitle(props["經營名稱"]?.title),
-      type: extractSelect(props["標籤選項"]?.select) || "",
+      type: extractSelect(props["經營類型"]?.select) || "",
       slug: page.id.replace(/-/g, ""),
     };
   });

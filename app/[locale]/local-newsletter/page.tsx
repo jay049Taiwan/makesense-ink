@@ -10,7 +10,8 @@ export const metadata: Metadata = {
 export const revalidate = 300;
 
 export default async function LocalNewsletterPage() {
-  const articles = await fetchSBArticles(100);
+  // 2026/04/22：只顯示 Notion DB05「官網備項」含「地方通訊」的文章
+  const articles = await fetchSBArticles(100, "地方通訊");
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
