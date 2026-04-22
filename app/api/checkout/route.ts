@@ -323,7 +323,13 @@ export async function POST(req: NextRequest) {
         db05Props["對應明細"] = { relation: db06PageIds.map((id) => ({ id })) };
       }
 
-      await createPage(DB.DB05_REGISTRATION, db05Props);
+      const db05Page: any = await createPage(DB.DB05_REGISTRATION, db05Props);
+
+      // 回寫 orders.notion_db05_id，方便之後 sync/single 以 notion_id 精確查訂單
+      if (db05Page?.id) {
+        const db05NotionId = String(db05Page.id).replace(/-/g, "");
+        await supabase.from("orders").update({ notion_db05_id: db05NotionId }).eq("id", order.id);
+      }
     } catch (e: any) {
       console.warn("[checkout] Notion writeback failed:", e.message);
     }

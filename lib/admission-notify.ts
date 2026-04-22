@@ -62,16 +62,14 @@ export async function processAdmission(opts: AdmissionNotifyOptions): Promise<Ad
     memberId = data?.id || null;
   }
   if (!memberId) {
-    const m = db05Title.match(/官網訂單\s+([0-9a-f]{8})/i);
-    if (m) {
-      const prefix = m[1].toLowerCase();
-      const { data: order } = await supabase
-        .from("orders")
-        .select("member_id")
-        .like("id", `${prefix}%`)
-        .maybeSingle();
-      if (order?.member_id) memberId = order.member_id;
-    }
+    // 用 DB05 notion_id 精確查 orders（orders.id 是 UUID，.like() 不適用）
+    const cleanNid = db05PageId.replace(/-/g, "");
+    const { data: order } = await supabase
+      .from("orders")
+      .select("member_id")
+      .eq("notion_db05_id", cleanNid)
+      .maybeSingle();
+    if (order?.member_id) memberId = order.member_id;
   }
 
   // 3. 未錄取 → 為每個 DB06 建對衝進貨明細
