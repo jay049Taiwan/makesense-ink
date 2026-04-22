@@ -1,4 +1,5 @@
 import { queryDatabase, getPage, extractTitle, extractText, extractSelect, extractNumber, extractDate, extractStatus, extractRelation, DB } from "./notion";
+import { normalizeEmail } from "./email";
 
 // 批次解析 relation IDs → DB08 經營名稱
 export async function resolveRelationNames(ids: string[]): Promise<Record<string, string>> {
@@ -260,7 +261,7 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
       undefined,
       1
     );
@@ -281,7 +282,7 @@ export async function checkMemberStatus(email: string): Promise<string | null> {
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
       undefined,
       1
     );
@@ -319,7 +320,7 @@ export async function checkIsVendor(email: string): Promise<boolean> {
       DB.DB08_RELATIONSHIP,
       {
         and: [
-          { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+          { property: "Email", rich_text: { equals: normalizeEmail(email) } },
           { property: "會員狀態", status: { equals: "會員" } },
           { property: "關係選項", select: { equals: "合作夥伴" } },
         ],
@@ -345,7 +346,7 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
       undefined,
       1
     );
@@ -370,7 +371,7 @@ export async function checkIsStaff(email: string): Promise<boolean> {
       DB.DB08_RELATIONSHIP,
       {
         and: [
-          { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
+          { property: "Email", rich_text: { equals: normalizeEmail(email) } },
           { property: "會員狀態", status: { equals: "會員" } },
           { property: "關係選項", select: { equals: "工作團隊" } },
         ],

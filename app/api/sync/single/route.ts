@@ -184,14 +184,37 @@ async function syncSingleEvent(nid: string, props: any) {
   const locationName = locRels[0] ? await lookupPersonName(locRels[0]) : null;
   const guideName = guideRels[0] ? await lookupPersonName(guideRels[0]) : null;
 
+  // 對應庫存 relation → DB07 票券（每個都是一種票種）
+  const ticketRels = rel(props["對應庫存"]);
+  const tickets = (await Promise.all(
+    ticketRels.map(async (pid) => {
+      try {
+        const page: any = await getPage(pid);
+        const name = t(page.properties["庫存名稱"]) || "";
+        const price = num(page.properties["庫存售價"]) ?? 0;
+        if (!name) return null;
+        // notion_id 去 dash 存 32 字元（跟 products.notion_id 同格式）
+        const notionId = String(page.id).replace(/-/g, "");
+        return { name, price: String(price), notion_id: notionId };
+      } catch { return null; }
+    })
+  )).filter((x): x is { name: string; price: string; notion_id: string } => x !== null);
+
+  // 基本票價 = 最低票種價；沒票種就看 DB04 單價 fallback
+  const basePrice = tickets.length > 0
+    ? Math.min(...tickets.map(t => Number(t.price) || 0))
+    : (num(props["單價"]) || 0);
+
   const row = {
     notion_id: nid,
     title: tx(props["主題名稱"]) || t(props["交接名稱"]) || "未命名活動",
     theme: sel(props["活動類型"]),
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
-    price: num(props["單價"]) || 0,
+    price: basePrice,
+    tickets,
     capacity: num(props["數量上限"]),
+    min_capacity: num(props["最低數量"]),
     cover_url: fileUrl(props["上傳檔案"]),
     description: tx(props["簡介摘要"]),
     location: locationName,

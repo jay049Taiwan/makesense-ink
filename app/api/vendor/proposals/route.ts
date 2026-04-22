@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
     };
 
     if (type) properties["提案類型"] = { select: { name: type } };
-    if (fileUrl) properties["資料連結"] = { url: fileUrl };
+    if (fileUrl) properties["對應連結"] = { url: fileUrl };  // DB01 url 欄位實際名稱（無「資料連結」）
     if (vendor?.id) properties["對應提案標籤"] = { relation: [{ id: vendor.id }] };
 
     const children: any[] = [];

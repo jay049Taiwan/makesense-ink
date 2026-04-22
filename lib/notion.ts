@@ -72,13 +72,13 @@ export async function getPage(pageId: string) {
   return notion.pages.retrieve({ page_id: pageId });
 }
 
-// Create a page in a database
+// Create a page in a database (新 Notion API：parent 用 data_source_id)
 export async function createPage(
   databaseId: string,
   properties: Record<string, any>
 ) {
   return notion.pages.create({
-    parent: { database_id: databaseId },
+    parent: { data_source_id: databaseId } as any,
     properties,
   });
 }

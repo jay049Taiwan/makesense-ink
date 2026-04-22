@@ -1,73 +1,86 @@
-export const dynamic = "force-dynamic";
+import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
-import { queryDatabase, updatePage, extractTitle, extractText, extractSelect, DB } from "@/lib/notion";
-import { NextResponse } from "next/server";
+import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEmail } from "@/lib/email";
+import { fetchPersonByEmail } from "@/lib/fetch-all";
+import { updatePage } from "@/lib/notion";
 
-async function getNotionPage(email: string, lineUid?: string) {
-  if (email) {
-    const rows = await queryDatabase(
-      DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: email.toLowerCase().trim() } },
-      undefined, 1
-    );
-    if (rows.length > 0) return rows[0] as any;
-  }
-  if (lineUid) {
-    const rows = await queryDatabase(
-      DB.DB08_RELATIONSHIP,
-      { property: "LINE_UID", rich_text: { equals: lineUid.trim() } },
-      undefined, 1
-    );
-    if (rows.length > 0) return rows[0] as any;
-  }
-  return null;
-}
-
-// GET /api/user/profile — 讀取 DB08 個人資料
 export async function GET() {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "未登入" }, { status: 401 });
+  const email = normalizeEmail(session?.user?.email);
+  if (!email) return NextResponse.json({ error: "未登入" }, { status: 401 });
 
-  const email = session.user.email ?? "";
-  const page = await getNotionPage(email);
-  if (!page) return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
+  const { data: member, error } = await supabaseAdmin
+    .from("members")
+    .select("id, email, name, phone, line_uid, notify_line, notify_email")
+    .eq("email", email)
+    .maybeSingle();
 
-  const props = page.properties;
+  if (error) return NextResponse.json({ error: "讀取失敗" }, { status: 500 });
+  if (!member) return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
+
   return NextResponse.json({
-    id: page.id,
-    name:    extractTitle(props["經營名稱"]?.title),
-    email:   extractText(props["Email"]?.rich_text),
-    phone:   extractText(props["電話"]?.rich_text),  // 2026/04/17：原「聯繫電話」不存在，改用「電話」
-    summary: extractText(props["簡介摘要"]?.rich_text),
-    role:    extractSelect(props["關係選項"]?.select) || "一般會員",
-    lineUid: extractText(props["LINE_UID"]?.rich_text),
-    // 通知設定預設值（DB08 目前無 通知_LINE / 通知_Email checkbox 欄位，需新增後才能個別關閉）
-    // TODO: 在 DB08 建立 checkbox 欄位「通知_LINE」「通知_Email」後改讀取 props["通知_LINE"]?.checkbox
-    notifyLine:  true,
-    notifyEmail: true,
+    id: member.id,
+    email: member.email,
+    name: member.name || "",
+    phone: member.phone || "",
+    lineUid: member.line_uid || "",
+    notifyLine: member.notify_line ?? true,
+    notifyEmail: member.notify_email ?? true,
+    role: (session as any)?.role || "member",
   });
 }
 
-// PATCH /api/user/profile — 更新 DB08
-export async function PATCH(req: Request) {
+export async function PATCH(req: NextRequest) {
   const session = await auth();
-  if (!session?.user) return NextResponse.json({ error: "未登入" }, { status: 401 });
+  const email = normalizeEmail(session?.user?.email);
+  if (!email) return NextResponse.json({ ok: false, error: "未登入" }, { status: 401 });
 
-  const email = session.user.email ?? "";
-  const page = await getNotionPage(email);
-  if (!page) return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
+  const body = await req.json();
+  const updates: Record<string, any> = {};
+  if (typeof body.name === "string") updates.name = body.name.trim();
+  if (typeof body.phone === "string") updates.phone = body.phone.trim();
+  if (typeof body.notifyLine === "boolean") updates.notify_line = body.notifyLine;
+  if (typeof body.notifyEmail === "boolean") updates.notify_email = body.notifyEmail;
 
-  const { name, phone, summary } = await req.json() as any;
-  // notifyLine / notifyEmail 目前 DB08 無對應 checkbox 欄位，忽略寫入（見 GET handler 的 TODO）
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ ok: false, error: "沒有可更新欄位" }, { status: 400 });
+  }
 
-  const properties: Record<string, any> = {};
-  if (name !== undefined)
-    properties["經營名稱"] = { title: [{ text: { content: String(name) } }] };
-  if (phone !== undefined)
-    properties["電話"] = { rich_text: [{ text: { content: String(phone) } }] };  // 2026/04/17：原「聯繫電話」不存在
-  if (summary !== undefined)
-    properties["簡介摘要"] = { rich_text: [{ text: { content: String(summary) } }] };
+  const { data: updated, error } = await supabaseAdmin
+    .from("members")
+    .update(updates)
+    .eq("email", email)
+    .select("id, email, phone");
 
-  await updatePage(page.id, properties);
+  if (error) {
+    console.error("[profile PATCH] supabase error:", error, "email=", email);
+    return NextResponse.json({ ok: false, error: "儲存失敗" }, { status: 500 });
+  }
+  if (!updated || updated.length === 0) {
+    console.error("[profile PATCH] no rows updated, email=", email, "updates=", updates);
+    return NextResponse.json({ ok: false, error: `找不到會員 (${email})` }, { status: 404 });
+  }
+  console.log("[profile PATCH] updated", updated.length, "rows for", email);
+
+  // 同步寫回 Notion DB08（失敗不影響回應）
+  try {
+    const person = await fetchPersonByEmail(email);
+    if (person) {
+      const notionUpdates: Record<string, any> = {};
+      if (typeof body.phone === "string") {
+        notionUpdates["電話"] = { rich_text: [{ text: { content: body.phone.trim() } }] };
+      }
+      if (typeof body.name === "string" && body.name.trim()) {
+        notionUpdates["經營名稱"] = { title: [{ text: { content: body.name.trim() } }] };
+      }
+      if (Object.keys(notionUpdates).length > 0) {
+        await updatePage(person.id, notionUpdates);
+      }
+    }
+  } catch (e) {
+    console.error("DB08 profile sync failed:", e);
+  }
+
   return NextResponse.json({ ok: true });
 }
