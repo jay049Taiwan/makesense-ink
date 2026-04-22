@@ -97,7 +97,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 
-  // Cookie 設在 .makesense.ink，所有子網域共用登入狀態
+  // Cookie 預設跟著當前 host（makesense.ink 或 Vercel preview URL 都吃得到）
+  // 若未來要跨子網域共用登入，再用環境變數 AUTH_COOKIE_DOMAIN 指定
   cookies: {
     sessionToken: {
       name: "next-auth.session-token",
@@ -106,7 +107,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         sameSite: "lax",
         path: "/",
         secure: process.env.NODE_ENV === "production",
-        domain: process.env.NODE_ENV === "production" ? ".makesense.ink" : undefined,
+        domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
       },
     },
   },
