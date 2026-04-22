@@ -271,50 +271,49 @@ export async function POST(req: NextRequest) {
     //    欄位名已對照 Notion live schema 確認：
     //      DB05: 表單名稱(title), 表單類型=報名登記, 登記選項=紀錄庫存, 庫存細項=出貨, 對應明細→DB06
     //      DB06: 明細名稱(title), 明細類型=庫存紀錄, 登記數量, 登記單價, 對應庫存→DB07
-    //    fire-and-forget：失敗不影響結帳回應
-    (async () => {
-      try {
-        const orderNumber = order.id.slice(0, 8);
+    //    改用 await：Vercel serverless 會在 response 後終止執行，fire-and-forget 跑不完
+    //    失敗不影響結帳回應（包 try/catch）
+    try {
+      const orderNumber = order.id.slice(0, 8);
 
-        // 7-1. 先為每個 item 建 DB06 明細
-        const db06PageIds: string[] = [];
-        for (const { item, productInfo } of resolvedItems) {
-          const productNotionDashed = toDashedNotionId(productInfo?.notion_id);
+      // 7-1. 先為每個 item 建 DB06 明細
+      const db06PageIds: string[] = [];
+      for (const { item, productInfo } of resolvedItems) {
+        const productNotionDashed = toDashedNotionId(productInfo?.notion_id);
 
-          const db06Props: Record<string, any> = {
-            "明細名稱": { title: [{ text: { content: item.name } }] },
-            "明細類型": { select: { name: "庫存紀錄" } },
-            "登記數量": { number: item.qty },
-            "登記單價": { number: item.price },
-          };
-          if (productNotionDashed) {
-            db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
-          }
-
-          try {
-            const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
-            db06PageIds.push((db06Page as any).id as string);
-          } catch (e: any) {
-            console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
-          }
-        }
-
-        // 7-2. 建 DB05 訂單標頭，對應明細指向剛才建的 DB06 頁
-        const db05Props: Record<string, any> = {
-          "表單名稱": { title: [{ text: { content: `官網訂單 ${orderNumber}` } }] },
-          "表單類型": { select: { name: "報名登記" } },
-          "登記選項": { select: { name: "紀錄庫存" } },
-          "庫存細項": { select: { name: "出貨" } },
+        const db06Props: Record<string, any> = {
+          "明細名稱": { title: [{ text: { content: item.name } }] },
+          "明細類型": { select: { name: "庫存紀錄" } },
+          "登記數量": { number: item.qty },
+          "登記單價": { number: item.price },
         };
-        if (db06PageIds.length > 0) {
-          db05Props["對應明細"] = { relation: db06PageIds.map((id) => ({ id })) };
+        if (productNotionDashed) {
+          db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
         }
 
-        await createPage(DB.DB05_REGISTRATION, db05Props);
-      } catch (e: any) {
-        console.warn("[checkout] Notion writeback failed:", e.message);
+        try {
+          const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
+          db06PageIds.push((db06Page as any).id as string);
+        } catch (e: any) {
+          console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
+        }
       }
-    })();
+
+      // 7-2. 建 DB05 訂單標頭，對應明細指向剛才建的 DB06 頁
+      const db05Props: Record<string, any> = {
+        "表單名稱": { title: [{ text: { content: `官網訂單 ${orderNumber}` } }] },
+        "表單類型": { select: { name: "報名登記" } },
+        "登記選項": { select: { name: "紀錄庫存" } },
+        "庫存細項": { select: { name: "出貨" } },
+      };
+      if (db06PageIds.length > 0) {
+        db05Props["對應明細"] = { relation: db06PageIds.map((id) => ({ id })) };
+      }
+
+      await createPage(DB.DB05_REGISTRATION, db05Props);
+    } catch (e: any) {
+      console.warn("[checkout] Notion writeback failed:", e.message);
+    }
 
     return NextResponse.json({
       success: true,
