@@ -7,7 +7,10 @@ import Link from "next/link";
 function SuccessContent() {
   const searchParams = useSearchParams();
   const status = searchParams.get("status") || "success";
+  const orderId = searchParams.get("orderId") || "";
   const isReview = status === "review";
+  // 從真實 orderId 取訂單編號（前 8 字元，大寫）；沒有 orderId 時顯示 '—'
+  const orderNumber = orderId ? `MS-${orderId.slice(0, 8).toUpperCase()}` : "—";
 
   return (
     <div className="flex-1 flex items-center justify-center py-16 px-4">
@@ -48,7 +51,7 @@ function SuccessContent() {
           <div className="flex items-center justify-between text-sm">
             <span style={{ color: "var(--color-mist)" }}>訂單編號</span>
             <span className="font-mono font-medium" style={{ color: "var(--color-ink)" }}>
-              MS-{Date.now().toString(36).toUpperCase().slice(-6)}
+              {orderNumber}
             </span>
           </div>
           <div className="flex items-center justify-between text-sm mt-2">
@@ -69,7 +72,7 @@ function SuccessContent() {
 
         {/* 導航按鈕 */}
         <div className="flex gap-3 justify-center">
-          <Link href="/dashboard/orders" className="px-5 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-teal)" }}>
+          <Link href={orderId ? `/dashboard/orders/${orderId}` : "/dashboard/orders"} className="px-5 py-2.5 rounded-lg text-sm font-medium text-white" style={{ background: "var(--color-teal)" }}>
             查看訂單
           </Link>
           <Link href="/bookstore" className="px-5 py-2.5 rounded-lg text-sm font-medium" style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}>
