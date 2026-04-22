@@ -267,22 +267,15 @@ async function syncSingleRegistration(nid: string, props: any) {
     return { table: "registration", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
   }
 
-  // 從 DB05 title「官網訂單 xxxxxxxx」prefix 找訂單（用於防重複 + 解析 member）
-  const title = t(props["表單名稱"]);
-  const m = title.match(/官網訂單\s+([0-9a-f]{8})/i);
-  if (!m) {
-    return { table: "registration", note: `表單名稱格式不符（${title}），無法對應訂單`, nid, skipped: true };
-  }
-  const prefix = m[1].toLowerCase();
-
+  // 用 DB05 notion_id 精確匹配訂單（orders.id 是 UUID，.like() 不適用；改用 notion_db05_id 欄位）
   const { data: order } = await supabase
     .from("orders")
     .select("id, member_id, admission_notified_status")
-    .like("id", `${prefix}%`)
+    .eq("notion_db05_id", nid)
     .maybeSingle();
 
   if (!order) {
-    return { table: "registration", note: `找不到訂單 ${prefix}`, nid, skipped: true };
+    return { table: "registration", note: `找不到對應 DB05 的訂單（notion_db05_id=${nid}）`, nid, skipped: true };
   }
 
   // 防重複：已通知過相同狀態就跳過
