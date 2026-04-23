@@ -383,10 +383,12 @@ export async function POST(req: NextRequest) {
       //   direct 模式：表單類型=報名登記（含 DB06 對應明細）
       const formType = orderMode === "reservation" ? "預約報名" : "報名登記";
       const titlePrefix = orderMode === "reservation" ? "預約" : "官網訂單";
+      // 登記選項：reservation 用「預約報名」、direct 用「紀錄庫存」
+      const registerOption = orderMode === "reservation" ? "預約報名" : "紀錄庫存";
       const db05Props: Record<string, any> = {
         "表單名稱": { title: [{ text: { content: `${titlePrefix} ${orderNumber}` } }] },
         "表單類型": { select: { name: formType } },
-        "登記選項": { select: { name: "紀錄庫存" } },
+        "登記選項": { select: { name: registerOption } },
         "庫存細項": { select: { name: "出貨" } },
       };
       // 訂單聯絡人（A）層級
