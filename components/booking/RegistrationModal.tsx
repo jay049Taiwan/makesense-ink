@@ -519,6 +519,15 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function Ma
   const [chairCount, setChairCount] = useState(0);
   const [needsPower, setNeedsPower] = useState(false);
 
+  // 上次報名的品牌資料（defaultValue 帶入）
+  const [brandDefaults, setBrandDefaults] = useState<any | null | undefined>(undefined);
+  useEffect(() => {
+    fetch("/api/user/vendor-profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => setBrandDefaults(d?.profile || null))
+      .catch(() => setBrandDefaults(null));
+  }, []);
+
   // 把完整資料交給 parent（RegistrationModal）submit 用
   useImperativeHandle(ref, () => ({
     getData: async () => {
@@ -527,13 +536,15 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function Ma
       const readFile = (name: string) =>
         (document.querySelector(`input[name="${name}"]`) as HTMLInputElement | null)?.files?.[0] || null;
 
-      // 品牌 Logo / 情境照上傳 Cloudinary
+      // 品牌 Logo / 情境照：有新檔就上傳 Cloudinary，沒有則沿用上次儲存的 URL
       const logoFile = readFile("brand_logo");
       const imageFile = readFile("brand_image");
-      const [logoUrl, imageUrl] = await Promise.all([
+      const [newLogoUrl, newImageUrl] = await Promise.all([
         logoFile ? uploadOne(logoFile, "makesense/market-brand") : Promise.resolve(null),
         imageFile ? uploadOne(imageFile, "makesense/market-brand") : Promise.resolve(null),
       ]);
+      const logoUrl = newLogoUrl || brandDefaults?.logoUrl || null;
+      const imageUrl = newImageUrl || brandDefaults?.imageUrl || null;
 
       // 每個商品的照片平行上傳
       const productsWithUrl = await Promise.all(
@@ -572,7 +583,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function Ma
         },
       };
     },
-  }), [products, experiences, tableCount, chairCount, needsPower]);
+  }), [products, experiences, tableCount, chairCount, needsPower, brandDefaults]);
 
   const updateProduct = (idx: number, patch: Partial<MarketProduct>) =>
     setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
@@ -587,21 +598,29 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function Ma
   return (
     <fieldset>
       <Legend>攤位與品牌資訊</Legend>
-      <div className="grid grid-cols-2 gap-4">
-        <SelectField label="攤位類型" required name="booth_type"
-          options={["請選擇", "一般攤商", "友善農食", "林木創作", "地方文化", "工藝美術", "其他"]} />
-        <SelectField label="品牌所在地區" required name="brand_region"
-          options={["請選擇", "宜蘭縣溪南", "宜蘭縣溪北", "台灣北部", "台灣中部", "台灣南部", "無實體空間", "其他"]} />
-      </div>
-      <div className="mt-4"><Field label="品牌名稱" required name="brand_name" placeholder="您的品牌名稱" /></div>
-      <div className="mt-4"><Field label="品牌粉專/IG/官網" required name="brand_url" placeholder="https://..." /></div>
-      <div className="mt-4"><Field label="品牌關鍵字" name="brand_keywords" placeholder="#手作 #療癒 #日常" /></div>
-      <div className="mt-4"><TextArea label="品牌簡介" required name="brand_intro" placeholder="介紹您的品牌故事，100字以內" /></div>
+      {/* key 用來在 defaultValue 載入後強制 remount，讓 defaultValue 生效 */}
+      <div key={brandDefaults === undefined ? "loading" : "loaded"}>
+        <div className="grid grid-cols-2 gap-4">
+          <SelectField label="攤位類型" required name="booth_type"
+            defaultValue={brandDefaults?.type || "請選擇"}
+            options={["請選擇", "一般攤商", "友善農食", "林木創作", "地方文化", "工藝美術", "其他"]} />
+          <SelectField label="品牌所在地區" required name="brand_region"
+            defaultValue={brandDefaults?.region || "請選擇"}
+            options={["請選擇", "宜蘭縣溪南", "宜蘭縣溪北", "台灣北部", "台灣中部", "台灣南部", "無實體空間", "其他"]} />
+        </div>
+        <div className="mt-4"><Field label="品牌名稱" required name="brand_name" placeholder="您的品牌名稱" defaultValue={brandDefaults?.name || ""} /></div>
+        <div className="mt-4"><Field label="品牌粉專/IG/官網" required name="brand_url" placeholder="https://..." defaultValue={brandDefaults?.url || ""} /></div>
+        <div className="mt-4"><Field label="品牌關鍵字" name="brand_keywords" placeholder="#手作 #療癒 #日常" defaultValue={brandDefaults?.keywords || ""} /></div>
+        <div className="mt-4"><TextArea label="品牌簡介" required name="brand_intro" placeholder="介紹您的品牌故事，100字以內" defaultValue={brandDefaults?.intro || ""} /></div>
 
-      <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>品牌圖片</div>
-      <div className="grid grid-cols-2 gap-4">
-        <FileUpload label="品牌 Logo" required name="brand_logo" accept="image/*" />
-        <FileUpload label="品牌情境照" name="brand_image" accept="image/*" />
+        <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>品牌圖片</div>
+        {brandDefaults?.logoUrl && (
+          <p className="text-xs mb-2" style={{ color: "var(--color-mist)" }}>上次已上傳 Logo 與情境照，若不更換可留空直接沿用。</p>
+        )}
+        <div className="grid grid-cols-2 gap-4">
+          <FileUpload label={brandDefaults?.logoUrl ? "品牌 Logo（已有，留空沿用）" : "品牌 Logo"} required={!brandDefaults?.logoUrl} name="brand_logo" accept="image/*" />
+          <FileUpload label={brandDefaults?.imageUrl ? "品牌情境照（已有，留空沿用）" : "品牌情境照"} name="brand_image" accept="image/*" />
+        </div>
       </div>
 
       {/* ── 商品條列（最多 10 筆）── */}
@@ -679,7 +698,9 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function Ma
         <ToggleField label="是否需要電源？" value={needsPower} onChange={setNeedsPower} />
       </div>
 
-      <div className="mt-4"><TextArea label="問題回饋（選填）" name="motivation" placeholder="想對我們說的話" /></div>
+      <div className="mt-4" key={`motivation-${brandDefaults === undefined ? "loading" : "loaded"}`}>
+        <TextArea label="問題回饋（選填）" name="motivation" placeholder="想對我們說的話" defaultValue={brandDefaults?.motivation || ""} />
+      </div>
     </fieldset>
   );
 });
@@ -852,8 +873,8 @@ function Legend({ children }: { children: React.ReactNode }) {
 }
 
 /** 非受控 Field（沿用 name 讓未改造的類型可直接讀 DOM） */
-function Field({ label, required, name, type = "text", placeholder }: {
-  label: string; required?: boolean; name: string; type?: string; placeholder?: string;
+function Field({ label, required, name, type = "text", placeholder, defaultValue }: {
+  label: string; required?: boolean; name: string; type?: string; placeholder?: string; defaultValue?: string;
 }) {
   return (
     <div>
@@ -861,7 +882,7 @@ function Field({ label, required, name, type = "text", placeholder }: {
         {label} {required && <span style={{ color: "#c87060" }}>*</span>}
       </label>
       <input
-        type={type} name={name} required={required} placeholder={placeholder}
+        type={type} name={name} required={required} placeholder={placeholder} defaultValue={defaultValue}
         className="w-full h-11 px-3 rounded-lg text-base outline-none transition-all"
         style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
       />
@@ -890,8 +911,8 @@ function CField({ label, required, type = "text", placeholder, value, onChange }
   );
 }
 
-function SelectField({ label, required, name, options, onChange }: {
-  label: string; required?: boolean; name: string; options: string[]; onChange?: (val: string) => void;
+function SelectField({ label, required, name, options, onChange, defaultValue }: {
+  label: string; required?: boolean; name: string; options: string[]; onChange?: (val: string) => void; defaultValue?: string;
 }) {
   return (
     <div>
@@ -899,7 +920,7 @@ function SelectField({ label, required, name, options, onChange }: {
         {label} {required && <span style={{ color: "#c87060" }}>*</span>}
       </label>
       <select
-        name={name} required={required}
+        name={name} required={required} defaultValue={defaultValue}
         onChange={onChange ? (e) => onChange(e.target.value) : undefined}
         className="w-full h-11 px-3 rounded-lg text-base outline-none"
         style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
@@ -910,8 +931,8 @@ function SelectField({ label, required, name, options, onChange }: {
   );
 }
 
-function TextArea({ label, required, name, placeholder }: {
-  label: string; required?: boolean; name: string; placeholder?: string;
+function TextArea({ label, required, name, placeholder, defaultValue }: {
+  label: string; required?: boolean; name: string; placeholder?: string; defaultValue?: string;
 }) {
   return (
     <div>
@@ -919,7 +940,7 @@ function TextArea({ label, required, name, placeholder }: {
         {label} {required && <span style={{ color: "#c87060" }}>*</span>}
       </label>
       <textarea
-        name={name} required={required} placeholder={placeholder} rows={3}
+        name={name} required={required} placeholder={placeholder} defaultValue={defaultValue} rows={3}
         className="w-full px-3 py-2.5 rounded-lg text-base outline-none transition-all"
         style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
       />
