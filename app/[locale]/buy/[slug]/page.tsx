@@ -8,7 +8,7 @@ type VendorData = {
     id: string; title: string; brandName: string; type: string; region: string;
     url: string; keywords: string; intro: string; logoUrl: string | null; imageUrl: string | null;
   };
-  event: { title: string; date: string | null; endDate: string | null } | null;
+  event: { id: string; title: string; date: string | null; endDate: string | null } | null;
   products: Array<{ id: string; name: string; price: number; preorder_limit: number | null; intro: string; photoUrl: string | null }>;
   experiences: Array<{ id: string; name: string; price: number; capacity: number | null; content: string }>;
   schedules: Array<{ id: string; theme: string; price: number; content: string }>;
@@ -226,6 +226,17 @@ function VendorPage({ notionId }: { notionId: string }) {
 
   return (
     <div style={{ minHeight: "100vh", background: "#faf8f4", paddingBottom: 120 }}>
+      {/* 返回市集總覽 */}
+      {data.event?.id && (
+        <div style={{ position: "sticky", top: 0, zIndex: 10, background: "rgba(250,248,244,0.95)", backdropFilter: "blur(6px)", borderBottom: "1px solid #eee" }}>
+          <div style={{ maxWidth: 720, margin: "0 auto", padding: "10px 16px" }}>
+            <Link href={`/buy/market-${data.event.id}`} className="text-xs inline-flex items-center gap-1" style={{ color: "var(--color-bark)", textDecoration: "none" }}>
+              ← 回到 {data.event.title || "市集攤商"}
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Cover */}
       <div style={{ position: "relative", height: 220, background: "var(--color-parchment)", overflow: "hidden" }}>
         {data.vendor.imageUrl ? (

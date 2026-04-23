@@ -300,6 +300,21 @@ export default function EventPage({
                 ))}
               </div>
             )}
+
+            {/* 市集專用：查看所有攤商（市集預購頁入口）*/}
+            {event.type === "市集" && event.notion_id && (
+              <div className="mt-6 rounded-xl p-5" style={{ background: "var(--color-warm-white)", border: "1px dashed var(--color-moss)" }}>
+                <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-moss)" }}>🛍️ 查看攤商 · 事先預購</p>
+                <p className="text-xs mb-3" style={{ color: "var(--color-bark)" }}>
+                  想先看看這場市集有哪些攤商？想事先預購商品、預約體驗？點進下方攤商頁，市集當天現場交付即可。
+                </p>
+                <a href={`/buy/market-${event.notion_id}`}
+                  className="inline-block px-5 h-10 leading-10 rounded-lg text-sm font-medium text-white"
+                  style={{ background: "var(--color-moss)", textDecoration: "none" }}>
+                  進入攤商目錄 →
+                </a>
+              </div>
+            )}
           </div>
 
           {/* 底部置中：報名 panel 或 敲碗按鈕 */}

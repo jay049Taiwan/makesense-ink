@@ -277,8 +277,11 @@ async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStat
     return { table: "reservation", note: `找不到 LINE 綁定（email=${email}）`, nid, skipped: true };
   }
 
+  const SITE = (process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink").trim().replace(/\/$/, "");
+  const vendorUrl = `${SITE}/buy/vendor-${nid.replace(/-/g, "")}`;
+
   const text = result === "accepted"
-    ? `✅ 報名結果通知\n\n恭喜！您的「${title}」已錄取。\n後續細節我們會再以您提供的聯繫資訊說明。`
+    ? `✅ 報名結果通知\n\n恭喜！您的「${title}」已錄取。\n\n📣 您的預購分享頁已上線：\n${vendorUrl}\n\n可以分享到 FB / IG / 自己客群讓民眾事先下單，\n市集當天現場交付即可（無需平台收款）。`
     : `📣 報名結果通知\n\n很抱歉，您的「${title}」這次未錄取。\n若有收取保證金將退回原帳戶。歡迎下次再報名 🙏`;
 
   try {
