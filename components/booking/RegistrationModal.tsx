@@ -9,6 +9,7 @@ interface RegistrationModalProps {
   onClose: () => void;
   formType: FormType;
   eventTitle: string;
+  eventDate?: string;
   ticketSummary: string;
   /** 票券總張數（= 報名者人數）。走讀/講座會依此渲染 N 份報名者表單 */
   attendeeCount?: number;
@@ -37,6 +38,7 @@ export default function RegistrationModal({
   onClose,
   formType,
   eventTitle,
+  eventDate,
   ticketSummary,
   attendeeCount = 1,
   eventNotionId,
@@ -185,6 +187,9 @@ export default function RegistrationModal({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             eventNotionId,
+            eventTitle,
+            eventDate,
+            ticketSummary,
             contact,
             brand: data.brand,
             products: data.products,
