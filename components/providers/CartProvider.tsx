@@ -60,12 +60,22 @@ function loadCart(): CartItem[] {
 }
 
 export default function CartProvider({ children }: { children: ReactNode }) {
-  const [items, setItems] = useState<CartItem[]>(loadCart);
+  // 初始值一律空陣列（避免 SSR 與 client hydration 不一致）
+  // 實際購物車 items 在 useEffect 掛載後才從 localStorage 載入
+  const [items, setItems] = useState<CartItem[]>([]);
+  const [hydrated, setHydrated] = useState(false);
 
-  // 持久化到 localStorage
+  // 掛載後從 localStorage 載入
   useEffect(() => {
+    setItems(loadCart());
+    setHydrated(true);
+  }, []);
+
+  // 持久化到 localStorage（等 hydrated 後才寫，避免用 [] 蓋掉原有資料）
+  useEffect(() => {
+    if (!hydrated) return;
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items));
-  }, [items]);
+  }, [items, hydrated]);
 
   // postMessage 同步給父視窗（LINE 模擬器用）
   useEffect(() => {
