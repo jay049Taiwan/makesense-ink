@@ -109,16 +109,30 @@ async function handleEvent(event: any) {
         });
       } else if (action === "topic_suggest") {
         // 話題推薦：隨機選一個觀點 + 相關商品
-        const message = await generateTopicSuggestion();
-        await lineClient.replyMessage({
-          replyToken,
-          messages: [message],
-        });
-        await supabase.from("line_message_log").insert({
-          user_id: userId,
-          message_type: "reply",
-          template: "topic_suggest",
-        });
+        try {
+          const message = await generateTopicSuggestion();
+          await lineClient.replyMessage({
+            replyToken,
+            messages: [message as any],
+          });
+          await supabase.from("line_message_log").insert({
+            user_id: userId,
+            message_type: "reply",
+            template: "topic_suggest",
+          });
+        } catch (err: any) {
+          console.error("[topic_suggest] Error:", err.message, err.stack);
+          // Fallback 用 text 訊息
+          try {
+            await lineClient.replyMessage({
+              replyToken,
+              messages: [{
+                type: "text",
+                text: `話題推薦載入失敗了 😅\n請稍後再試一次，或直接瀏覽 /liff/viewpoints`,
+              }],
+            });
+          } catch {}
+        }
       } else if (action === "confirm_attend") {
         const orderId = params.get("orderId") || "";
         await lineClient.replyMessage({
@@ -182,8 +196,14 @@ async function generateTopicSuggestion() {
     .limit(100);
 
   const relatedProducts = (allProducts || []).filter((p) => {
-    const topicIds = (p.related_topic_ids as string[]) || [];
-    return topicIds.includes(topicId);
+    let topicIds: string[] = [];
+    const raw = p.related_topic_ids;
+    if (Array.isArray(raw)) {
+      topicIds = raw;
+    } else if (typeof raw === "string") {
+      try { topicIds = JSON.parse(raw); } catch { topicIds = []; }
+    }
+    return Array.isArray(topicIds) && topicIds.includes(topicId);
   });
 
   // 如果沒有相關商品，隨機取 3 個

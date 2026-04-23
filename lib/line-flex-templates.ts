@@ -408,7 +408,7 @@ export function buildTopicSuggestionFlex(data: {
         ...(data.topicSummary ? [{
           type: "text" as const,
           text: data.topicSummary.slice(0, 60) + (data.topicSummary.length > 60 ? "..." : ""),
-          size: "xxs" as const,
+          size: "xs" as const,
           color: "#666",
           wrap: true,
           maxLines: 4,
