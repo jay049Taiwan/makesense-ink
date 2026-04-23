@@ -232,6 +232,10 @@ function MemberOverview() {
   const allCategories = ["書籍", "商品", "走讀", "講座", "市集", "空間體驗", "付費文章"];
   const unexplored = allCategories.filter((c) => !categoryCount[c]);
 
+  // 明細分頁資料
+  const displayOrders = isDev && orders.length === 0 ? DEV_ORDERS : orders;
+  const filteredItems = activeCategory === "全部" ? purchases : purchases.filter(p => (CAT_LABELS[p.category] || p.category) === activeCategory);
+
   return (
     <div style={{ maxWidth: 1100, margin: "0 auto" }}>
       {/* ── 綁定訊息 toast ── */}
@@ -393,90 +397,160 @@ function MemberOverview() {
         </div>
       </div>
 
-      {/* ── 購買紀錄 ── */}
+      {/* ── 消費明細（兩分頁）── */}
       <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
-        <div className="flex items-center gap-3 px-6 py-4" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
-          <h3 className="text-base font-semibold" style={{ color: "#333", margin: 0 }}>🛒 購買紀錄</h3>
-          {pendingCount > 0 && (
-            <span className="px-3 py-1 rounded-full text-xs font-bold text-white" style={{ background: "#e8935a" }}>
-              {pendingCount} 待評價
-            </span>
-          )}
+        {/* Header + Tab Bar */}
+        <div style={{ background: "#fafafa" }}>
+          <div className="flex items-center gap-3 px-6 pt-4 pb-3">
+            <h3 className="text-base font-semibold" style={{ color: "#333", margin: 0 }}>🛒 消費明細</h3>
+            {pendingCount > 0 && (
+              <span className="px-3 py-1 rounded-full text-xs font-bold text-white" style={{ background: "#e8935a" }}>
+                {pendingCount} 待評價
+              </span>
+            )}
+          </div>
+          <div className="flex px-6" style={{ borderBottom: "1px solid #e8e8e8" }}>
+            {(["orders", "categories"] as const).map((tab) => (
+              <button key={tab} onClick={() => setDetailTab(tab)}
+                style={{ background: "none", border: "none", cursor: "pointer", padding: "0 4px 12px", marginRight: 24,
+                  fontSize: 14, fontWeight: 500,
+                  color: detailTab === tab ? "#1a1a2e" : "#999",
+                  borderBottom: `2px solid ${detailTab === tab ? "#4ECDC4" : "transparent"}`,
+                  marginBottom: -1 }}>
+                {tab === "orders" ? "訂單紀錄" : "類別明細"}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* 桌面版表格 */}
-        <div className="hidden md:block">
-          <table style={{ width: "100%", borderCollapse: "collapse" }}>
-            <thead>
-              <tr style={{ borderBottom: "1px solid #eee" }}>
-                {["商品名稱", "數量", "作者", "購買日期", "評價", "留言"].map((h) => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px 16px", fontSize: 13, fontWeight: 600, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {purchases.map((item) => {
-                const isSubmitted = submitted[item.id] || item.rating > 0;
-                const currentRating = ratings[item.id] || item.rating;
-                const currentComment = comments[item.id] ?? item.comment;
-                return (
-                  <tr key={item.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                    <td style={{ padding: "12px 16px", fontSize: 14, maxWidth: 200 }}>
-                      <span style={{ color: "#0066cc" }}>{item.name}</span>
-                    </td>
-                    <td style={{ padding: "12px 16px", fontSize: 14, textAlign: "center" }}>{item.qty}</td>
-                    <td style={{ padding: "12px 16px", fontSize: 14 }}>
-                      {item.author !== "—" ? <Link href={`/author/${encodeURIComponent(item.author)}`} style={{ color: "#0066cc", textDecoration: "none" }}>{item.author}</Link> : <span style={{ color: "#ccc" }}>—</span>}
-                    </td>
-                    <td style={{ padding: "12px 16px", fontSize: 14, color: "#666", whiteSpace: "nowrap" }}>{item.date}</td>
-                    <td style={{ padding: "12px 16px" }}>
-                      {isSubmitted ? <StarDisplay rating={currentRating} /> : <StarInput value={currentRating} onChange={(v) => setRatings((prev) => ({ ...prev, [item.id]: v }))} />}
-                    </td>
-                    <td style={{ padding: "12px 16px" }}>
-                      {isSubmitted ? (
-                        <span className="text-sm" style={{ color: "#666" }}>{currentComment || "—"}</span>
-                      ) : (
-                        <div className="flex items-center gap-1">
-                          <input type="text" placeholder="選填" value={currentComment} onChange={(e: any) => setComments((prev) => ({ ...prev, [item.id]: e.target.value }))} className="text-sm px-2 py-1 rounded" style={{ border: "1px solid #ddd", width: 70, outline: "none" }} />
-                          <button onClick={() => handleSubmitRating(item.id)} disabled={!currentRating} className="text-xs px-2 py-1 rounded text-white flex-shrink-0" style={{ background: currentRating ? "#4CAF50" : "#ccc", border: "none", cursor: currentRating ? "pointer" : "default" }}>送出</button>
-                        </div>
+        {/* ── Tab 1：訂單紀錄 ── */}
+        {detailTab === "orders" && (
+          <div>
+            {displayOrders.length === 0 ? (
+              <p className="text-sm text-center py-12" style={{ color: "#ccc" }}>尚無訂單紀錄</p>
+            ) : displayOrders.map((order: any) => {
+              const isExpanded = expandedOrders.has(order.id);
+              const orderDate = new Date(order.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" });
+              const itemCount = order.order_items?.length || 0;
+              return (
+                <div key={order.id} style={{ borderBottom: "1px solid #f0f0f0" }}>
+                  {/* 訂單列 */}
+                  <div onClick={() => setExpandedOrders(prev => {
+                    const next = new Set(prev); next.has(order.id) ? next.delete(order.id) : next.add(order.id); return next;
+                  })} className="flex items-center justify-between px-6 py-4 cursor-pointer"
+                    style={{ background: isExpanded ? "#fafafa" : "#fff", transition: "background 0.15s" }}>
+                    <div className="flex items-center gap-3 flex-wrap">
+                      <span className="text-sm font-medium" style={{ color: "#333" }}>{orderDate}</span>
+                      <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#f0f0f0", color: "#888" }}>
+                        #{order.id.slice(-6).toUpperCase()}
+                      </span>
+                      {order.source && order.source !== "web" && (
+                        <span className="text-xs px-2 py-0.5 rounded text-white"
+                          style={{ background: order.source === "liff" ? "#06C755" : "#0088CC" }}>
+                          {order.source === "liff" ? "LINE" : "TG"}
+                        </span>
                       )}
-                    </td>
-                  </tr>
+                    </div>
+                    <div className="flex items-center gap-4 flex-shrink-0">
+                      <span className="text-xs" style={{ color: "#aaa" }}>{itemCount} 件</span>
+                      <span className="text-sm font-semibold" style={{ color: "#333" }}>NT${(order.total || 0).toLocaleString()}</span>
+                      <span style={{ color: "#aaa", fontSize: 11 }}>{isExpanded ? "▲" : "▼"}</span>
+                    </div>
+                  </div>
+
+                  {/* 展開明細 */}
+                  {isExpanded && (
+                    <div style={{ background: "#fafafa", borderTop: "1px solid #f0f0f0" }}>
+                      {(order.order_items || []).map((item: any) => {
+                        const isSubmitted = submitted[item.id] || (item.reviews?.[0]?.rating > 0);
+                        const currentRating = ratings[item.id] ?? (item.reviews?.[0]?.rating || 0);
+                        const currentComment = comments[item.id] ?? (item.reviews?.[0]?.comment || "");
+                        const catLabel = CAT_LABELS[item.item_type] || item.item_type;
+                        return (
+                          <div key={item.id} className="flex flex-wrap items-center gap-3 px-8 py-3"
+                            style={{ borderBottom: "1px solid #f5f5f5" }}>
+                            <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+                              style={{ background: "#f0ebe3", color: "#7a5c40" }}>{catLabel}</span>
+                            <span className="text-sm flex-1 min-w-0" style={{ color: "#333" }}>{item.name}</span>
+                            <span className="text-xs flex-shrink-0" style={{ color: "#aaa" }}>×{item.quantity}</span>
+                            <span className="text-sm flex-shrink-0" style={{ color: "#666" }}>NT${item.price}</span>
+                            {isSubmitted
+                              ? <StarDisplay rating={currentRating} />
+                              : <StarInput value={currentRating} onChange={(v) => setRatings(prev => ({ ...prev, [item.id]: v }))} />}
+                            {isSubmitted ? (
+                              currentComment && <span className="text-xs" style={{ color: "#888" }}>{currentComment}</span>
+                            ) : (
+                              <div className="flex items-center gap-1">
+                                <input type="text" placeholder="留言選填" value={currentComment}
+                                  onChange={(e: any) => setComments(prev => ({ ...prev, [item.id]: e.target.value }))}
+                                  className="text-sm px-2 py-1 rounded" style={{ border: "1px solid #ddd", width: 90, outline: "none" }} />
+                                <button onClick={() => handleSubmitRating(item.id)} disabled={!currentRating}
+                                  className="text-xs px-2 py-1 rounded text-white flex-shrink-0"
+                                  style={{ background: currentRating ? "#4CAF50" : "#ccc", border: "none", cursor: currentRating ? "pointer" : "default" }}>送出</button>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {/* ── Tab 2：類別明細 ── */}
+        {detailTab === "categories" && (
+          <div>
+            {/* Filter chips */}
+            <div className="flex flex-wrap gap-2 px-6 py-4" style={{ borderBottom: "1px solid #f0f0f0" }}>
+              {["全部", "選書", "選物", "活動", "內容"].map((cat) => {
+                const count = cat === "全部" ? purchases.length : purchases.filter(p => (CAT_LABELS[p.category] || p.category) === cat).length;
+                return (
+                  <button key={cat} onClick={() => setActiveCategory(cat)}
+                    style={{ background: activeCategory === cat ? "#1a1a2e" : "#f5f0e8",
+                      color: activeCategory === cat ? "#fff" : "#7a5c40",
+                      border: "none", cursor: "pointer", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 500 }}>
+                    {cat}{count > 0 ? ` (${count})` : ""}
+                  </button>
                 );
               })}
-            </tbody>
-          </table>
-        </div>
-
-        {/* 手機版卡片 */}
-        <div className="md:hidden">
-          {purchases.map((item) => {
-            const isSubmitted = submitted[item.id] || item.rating > 0;
-            const currentRating = ratings[item.id] || item.rating;
-            const currentComment = comments[item.id] ?? item.comment;
-            return (
-              <div key={item.id} className="p-4" style={{ borderBottom: "1px solid #f0f0f0" }}>
-                <p className="text-sm font-medium mb-1" style={{ color: "#0066cc" }}>{item.name}</p>
-                <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs mb-2" style={{ color: "#888" }}>
-                  <span>數量 {item.qty}</span>
-                  <span>{item.author}</span>
-                  <span>{item.date}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  {isSubmitted ? <StarDisplay rating={currentRating} /> : <StarInput value={currentRating} onChange={(v) => setRatings((prev) => ({ ...prev, [item.id]: v }))} />}
-                  {!isSubmitted && (
-                    <>
-                      <input type="text" placeholder="留言" value={currentComment} onChange={(e: any) => setComments((prev) => ({ ...prev, [item.id]: e.target.value }))} className="text-sm px-2 py-1 rounded flex-1" style={{ border: "1px solid #ddd", outline: "none" }} />
-                      <button onClick={() => handleSubmitRating(item.id)} disabled={!currentRating} className="text-xs px-2 py-1 rounded text-white" style={{ background: currentRating ? "#4CAF50" : "#ccc", border: "none" }}>送出</button>
-                    </>
+            </div>
+            {/* Items */}
+            {filteredItems.length === 0 ? (
+              <p className="text-sm text-center py-12" style={{ color: "#ccc" }}>此類別尚無紀錄</p>
+            ) : filteredItems.map((item) => {
+              const isSubmitted = submitted[item.id] || item.rating > 0;
+              const currentRating = ratings[item.id] ?? item.rating;
+              const currentComment = comments[item.id] ?? item.comment;
+              return (
+                <div key={item.id} className="flex flex-wrap items-center gap-3 px-6 py-3"
+                  style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium" style={{ color: "#333" }}>{item.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>{item.date} · NT${item.price}</p>
+                  </div>
+                  {isSubmitted
+                    ? <StarDisplay rating={currentRating} />
+                    : <StarInput value={currentRating} onChange={(v) => setRatings(prev => ({ ...prev, [item.id]: v }))} />}
+                  {isSubmitted ? (
+                    currentComment && <span className="text-xs flex-shrink-0" style={{ color: "#888" }}>{currentComment}</span>
+                  ) : (
+                    <div className="flex items-center gap-1">
+                      <input type="text" placeholder="留言選填" value={currentComment}
+                        onChange={(e: any) => setComments(prev => ({ ...prev, [item.id]: e.target.value }))}
+                        className="text-sm px-2 py-1 rounded" style={{ border: "1px solid #ddd", width: 90, outline: "none" }} />
+                      <button onClick={() => handleSubmitRating(item.id)} disabled={!currentRating}
+                        className="text-xs px-2 py-1 rounded text-white flex-shrink-0"
+                        style={{ background: currentRating ? "#4CAF50" : "#ccc", border: "none", cursor: currentRating ? "pointer" : "default" }}>送出</button>
+                    </div>
                   )}
-                  {isSubmitted && currentComment && <span className="text-xs" style={{ color: "#888" }}>{currentComment}</span>}
                 </div>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {/* ── 網站營運分析（僅 staff 可見）── */}
