@@ -21,6 +21,8 @@ export default function CheckoutPage() {
   const [activeRegIdx, setActiveRegIdx] = useState(0);
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
+  const [sameAsContact, setSameAsContact] = useState(false);
+  const [recipientFormKey, setRecipientFormKey] = useState(0);
   const [memberDefaults, setMemberDefaults] = useState<{ name: string; phone: string; email: string } | null>(null);
   // V2：活動報名要收退款資訊（未來金流接上後使用）
   const [refundMethod, setRefundMethod] = useState<"original" | "custom">("original");
@@ -289,9 +291,25 @@ export default function CheckoutPage() {
                   {/* 寄送地址（選郵寄才展開）*/}
                   {delivery === "ship" && (
                     <div className="mt-4 space-y-3 pt-4" style={{ borderTop: "1px solid var(--color-dust)" }}>
-                      <div className="grid grid-cols-2 gap-3">
-                        <InputField label="收件人姓名" required name="recipient_name" placeholder={contactName || "同聯絡人姓名"} />
-                        <InputField label="收件人電話" required name="recipient_phone" type="tel" placeholder={contactPhone || "同聯絡人電話"} />
+                      <label className="inline-flex items-center gap-2 text-sm cursor-pointer" style={{ color: "var(--color-bark)" }}>
+                        <input
+                          type="checkbox"
+                          checked={sameAsContact}
+                          onChange={(e) => {
+                            setSameAsContact(e.target.checked);
+                            setRecipientFormKey((k) => k + 1);
+                          }}
+                          className="rounded"
+                        />
+                        寄件人同聯絡人
+                      </label>
+                      <div className="grid grid-cols-2 gap-3" key={recipientFormKey}>
+                        <InputField label="收件人姓名" required name="recipient_name"
+                          placeholder={contactName || "同聯絡人姓名"}
+                          defaultValue={sameAsContact ? contactName : ""} />
+                        <InputField label="收件人電話" required name="recipient_phone" type="tel"
+                          placeholder={contactPhone || "同聯絡人電話"}
+                          defaultValue={sameAsContact ? contactPhone : ""} />
                       </div>
                       <InputField label="郵遞區號" required name="zip_code" placeholder="260" />
                       <InputField label="收件地址" required name="address" placeholder="宜蘭縣宜蘭市中山路二段 123 號" />
@@ -368,7 +386,7 @@ export default function CheckoutPage() {
               <textarea
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="有什麼想告訴我們的嗎？例如：飲食過敏、特殊需求、發票需求等"
+                placeholder="有什麼想告訴我們，或需要我們特別注意的嗎？"
                 rows={3}
                 className="w-full px-4 py-3 rounded-xl text-sm outline-none transition-all"
                 style={{ border: "1px solid var(--color-dust)", background: "var(--color-warm-white)" }}
