@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
         topics: `${SITE_URL}/viewpoint/${cleanId}`,
       };
       const table = result.table;
-      // 話題展售用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
-      const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題展售");
+      // 話題推薦用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
+      const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題推薦");
       if (urlMap[table] && result.status !== "draft" && result.status !== null) {
         if (isShowcaseOnly) {
           await writebackPublishNoUrl(cleanId);
@@ -162,7 +162,7 @@ async function writebackPublish(pageId: string, url: string) {
   }
 }
 
-/** 回寫 Notion：話題展售上架 → 狀態「已發佈」+ 對應連結指向旅人書店首頁（方便 Noah 辨識/點擊確認） */
+/** 回寫 Notion：話題推薦上架 → 狀態「已發佈」+ 對應連結指向旅人書店首頁（方便 Noah 辨識/點擊確認） */
 async function writebackPublishNoUrl(pageId: string) {
   try {
     const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
@@ -486,7 +486,7 @@ async function syncSingleArticle(nid: string, props: any) {
 
   // 對應庫存 relation → products
   //   related_product_id：第一筆（付費文章解鎖用）
-  //   related_product_ids：全部商品 id 陣列（話題展售一對多用）
+  //   related_product_ids：全部商品 id 陣列（話題推薦一對多用）
   const pRels = rel(props["對應庫存"]);
   let relatedProductId: string | null = null;
   let relatedProductIds: string[] = [];

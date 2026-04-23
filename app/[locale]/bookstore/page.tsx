@@ -61,13 +61,13 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
     fetchSBProducts("選物", 12),
     fetchSBArticles(5),
     fetchSBEvents(3),
-    // 話題展售：DB05 官網備項=話題展售 的文章，each with its related products
+    // 話題推薦：DB05 官網備項=話題推薦 的文章，each with its related products
     (async () => {
       const { data: showcases } = await supabase
         .from("articles")
         .select("id, notion_id, title, summary, related_product_ids")
         .eq("status", "published")
-        .contains("web_tag", ["話題展售"])
+        .contains("web_tag", ["話題推薦"])
         .order("updated_at", { ascending: false })
         .limit(3);
       if (!showcases || showcases.length === 0) return [];
@@ -169,7 +169,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         </div>
       </section>
 
-      {/* ── 區塊 B4: 話題展售 ── 每個 DB05「官網備項=話題展售」的文章渲染一行，標題 = 主題名稱，內容卡片 = 對應庫存商品 */}
+      {/* ── 區塊 B4: 話題推薦 ── 每個 DB05「官網備項=話題推薦」的文章渲染一行，標題 = 主題名稱，內容卡片 = 對應庫存商品 */}
       {topicShowcases.map((showcase: any) => (
         <section key={showcase.id} className="py-6">
           <div className="flex items-end justify-between mb-4">
