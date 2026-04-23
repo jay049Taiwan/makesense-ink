@@ -16,9 +16,23 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature") || "";
 
+  // 先記錄收到的 webhook（簽章驗證前，方便除錯）
+  supabase.from("line_message_log").insert({
+    user_id: "webhook_entry",
+    message_type: "webhook_received",
+    template: signature ? "with_signature" : "no_signature",
+    payload: { body_length: rawBody.length, has_signature: !!signature, body_preview: rawBody.slice(0, 200) },
+  }).then(() => {}, () => {});
+
   // 2. 驗證簽名
   if (!verifyWebhookSignature(rawBody, signature)) {
     console.warn("[line/webhook] Invalid signature");
+    supabase.from("line_message_log").insert({
+      user_id: "webhook_entry",
+      message_type: "webhook_invalid_sig",
+      template: "error",
+      payload: { signature, body_preview: rawBody.slice(0, 200) },
+    }).then(() => {}, () => {});
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
