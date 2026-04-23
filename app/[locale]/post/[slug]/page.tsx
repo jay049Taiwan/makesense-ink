@@ -29,11 +29,14 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
 
-  if (!article) {
+  // 文章不存在或已下架（status !== 'published'）都導去下架畫面
+  if (!article || article.status !== "published") {
     return (
       <div className="flex items-center justify-center py-24 flex-col gap-2">
         <p className="text-4xl">📄</p>
-        <p style={{ color: "var(--color-mist)" }}>找不到此文章</p>
+        <p style={{ color: "var(--color-mist)" }}>
+          {article ? "此文章已下架" : "找不到此文章"}
+        </p>
         <Link href="/local-newsletter" className="text-sm mt-2" style={{ color: "var(--color-teal)" }}>
           回到地方通訊
         </Link>
