@@ -22,6 +22,11 @@ export default function CheckoutPage() {
   const [contactName, setContactName] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [memberDefaults, setMemberDefaults] = useState<{ name: string; phone: string; email: string } | null>(null);
+  // V2：活動報名要收退款資訊（未來金流接上後使用）
+  const [refundMethod, setRefundMethod] = useState<"original" | "custom">("original");
+  const [refundBankName, setRefundBankName] = useState("");
+  const [refundAccountNumber, setRefundAccountNumber] = useState("");
+  const [refundAccountHolder, setRefundAccountHolder] = useState("");
 
   // 讀登入會員的上次聯絡資訊，用作 placeholder
   useEffect(() => {
@@ -66,6 +71,14 @@ export default function CheckoutPage() {
           delivery,
           note,
           source: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("liff_mode") === "true" ? "liff" : "web",
+          refundInfo: hasTickets ? {
+            method: refundMethod,
+            ...(refundMethod === "custom" ? {
+              bank_name: refundBankName,
+              account_number: refundAccountNumber,
+              account_holder: refundAccountHolder,
+            } : {}),
+          } : undefined,
         }),
       });
       const data = await res.json();
@@ -259,6 +272,50 @@ export default function CheckoutPage() {
                       <p className="text-[0.6em]" style={{ color: "var(--color-mist)" }}>
                         郵局寄送，約 3-5 個工作天送達
                       </p>
+                    </div>
+                  )}
+                </div>
+              </Section>
+            )}
+
+            {/* ── 4.5 退款資訊（活動報名必填，未錄取時用）── */}
+            {hasTickets && (
+              <Section title="退款資訊">
+                <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--color-warm-white)", border: "1px solid var(--color-dust)" }}>
+                  <p className="text-[0.7em] leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                    若未錄取，我們會依您指定方式退款。目前仍為現場付現，正式上線後此資訊即生效。
+                  </p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => setRefundMethod("original")}
+                      className="rounded-lg py-3 text-sm font-medium transition-all text-center"
+                      style={{
+                        border: refundMethod === "original" ? "1.5px solid #4ECDC4" : "1px solid var(--color-dust)",
+                        background: refundMethod === "original" ? "rgba(78,205,196,0.06)" : "#fff",
+                        color: refundMethod === "original" ? "var(--color-teal)" : "var(--color-mist)",
+                      }}
+                    >
+                      退回原付款帳戶
+                    </button>
+                    <button
+                      onClick={() => setRefundMethod("custom")}
+                      className="rounded-lg py-3 text-sm font-medium transition-all text-center"
+                      style={{
+                        border: refundMethod === "custom" ? "1.5px solid #4ECDC4" : "1px solid var(--color-dust)",
+                        background: refundMethod === "custom" ? "rgba(78,205,196,0.06)" : "#fff",
+                        color: refundMethod === "custom" ? "var(--color-teal)" : "var(--color-mist)",
+                      }}
+                    >
+                      指定退款帳戶
+                    </button>
+                  </div>
+                  {refundMethod === "custom" && (
+                    <div className="space-y-3 pt-3" style={{ borderTop: "1px solid var(--color-dust)" }}>
+                      <InputField label="銀行名稱" required name="refund_bank_name" placeholder="例：國泰世華銀行" defaultValue={refundBankName} onChange={setRefundBankName} />
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <InputField label="帳號" required name="refund_account_number" placeholder="純數字" defaultValue={refundAccountNumber} onChange={setRefundAccountNumber} />
+                        <InputField label="戶名" required name="refund_account_holder" placeholder="王大明" defaultValue={refundAccountHolder} onChange={setRefundAccountHolder} />
+                      </div>
                     </div>
                   )}
                 </div>
