@@ -57,8 +57,10 @@ export default function CheckoutPage() {
 
   // 是否含票券（需審核）
   const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));
-  // 是否含實體商品（需寄送選項）
-  const hasProducts = items.some((i) => i.type === "商品" || i.type === "預購");
+  // 是否含實體商品（需寄送選項）— 數位商品不列入
+  const hasProducts = items.some(
+    (i) => (i.type === "商品" && i.subCategory !== "數位") || i.type === "預購"
+  );
   // 收集所有票券的報名資訊（優先用 registrations 陣列，fallback 到 registration 單筆）
   // 加購品（subtitle 含「加購」）不顯示報名者卡片
   const isAddonLike = (s?: string) => !!s && /加購/.test(s);

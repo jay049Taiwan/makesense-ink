@@ -27,6 +27,7 @@ export default function PaywallButton({ product, articleTitle }: PaywallButtonPr
       price: product.price,
       qty: 1,
       productId: product.notionId,
+      subCategory: product.subCategory || "數位",
     });
     router.push("/checkout");
   };

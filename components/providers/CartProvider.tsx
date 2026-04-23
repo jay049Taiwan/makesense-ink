@@ -17,6 +17,7 @@ export interface CartItem {
   qty: number;          // 數量
   eventId?: string;     // 對應活動 ID（活動票券用）
   productId?: string;   // 對應商品 ID（商品用）
+  subCategory?: string; // 商品分類（選書/選物/數位）— 判斷是否需要實體物流
   meta?: Record<string, string>; // 額外資訊（日期、場次等）
   registration?: Record<string, string>; // 報名表單資訊（票券用，單人）
   registrations?: Record<string, string>[]; // N 人報名時每人一份

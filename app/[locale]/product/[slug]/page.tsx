@@ -12,6 +12,7 @@ interface ProductData {
   price: number;
   stock: number;
   category: string;
+  subCategory: string | null;
   description: string | null;
   photos: string[];
   author: string;
@@ -32,7 +33,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
     async function load() {
       const { data } = await supabase
         .from("products")
-        .select("id, notion_id, name, price, stock, category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status")
+        .select("id, notion_id, name, price, stock, category, sub_category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status")
         .or(`notion_id.eq.${slug},id.eq.${slug}`)
         .maybeSingle();
 
@@ -69,6 +70,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           price: data.price,
           stock: data.stock,
           category: data.category || "",
+          subCategory: data.sub_category || null,
           description: data.description,
           photos,
           author: data.author_id ? (personMap[data.author_id] || "—") : "—",
@@ -213,6 +215,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
                   price: product.price,
                   qty,
                   productId: slug,
+                  subCategory: product.subCategory || undefined,
                 });
                 setAdded(true);
                 setTimeout(() => setAdded(false), 2000);

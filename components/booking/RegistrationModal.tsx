@@ -56,6 +56,42 @@ export default function RegistrationModal({
     () => Array.from({ length: N }, () => ({ ...EMPTY_ATTENDEE }))
   );
 
+  // 載入上次報名資料（defaultValue 帶入）
+  useEffect(() => {
+    if (!isOpen) return;
+    const qs = new URLSearchParams({ formType }).toString();
+    fetch(`/api/user/last-registration?${qs}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (!d) return;
+        if (d.contact) {
+          setContact((prev) => ({
+            name: prev.name || d.contact.name || "",
+            phone: prev.phone || d.contact.phone || "",
+            email: prev.email || d.contact.email || "",
+          }));
+        }
+        if (Array.isArray(d.attendees) && d.attendees.length > 0) {
+          setAttendees((prev) =>
+            prev.map((att, i) => {
+              const prior = d.attendees[i];
+              if (!prior) return att;
+              // 只在該欄位空白時才覆寫，避免蓋掉用戶剛打的東西
+              return {
+                ...att,
+                name: att.name || prior.name || "",
+                phone: att.phone || prior.phone || "",
+                email: att.email || prior.email || "",
+                id_number: att.id_number || prior.id_number || "",
+                birth_date: att.birth_date || prior.birth_date || "",
+              };
+            })
+          );
+        }
+      })
+      .catch(() => {});
+  }, [isOpen, formType]);
+
   // N 改變時，attendees 陣列同步伸縮
   useEffect(() => {
     setAttendees((prev) => {
