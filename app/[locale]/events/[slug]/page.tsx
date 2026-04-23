@@ -386,46 +386,12 @@ export default function EventPage({
                         <button
                           disabled={!hasSelection}
                           onClick={() => {
-                            // 市集類型走獨立 API（/api/booking/market），不經購物車
-                            if (event.type !== "市集") {
-                              for (const t of event.tickets) {
-                                const q = ticketQtys[t.name] || 0;
-                                if (q > 0) {
-                                  addItem({
-                                    id: `ticket-${slug}-${t.name}`,
-                                    name: event.title,
-                                    subtitle: t.name,
-                                    type: event.type,
-                                    price: parsePrice(t.price),
-                                    qty: q,
-                                    eventId: slug,
-                                    productId: t.notion_id,
-                                    meta: { date: event.date, guide: event.guide },
-                                  });
-                                }
-                              }
-                              for (const a of event.addons) {
-                                const q = addonQtys[a.name] || 0;
-                                if (q > 0) {
-                                  addItem({
-                                    id: `addon-${slug}-${a.name}`,
-                                    name: event.title,
-                                    subtitle: a.name + "（加購）",
-                                    type: event.type,
-                                    price: parsePrice(a.price),
-                                    qty: q,
-                                    eventId: slug,
-                                  });
-                                }
-                              }
-                            }
+                            // 只開報名表單，確認送出後才加入購物車
                             setShowRegistration(true);
-                            setAdded(true);
-                            setTimeout(() => setAdded(false), 2000);
                           }}
                           className="w-full h-10 rounded text-sm font-medium text-white transition-colors"
-                          style={{ background: !hasSelection ? "var(--color-mist)" : added ? "var(--color-teal)" : "var(--color-moss)" }}>
-                          {added ? "✓ 已加入購物車" : hasSelection ? "立即報名" : "請先選擇票券"}
+                          style={{ background: !hasSelection ? "var(--color-mist)" : "var(--color-moss)" }}>
+                          {hasSelection ? "立即報名" : "請先選擇票券"}
                         </button>
                       </div>
                     );
@@ -463,6 +429,7 @@ export default function EventPage({
             .reduce((s, t) => s + (ticketQtys[t.name] || 0), 0) || 1
         }
         onSubmit={async ({ contact, attendees }) => {
+          // 報名送出成功才加入購物車（避免用戶放棄填寫留下髒訂單）
           // 依票券張數把 attendees 依序分配給各 ticket item（加購品跳過）
           let cursor = 0;
           for (const t of event.tickets) {
@@ -471,23 +438,51 @@ export default function EventPage({
             const itemId = `ticket-${slug}-${t.name}`;
             const isAddonLike = /加購/.test(t.name);
             if (isAddonLike) {
-              // 加購品在 tickets 裡被誤分類：只寫 contact，不寫報名者
-              updateItem(itemId, { contact });
+              // 加購品：只寫 contact
+              addItem({
+                id: itemId,
+                name: event.title,
+                subtitle: t.name,
+                type: event.type,
+                price: parsePrice(t.price),
+                qty: q,
+                eventId: slug,
+                productId: t.notion_id,
+                meta: { date: event.date, guide: event.guide },
+                contact,
+              });
               continue;
             }
             const slice = attendees.slice(cursor, cursor + q);
             cursor += q;
-            updateItem(itemId, {
+            addItem({
+              id: itemId,
+              name: event.title,
+              subtitle: t.name,
+              type: event.type,
+              price: parsePrice(t.price),
+              qty: q,
+              eventId: slug,
+              productId: t.notion_id,
+              meta: { date: event.date, guide: event.guide },
               contact,
               registrations: slice.map(a => ({ ...a })),
               registration: slice[0] ? { ...slice[0] } : undefined,
             });
           }
-          // 真加購也回寫 contact
           for (const a of event.addons) {
             const q = addonQtys[a.name] || 0;
             if (q === 0) continue;
-            updateItem(`addon-${slug}-${a.name}`, { contact });
+            addItem({
+              id: `addon-${slug}-${a.name}`,
+              name: event.title,
+              subtitle: a.name + "（加購）",
+              type: event.type,
+              price: parsePrice(a.price),
+              qty: q,
+              eventId: slug,
+              contact,
+            });
           }
         }}
       />
