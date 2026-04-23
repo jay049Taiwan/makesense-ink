@@ -25,12 +25,13 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
   // 從 Supabase 拿文章基本資料（含 summary + related_product_id）
   const { data: article } = await supabase
     .from("articles")
-    .select("id, notion_id, title, summary, cover_url, published_at, status, related_event_id, related_product_id, content")
+    .select("id, notion_id, title, summary, cover_url, published_at, status, web_tag, related_event_id, related_product_id, content")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
 
-  // 文章不存在或已下架（status !== 'published'）都導去下架畫面
-  if (!article || article.status !== "published") {
+  // 文章不存在、已下架，或為「話題展售」（不提供獨立頁面）→ 導去下架畫面
+  const isShowcaseOnly = Array.isArray((article as any)?.web_tag) && (article as any).web_tag.includes("話題展售");
+  if (!article || article.status !== "published" || isShowcaseOnly) {
     return (
       <div className="flex items-center justify-center py-24 flex-col gap-2">
         <p className="text-4xl">📄</p>

@@ -66,7 +66,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
       const { data: showcases } = await supabase
         .from("articles")
         .select("id, notion_id, title, summary, related_product_ids")
-        .eq("status", "active")
+        .eq("status", "published")
         .contains("web_tag", ["話題展售"])
         .order("updated_at", { ascending: false })
         .limit(10);

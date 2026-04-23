@@ -71,8 +71,14 @@ export async function POST(req: NextRequest) {
         topics: `${SITE_URL}/viewpoint/${cleanId}`,
       };
       const table = result.table;
+      // 話題展售用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
+      const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題展售");
       if (urlMap[table] && result.status !== "draft" && result.status !== null) {
-        await writebackPublish(cleanId, urlMap[table]);
+        if (isShowcaseOnly) {
+          await writebackPublishNoUrl(cleanId);
+        } else {
+          await writebackPublish(cleanId, urlMap[table]);
+        }
       } else if (result.status === "draft") {
         await writebackUnpublish(cleanId);
       }
@@ -156,12 +162,26 @@ async function writebackPublish(pageId: string, url: string) {
   }
 }
 
-/** 回寫 Notion：下架 → 狀態改「待發佈」 */
+/** 回寫 Notion：話題展售上架 → 狀態「已發佈」+ 對應連結指向旅人書店首頁（方便 Noah 辨識/點擊確認） */
+async function writebackPublishNoUrl(pageId: string) {
+  try {
+    const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
+    await updatePage(uuid, {
+      "發佈狀態": { status: { name: "已發佈" } },
+      "對應連結": { url: `${SITE_URL}/bookstore` },
+    });
+  } catch (err: any) {
+    console.warn(`[writeback] PublishNoUrl failed for ${pageId}: ${err.message}`);
+  }
+}
+
+/** 回寫 Notion：下架 → 狀態改「待發佈」+ 清空對應連結（方便辨識該頁已不在官網） */
 async function writebackUnpublish(pageId: string) {
   try {
     const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
     await updatePage(uuid, {
       "發佈狀態": { status: { name: "待發佈" } },
+      "對應連結": { url: null },
     });
   } catch (err: any) {
     console.warn(`[writeback] Unpublish failed for ${pageId}: ${err.message}`);
@@ -513,7 +533,7 @@ async function syncSingleArticle(nid: string, props: any) {
   const { error } = await supabase.from("articles").upsert(row, { onConflict: "notion_id" });
   if (error) throw new Error(`articles upsert: ${error.message}`);
   // 回寫在主函式統一處理（非阻塞）
-  return { table: "articles", title: row.title, status: row.status, hasContent: !!content };
+  return { table: "articles", title: row.title, status: row.status, hasContent: !!content, webTag: row.web_tag };
 }
 
 // ── DB06 → 庫存異動（進貨/出貨直接更新 products.stock）──
