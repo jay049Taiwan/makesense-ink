@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lineClient, verifyWebhookSignature } from "@/lib/line";
 import { generateChatReply } from "@/lib/line-chat";
-import { buildWelcomeFlex } from "@/lib/line-flex-templates";
+import { buildWelcomeFlex, buildTopicSuggestionFlex } from "@/lib/line-flex-templates";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { checkAiReplyThrottle } from "@/lib/line-ratelimit";
 
@@ -107,6 +107,18 @@ async function handleEvent(event: any) {
             text: "你好！我是旅人書店的 AI 助手小旅 🙋‍♀️\n\n隨時可以用中文、英文、日文或韓文問我問題喔！\n\n例如：\n• 最近有什麼活動？\n• 書店在哪裡？\n• What events do you have?",
           }],
         });
+      } else if (action === "topic_suggest") {
+        // 話題推薦：隨機選一個觀點 + 相關商品
+        const message = await generateTopicSuggestion();
+        await lineClient.replyMessage({
+          replyToken,
+          messages: [message],
+        });
+        await supabase.from("line_message_log").insert({
+          user_id: userId,
+          message_type: "reply",
+          template: "topic_suggest",
+        });
       } else if (action === "confirm_attend") {
         const orderId = params.get("orderId") || "";
         await lineClient.replyMessage({
@@ -136,4 +148,64 @@ async function handleEvent(event: any) {
     default:
       console.log(`[line/webhook] Unhandled event type: ${event.type}`);
   }
+}
+
+/**
+ * 隨機生成話題推薦訊息 — 一個觀點 + 相關商品
+ */
+async function generateTopicSuggestion() {
+  // 1. 隨機選一個 viewpoint 類型的 topic
+  const { data: topics } = await supabase
+    .from("topics")
+    .select("id, notion_id, name, summary")
+    .eq("status", "active")
+    .eq("tag_type", "viewpoint")
+    .limit(50);
+
+  if (!topics || topics.length === 0) {
+    return {
+      type: "text" as const,
+      text: "目前還沒有話題可以推薦 😅 請稍後再試",
+    };
+  }
+
+  const topic = topics[Math.floor(Math.random() * topics.length)];
+  const topicId = topic.notion_id || topic.id;
+
+  // 2. 查這個觀點相關的商品
+  const { data: allProducts } = await supabase
+    .from("products")
+    .select("id, notion_id, name, price, images, related_topic_ids")
+    .eq("status", "active")
+    .gt("stock", 0)
+    .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+    .limit(100);
+
+  const relatedProducts = (allProducts || []).filter((p) => {
+    const topicIds = (p.related_topic_ids as string[]) || [];
+    return topicIds.includes(topicId);
+  });
+
+  // 如果沒有相關商品，隨機取 3 個
+  const picked = relatedProducts.length > 0
+    ? relatedProducts.slice(0, 3)
+    : (allProducts || []).sort(() => Math.random() - 0.5).slice(0, 3);
+
+  const products = picked.map((p: any) => {
+    let photo: string | null = null;
+    try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
+    return {
+      name: p.name,
+      price: p.price,
+      photo,
+      slug: p.notion_id || p.id,
+    };
+  });
+
+  return buildTopicSuggestionFlex({
+    topicName: topic.name,
+    topicSummary: topic.summary,
+    topicSlug: topicId,
+    products,
+  });
 }

@@ -52,15 +52,15 @@ async function main() {
       // 第二排
       {
         bounds: { x: 0, y: 843, width: 833, height: 843 },
-        action: { type: "uri" as const, label: "確認結帳", uri: liffUrl("checkout") },
-      },
-      {
-        bounds: { x: 833, y: 843, width: 834, height: 843 },
         action: { type: "uri" as const, label: "地方通訊", uri: liffUrl("liff/newsletter") },
       },
       {
+        bounds: { x: 833, y: 843, width: 834, height: 843 },
+        action: { type: "postback" as const, label: "話題推薦", data: "action=topic_suggest", displayText: "🎲 來個話題推薦" },
+      },
+      {
         bounds: { x: 1667, y: 843, width: 833, height: 843 },
-        action: { type: "uri" as const, label: "會員中心", uri: liffUrl("liff/member") },
+        action: { type: "uri" as const, label: "結帳確認", uri: liffUrl("liff/member") },
       },
     ],
   };
@@ -93,9 +93,9 @@ async function main() {
     console.log(`   📚 選書選物 → ${liffUrl("liff/shop")}`);
     console.log(`   🎪 活動體驗 → ${liffUrl("liff/events")}`);
     console.log(`   🗺️ 觀點漫遊 → ${liffUrl("liff/viewpoints")}`);
-    console.log(`   🛒 確認結帳 → ${liffUrl("checkout")}`);
     console.log(`   📮 地方通訊 → ${liffUrl("liff/newsletter")}`);
-    console.log(`   👤 會員中心 → ${liffUrl("liff/member")}`);
+    console.log(`   🎲 話題推薦 → postback (action=topic_suggest)`);
+    console.log(`   🛒 結帳確認 → ${liffUrl("liff/member")}`);
   } catch (err: any) {
     console.error("❌ 建立失敗:", err.message);
     if (err.statusCode === 401) {

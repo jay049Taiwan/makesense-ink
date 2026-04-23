@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { useCart } from "@/components/providers/CartProvider";
 import { supabase } from "@/lib/supabase";
 
 interface MemberInfo {
@@ -21,6 +22,8 @@ const QUICK_LINKS = [
 
 export default function LiffMemberPage() {
   const { isLiffMode, liffUser, needsBind, isLiffReady } = useLiff();
+  const { items, totalPrice, totalItems } = useCart();
+  const hasCart = items.length > 0;
   const [bindEmail, setBindEmail] = useState("");
   const [binding, setBinding] = useState(false);
   const [bindError, setBindError] = useState("");
@@ -199,6 +202,51 @@ export default function LiffMemberPage() {
   // 已綁定會員
   return (
     <div className="pb-4">
+      {/* 頁面標題 */}
+      <div className="px-4 pt-4 pb-2">
+        <h1 className="text-lg font-bold" style={{ color: "#2d2a26" }}>結帳確認</h1>
+      </div>
+
+      {/* 購物車區（有商品才顯示） */}
+      {hasCart && (
+        <div className="mx-4 mt-2 p-4 rounded-2xl" style={{ background: "#fff", border: "2px solid #4ECDC4" }}>
+          <div className="flex items-center gap-2 mb-3">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#4ECDC4" strokeWidth="2">
+              <circle cx="9" cy="21" r="1" />
+              <circle cx="20" cy="21" r="1" />
+              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+            </svg>
+            <h2 className="text-sm font-bold flex-1" style={{ color: "#2d2a26" }}>購物車 ({totalItems} 件)</h2>
+          </div>
+
+          <div className="space-y-2 mb-3">
+            {items.slice(0, 3).map((item, i) => (
+              <div key={i} className="flex justify-between text-xs" style={{ color: "#666" }}>
+                <span className="line-clamp-1 flex-1">{item.name} ×{item.qty}</span>
+                <span style={{ color: "#b5522a" }}>NT$ {(item.price * item.qty).toLocaleString()}</span>
+              </div>
+            ))}
+            {items.length > 3 && (
+              <p className="text-xs" style={{ color: "#999" }}>...還有 {items.length - 3} 件商品</p>
+            )}
+          </div>
+
+          <div className="flex items-center justify-between pt-3 border-t" style={{ borderColor: "#ece8e1" }}>
+            <div>
+              <p className="text-[10px]" style={{ color: "#999" }}>合計</p>
+              <p className="text-lg font-bold" style={{ color: "#b5522a" }}>NT$ {totalPrice.toLocaleString()}</p>
+            </div>
+            <a
+              href="/checkout?liff_mode=true"
+              className="px-5 py-3 rounded-xl text-sm font-semibold"
+              style={{ background: "#4ECDC4", color: "#fff" }}
+            >
+              前往結帳 →
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* 會員資訊卡片 */}
       <div className="mx-4 mt-4 p-5 rounded-2xl" style={{ background: "linear-gradient(135deg, #7a5c40 0%, #b89e7a 100%)" }}>
         <div className="flex items-center gap-3 mb-4">

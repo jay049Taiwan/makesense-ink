@@ -350,6 +350,104 @@ export function buildWelcomeFlex(): FlexMessage {
 }
 
 // ═══════════════════════════════════════════
+// 話題推薦（Rich Menu 點擊觸發）
+// ═══════════════════════════════════════════
+export function buildTopicSuggestionFlex(data: {
+  topicName: string;
+  topicSummary?: string | null;
+  topicSlug: string;
+  products: { name: string; price: number; photo: string | null; slug: string }[];
+}): FlexMessage {
+  // 商品 carousel（最多 3 個）
+  const productBubbles: FlexBubble[] = data.products.slice(0, 3).map((p) => ({
+    type: "bubble",
+    size: "micro",
+    ...(p.photo ? {
+      hero: {
+        type: "image",
+        url: p.photo,
+        size: "full",
+        aspectRatio: "1:1",
+        aspectMode: "cover",
+        action: { type: "uri", label: "查看商品", uri: buildLiffUrl(`product/${p.slug}`) },
+      },
+    } : {}),
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "xs",
+      contents: [
+        { type: "text", text: p.name, size: "xs", weight: "bold", wrap: true, maxLines: 2 },
+        { type: "text", text: `NT$ ${p.price.toLocaleString()}`, size: "xs", color: "#b5522a", weight: "bold" },
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      contents: [{
+        type: "button",
+        action: { type: "uri", label: "查看", uri: buildLiffUrl(`product/${p.slug}`) },
+        style: "primary",
+        color: "#7a5c40",
+        height: "sm",
+      }],
+    },
+  }));
+
+  // 話題主卡片
+  const topicBubble: FlexBubble = {
+    type: "bubble",
+    size: "micro",
+    body: {
+      type: "box",
+      layout: "vertical",
+      spacing: "sm",
+      contents: [
+        { type: "text", text: "🎲 話題推薦", size: "xs", color: "#4A7C59", weight: "bold" },
+        { type: "text", text: data.topicName, size: "md", weight: "bold", wrap: true, maxLines: 3 },
+        ...(data.topicSummary ? [{
+          type: "text" as const,
+          text: data.topicSummary.slice(0, 60) + (data.topicSummary.length > 60 ? "..." : ""),
+          size: "xxs" as const,
+          color: "#666",
+          wrap: true,
+          maxLines: 4,
+        }] : []),
+      ],
+    },
+    footer: {
+      type: "box",
+      layout: "vertical",
+      spacing: "xs",
+      contents: [
+        {
+          type: "button",
+          action: { type: "uri", label: "閱讀話題", uri: buildLiffUrl(`viewpoint/${data.topicSlug}`) },
+          style: "primary",
+          color: "#4A7C59",
+          height: "sm",
+        },
+        {
+          type: "button",
+          action: { type: "postback", label: "換一個", data: "action=topic_suggest", displayText: "🎲 換一個話題" },
+          style: "secondary",
+          height: "sm",
+        },
+      ],
+    },
+  };
+
+  return {
+    type: "flex",
+    altText: `🎲 話題推薦：${data.topicName}`,
+    contents: {
+      type: "carousel",
+      contents: [topicBubble, ...productBubbles],
+    },
+  };
+}
+
+// ═══════════════════════════════════════════
 // 活動提醒（前 5 天 / 前 1 天）
 // ═══════════════════════════════════════════
 export function buildEventReminderFlex(data: {
