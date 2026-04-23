@@ -69,7 +69,7 @@ async function resolveEvent(input: string) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { items, contact, delivery, note, memberEmail, source } = body as {
+    const { items, contact, delivery, note, memberEmail, source, refundInfo } = body as {
       items: {
         id: string;
         name: string;
@@ -87,6 +87,17 @@ export async function POST(req: NextRequest) {
       note?: string;
       memberEmail?: string;
       source?: "web" | "liff" | "telegram" | "preorder";
+      /**
+       * V2：有票券的訂單要提供退款資訊（未來金流接上後使用）
+       *   method: "original" → 退回原付款帳戶
+       *   method: "custom"   → 指定退款帳戶，需填 bank_name/account_number/account_holder
+       */
+      refundInfo?: {
+        method: "original" | "custom";
+        bank_name?: string;
+        account_number?: string;
+        account_holder?: string;
+      };
     };
 
     if (!items || items.length === 0) {
@@ -133,9 +144,25 @@ export async function POST(req: NextRequest) {
     // 2. 計算總金額
     const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
 
-    // 3. 建立訂單
+    // 3. 建立訂單（V2：有票券 → reservation 模式，pending 等錄取；純商品 → direct 模式，直接 confirmed）
     const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));
-    const orderStatus = hasTickets ? "pending" : "confirmed"; // 有票券需審核
+    const orderMode: "reservation" | "direct" = hasTickets ? "reservation" : "direct";
+    const orderStatus = hasTickets ? "pending" : "confirmed";
+
+    // reservation 模式要求退款資訊
+    if (orderMode === "reservation") {
+      if (!refundInfo || !refundInfo.method) {
+        return NextResponse.json({ error: "活動報名需提供退款資訊" }, { status: 400 });
+      }
+      if (refundInfo.method === "custom") {
+        const missing = ["bank_name", "account_number", "account_holder"].filter(
+          (k) => !((refundInfo as any)[k] || "").trim()
+        );
+        if (missing.length > 0) {
+          return NextResponse.json({ error: `退款帳戶資訊不完整：${missing.join(", ")}` }, { status: 400 });
+        }
+      }
+    }
 
     const { data: order, error: orderError } = await supabase
       .from("orders")
@@ -144,6 +171,7 @@ export async function POST(req: NextRequest) {
         status: orderStatus,
         total,
         source: source || "web",
+        refund_info: orderMode === "reservation" ? refundInfo : null,
       })
       .select("id")
       .single();
@@ -220,16 +248,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "建立訂單明細失敗" }, { status: 500 });
     }
 
-    // 4.5 扣商品庫存（只扣 productInfo 存在的項目）
-    for (const { supabaseId, productInfo, item } of resolvedItems) {
-      if (!productInfo || !supabaseId) continue;
-      const newStock = Math.max((productInfo.stock ?? 0) - item.qty, 0);
-      const { error: stockError } = await supabase
-        .from("products")
-        .update({ stock: newStock })
-        .eq("id", supabaseId);
-      if (stockError) {
-        console.warn(`[checkout] 扣庫存失敗 ${productInfo.name}:`, stockError.message);
+    // 4.5 扣商品庫存（V2：僅 direct 模式即時扣；reservation 模式等錄取後才扣）
+    if (orderMode === "direct") {
+      for (const { supabaseId, productInfo, item } of resolvedItems) {
+        if (!productInfo || !supabaseId) continue;
+        const newStock = Math.max((productInfo.stock ?? 0) - item.qty, 0);
+        const { error: stockError } = await supabase
+          .from("products")
+          .update({ stock: newStock })
+          .eq("id", supabaseId);
+        if (stockError) {
+          console.warn(`[checkout] 扣庫存失敗 ${productInfo.name}:`, stockError.message);
+        }
       }
     }
 
@@ -317,42 +347,45 @@ export async function POST(req: NextRequest) {
         if (r.emergency_contact) p["登記備註"] = { rich_text: [{ text: { content: `緊急聯絡：${r.emergency_contact}` } }] };
       }
 
-      // 7-1. 先為每個 item 建 DB06 明細
+      // 7-1. DB06 明細（V2：僅 direct 模式建；reservation 模式等錄取時才建）
       const db06PageIds: string[] = [];
-      for (const { item, productInfo } of resolvedItems) {
-        // productInfo 可能為 null（票券類商品常沒在 Supabase products），
-        // 此時 fallback 回 item.productId（前端帶來的 DB07 notion_id）
-        const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
+      if (orderMode === "direct") {
+        for (const { item, productInfo } of resolvedItems) {
+          // productInfo 可能為 null（票券類商品常沒在 Supabase products），
+          // 此時 fallback 回 item.productId（前端帶來的 DB07 notion_id）
+          const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
 
-        const db06Props: Record<string, any> = {
-          "明細名稱": { title: [{ text: { content: item.name } }] },
-          "明細類型": { select: { name: "庫存紀錄" } },
-          "登記數量": { number: item.qty },
-          "登記單價": { number: item.price },
-        };
-        if (productNotionDashed) {
-          db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
-        }
-        // 票券類 item：帶 attendee 的登記資料
-        if (item.registration && Object.keys(item.registration).length > 0) {
-          fillAttendeeProps(db06Props, item.registration, contact.name);
-        }
-        if (mainEventNotionDashed && item.eventId) {
-          db06Props["對應協作"] = { relation: [{ id: mainEventNotionDashed }] };
-        }
+          const db06Props: Record<string, any> = {
+            "明細名稱": { title: [{ text: { content: item.name } }] },
+            "明細類型": { select: { name: "庫存紀錄" } },
+            "庫存選項": { select: { name: "出貨" } },
+            "登記數量": { number: item.qty },
+            "登記單價": { number: item.price },
+          };
+          if (productNotionDashed) {
+            db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
+          }
+          if (item.registration && Object.keys(item.registration).length > 0) {
+            fillAttendeeProps(db06Props, item.registration, contact.name);
+          }
 
-        try {
-          const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
-          db06PageIds.push((db06Page as any).id as string);
-        } catch (e: any) {
-          console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
+          try {
+            const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
+            db06PageIds.push((db06Page as any).id as string);
+          } catch (e: any) {
+            console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
+          }
         }
       }
 
-      // 7-2. 建 DB05 訂單標頭（帶報名者 A 的資料）
+      // 7-2. 建 DB05 訂單標頭
+      //   reservation 模式：表單類型=預約報名（無 DB06 relation，等錄取後才有）
+      //   direct 模式：表單類型=報名登記（含 DB06 對應明細）
+      const formType = orderMode === "reservation" ? "預約報名" : "報名登記";
+      const titlePrefix = orderMode === "reservation" ? "預約" : "官網訂單";
       const db05Props: Record<string, any> = {
-        "表單名稱": { title: [{ text: { content: `官網訂單 ${orderNumber}` } }] },
-        "表單類型": { select: { name: "報名登記" } },
+        "表單名稱": { title: [{ text: { content: `${titlePrefix} ${orderNumber}` } }] },
+        "表單類型": { select: { name: formType } },
         "登記選項": { select: { name: "紀錄庫存" } },
         "庫存細項": { select: { name: "出貨" } },
       };

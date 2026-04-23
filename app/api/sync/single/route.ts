@@ -229,7 +229,7 @@ async function syncSingleEvent(nid: string, props: any) {
   return { table: "events", title: row.title, status: row.status };
 }
 
-// ── DB05 分流：文章 / 庫存批次 / 報名登記通知 ──
+// ── DB05 分流：文章 / 庫存批次 / 預約報名 ──
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["表單類型"]);
   const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點（2026/04/22 改為用庫存選項判斷）
@@ -240,9 +240,9 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncStockBatch(nid, props);
   }
 
-  // 報名登記（官網結帳訂單）：按「發佈更新」時檢查錄取狀態 → 推 LINE + 對衝
-  if (formType === "報名登記") {
-    return await syncSingleRegistration(nid, props);
+  // V2：預約報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
+  if (formType === "預約報名") {
+    return await syncSingleReservation(nid, props);
   }
 
   // 官網文章：文案細項=官網內容
@@ -254,34 +254,32 @@ async function syncSingleDB05(nid: string, props: any) {
   return { table: "db05", note: `非官網內容（表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
-// ── DB05 報名登記 → LINE 錄取/未錄取通知 + DB06 對衝 ──
-async function syncSingleRegistration(nid: string, props: any) {
+// ── V2：DB05 預約報名 → 錄取時建庫存紀錄+扣庫存+LINE；未錄取時標記退款+LINE ──
+async function syncSingleReservation(nid: string, props: any) {
   const admissionStatus = st(props["錄取狀態"]);  // status 欄位：錄取 / 未錄取 / 無關錄取
 
-  // 對應 accepted/rejected；其他值（無關錄取、空）跳過
   let result: "accepted" | "rejected" | null = null;
   if (admissionStatus === "錄取") result = "accepted";
   else if (admissionStatus === "未錄取") result = "rejected";
 
   if (!result) {
-    return { table: "registration", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
+    return { table: "reservation", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
   }
 
-  // 用 DB05 notion_id 精確匹配訂單（orders.id 是 UUID，.like() 不適用；改用 notion_db05_id 欄位）
   const { data: order } = await supabase
     .from("orders")
-    .select("id, member_id, admission_notified_status")
+    .select("id, member_id, admission_notified_status, confirmed_db05_notion_id")
     .eq("notion_db05_id", nid)
     .maybeSingle();
 
   if (!order) {
-    return { table: "registration", note: `找不到對應 DB05 的訂單（notion_db05_id=${nid}）`, nid, skipped: true };
+    return { table: "reservation", note: `找不到對應 DB05 的訂單（notion_db05_id=${nid}）`, nid, skipped: true };
   }
 
   // 防重複：已通知過相同狀態就跳過
   if (order.admission_notified_status === admissionStatus) {
     return {
-      table: "registration",
+      table: "reservation",
       orderId: order.id,
       admissionStatus,
       note: "已通知過相同狀態，跳過",
@@ -290,29 +288,38 @@ async function syncSingleRegistration(nid: string, props: any) {
     };
   }
 
-  // 走共用流程：推 LINE + 未錄取時建對衝
-  // 把 dashed page id 傳進去（processAdmission 會用它建 DB06 對應表單 relation）
   const db05PageIdDashed = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
   const outcome = await processAdmission({
     db05PageId: db05PageIdDashed,
     result,
-    db05Page: { properties: props },  // 已經讀過 props，避免 processAdmission 再 fetch 一次
+    orderId: order.id,
+    db05Page: { properties: props },
     memberId: order.member_id,
+    existingConfirmedDb05: order.confirmed_db05_notion_id,
   });
 
-  // 更新 orders 的已通知狀態（防下次重複觸發）
-  await supabase
-    .from("orders")
-    .update({ admission_notified_status: admissionStatus })
-    .eq("id", order.id);
+  // 更新 orders：通知狀態、交易 DB05 id、訂單狀態、退款狀態
+  const orderUpdates: Record<string, any> = {
+    admission_notified_status: admissionStatus,
+    status: result === "accepted" ? "confirmed" : "cancelled",
+  };
+  if (outcome.confirmedDb05NotionId && !order.confirmed_db05_notion_id) {
+    orderUpdates.confirmed_db05_notion_id = outcome.confirmedDb05NotionId;
+  }
+  if (outcome.refundStatus) {
+    orderUpdates.refund_status = outcome.refundStatus;
+  }
+  await supabase.from("orders").update(orderUpdates).eq("id", order.id);
 
   return {
-    table: "registration",
+    table: "reservation",
     orderId: order.id,
     admissionStatus,
     result,
     linePushed: outcome.linePushed,
-    offsetCount: outcome.offsetCount,
+    confirmedDb05NotionId: outcome.confirmedDb05NotionId,
+    stockDecremented: outcome.stockDecremented,
+    refundStatus: outcome.refundStatus,
     memberId: outcome.memberId,
     nid,
   };
