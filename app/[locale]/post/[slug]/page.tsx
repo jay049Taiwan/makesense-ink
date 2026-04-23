@@ -5,6 +5,9 @@ import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
 import WishlistButton from "@/components/ui/WishlistButton";
+import PaywallButton from "@/components/ui/PaywallButton";
+import { auth } from "@/lib/auth";
+import { normalizeEmail } from "@/lib/email";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -19,10 +22,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
 
-  // 從 Supabase 拿文章基本資料
+  // 從 Supabase 拿文章基本資料（含 summary + related_product_id）
   const { data: article } = await supabase
     .from("articles")
-    .select("id, notion_id, title, cover_url, published_at, status, related_event_id, content")
+    .select("id, notion_id, title, summary, cover_url, published_at, status, related_event_id, related_product_id, content")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
 
@@ -53,6 +56,43 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       }
     } catch (e: any) {
       console.error("Failed to fetch Notion content:", e.message);
+    }
+  }
+
+  // 付費內容判斷：有 related_product_id → 檢查使用者是否已購買
+  let paywallProduct: { id: string; notionId: string; name: string; price: number; subCategory: string | null } | null = null;
+  let isPaid = true; // 預設開放；有 product 才判定
+  if (article.related_product_id) {
+    const { data: product } = await supabase
+      .from("products")
+      .select("id, notion_id, name, price, sub_category")
+      .eq("id", article.related_product_id)
+      .maybeSingle();
+    if (product) {
+      paywallProduct = {
+        id: product.id,
+        notionId: product.notion_id,
+        name: product.name,
+        price: Number(product.price) || 0,
+        subCategory: product.sub_category,
+      };
+      // 預設未付費；若登入且有該商品的 confirmed 訂單則標記已付費
+      isPaid = false;
+      const session = await auth();
+      const email = normalizeEmail(session?.user?.email) || null;
+      if (email) {
+        const { data: member } = await supabase.from("members").select("id").eq("email", email).maybeSingle();
+        if (member?.id) {
+          const { data: owned } = await supabase
+            .from("orders")
+            .select("id, order_items!inner(item_id)")
+            .eq("member_id", member.id)
+            .eq("status", "confirmed")
+            .eq("order_items.item_id", product.id)
+            .limit(1);
+          if (owned && owned.length > 0) isPaid = true;
+        }
+      }
     }
   }
 
@@ -100,8 +140,24 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
         </div>
       )}
 
-      {/* Article body */}
-      {contentHtml ? (
+      {/* Article body / Paywall */}
+      {paywallProduct && !isPaid ? (
+        <>
+          {/* 簡介摘要（預覽） */}
+          {article.summary && (
+            <div
+              className="text-[0.95em] leading-[1.8] mb-8"
+              style={{ color: "var(--color-ink)" }}
+            >
+              {article.summary.split("\n").map((line, i) => (
+                <p key={i} className="mb-3">{line}</p>
+              ))}
+            </div>
+          )}
+          {/* 付費解鎖 */}
+          <PaywallButton product={paywallProduct} articleTitle={article.title} />
+        </>
+      ) : contentHtml ? (
         <div
           className="notion-content text-[0.95em] leading-[1.8] space-y-4"
           style={{ color: "var(--color-ink)" }}

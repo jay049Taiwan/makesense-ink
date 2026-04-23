@@ -423,6 +423,15 @@ async function syncSingleArticle(nid: string, props: any) {
     relatedEventId = data?.id || null;
   }
 
+  // 對應庫存 relation → products（付費文章：有值表示要付費解鎖；取第一筆）
+  const pRels = rel(props["對應庫存"]);
+  let relatedProductId: string | null = null;
+  if (pRels[0]) {
+    const pClean = pRels[0].replace(/-/g, "");
+    const { data } = await supabase.from("products").select("id").eq("notion_id", pClean).maybeSingle();
+    relatedProductId = data?.id || null;
+  }
+
   // 抓文章正文（Notion blocks → HTML）
   let content: string | null = null;
   try {
@@ -436,8 +445,10 @@ async function syncSingleArticle(nid: string, props: any) {
   const row: Record<string, any> = {
     notion_id: nid,
     title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
+    summary: tx(props["簡介摘要"]),
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
+    related_product_id: relatedProductId,
     // 2026/04/22：官網備項是 select（單值），包成 text[] 以便未來擴展
     web_tag: (() => {
       const v = extractSelect(props["官網備項"]?.select);
