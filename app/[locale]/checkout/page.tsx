@@ -119,6 +119,16 @@ export default function CheckoutPage() {
         currency: "TWD",
         value: totalPrice,
       });
+      // 把訂單明細暫存 sessionStorage，讓 success 頁立即顯示，不必等 API
+      try {
+        sessionStorage.setItem(`order_snapshot_${data.orderId}`, JSON.stringify({
+          items: items.map((i) => ({
+            name: i.name, subtitle: i.subtitle, type: i.type,
+            price: i.price, qty: i.qty,
+          })),
+          total: totalPrice + (delivery === "ship" ? 80 : 0),
+        }));
+      } catch {}
       clearCart();
       router.push(`/checkout/success?status=${hasTickets ? "review" : "success"}&orderId=${data.orderId}`);
     } catch (err: any) {
@@ -429,7 +439,7 @@ export default function CheckoutPage() {
               </div>
               <div className="p-5">
                 {/* 條款同意 */}
-                <label className="flex items-start gap-2 text-[0.65em] cursor-pointer mb-3 leading-relaxed" style={{ color: "var(--color-ink)" }}>
+                <label className="flex items-start gap-2 text-sm cursor-pointer mb-3 leading-relaxed" style={{ color: "var(--color-ink)" }}>
                   <input type="checkbox" checked={agreedTerms} onChange={(e) => setAgreedTerms(e.target.checked)} className="rounded mt-0.5 flex-shrink-0" />
                   <span>
                     我已閱讀並同意{" "}

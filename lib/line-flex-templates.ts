@@ -295,20 +295,6 @@ export function buildOrderConfirmFlex(order: {
         },
       ],
     },
-    footer: {
-      type: "box",
-      layout: "vertical",
-      spacing: "sm",
-      contents: [
-        {
-          type: "button",
-          action: { type: "uri", label: "查看訂單", uri: buildLiffUrl("dashboard/orders") },
-          style: "primary",
-          color: "#7a5c40",
-          height: "sm",
-        },
-      ],
-    },
   };
 
   return {
@@ -485,20 +471,6 @@ export function buildOrderStatusFlex(data: {
         { type: "separator" },
         { type: "text", text: `訂單 ${data.orderId.slice(0, 8)}`, size: "xs", color: "#999", margin: "sm" },
         { type: "text", text: data.message, size: "sm", color: "#333", wrap: true, margin: "md" },
-      ],
-    },
-    footer: {
-      type: "box",
-      layout: "vertical",
-      spacing: "sm",
-      contents: [
-        {
-          type: "button",
-          action: { type: "uri", label: "查看訂單", uri: buildLiffUrl("dashboard/orders") },
-          style: "primary",
-          color: "#7a5c40",
-          height: "sm",
-        },
       ],
     },
   };

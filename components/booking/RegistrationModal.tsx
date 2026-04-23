@@ -59,6 +59,21 @@ export default function RegistrationModal({
   // 載入上次報名資料（defaultValue 帶入）
   useEffect(() => {
     if (!isOpen) return;
+
+    // 1. 會員 profile → 聯絡資訊 baseline（一定會填）
+    fetch("/api/user/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => {
+        if (!p || p.error) return;
+        setContact((prev) => ({
+          name: prev.name || p.name || "",
+          phone: prev.phone || p.phone || "",
+          email: prev.email || p.email || "",
+        }));
+      })
+      .catch(() => {});
+
+    // 2. 上次同類型報名 → attendees（可能沒有，有就帶入）
     const qs = new URLSearchParams({ formType }).toString();
     fetch(`/api/user/last-registration?${qs}`)
       .then((r) => (r.ok ? r.json() : null))
@@ -76,7 +91,6 @@ export default function RegistrationModal({
             prev.map((att, i) => {
               const prior = d.attendees[i];
               if (!prior) return att;
-              // 只在該欄位空白時才覆寫，避免蓋掉用戶剛打的東西
               return {
                 ...att,
                 name: att.name || prior.name || "",
@@ -173,7 +187,7 @@ export default function RegistrationModal({
                 <div className="grid grid-cols-2 gap-4 mt-4">
                   <CField label="Email" required type="email" placeholder="you@email.com"
                     value={contact.email} onChange={(v) => setContact({ ...contact, email: v })} />
-                  {formType === "市集" && <Field label="LINE ID" name="line_id" placeholder="選填" />}
+                  {formType === "市集" && <LineBindButton />}
                 </div>
               </fieldset>
 
@@ -398,10 +412,72 @@ function LectureAttendeeFields({ idx, data, update }: { idx: number; data: Atten
 }
 
 /* ═══════════════════════════════════════════════════════
+   LINE 綁定按鈕（取代 LINE ID 文字欄位）
+   ═══════════════════════════════════════════════════════ */
+function LineBindButton() {
+  const [status, setStatus] = useState<"loading" | "bound" | "unbound">("loading");
+
+  useEffect(() => {
+    fetch("/api/user/profile")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((p) => setStatus(p?.lineUid ? "bound" : "unbound"))
+      .catch(() => setStatus("unbound"));
+  }, []);
+
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-ink)" }}>LINE 綁定</label>
+      {status === "loading" ? (
+        <div className="w-full h-11 px-3 rounded-lg text-sm flex items-center" style={{ border: "1px solid var(--color-dust)", color: "var(--color-mist)" }}>
+          載入中…
+        </div>
+      ) : status === "bound" ? (
+        <div className="w-full h-11 px-3 rounded-lg text-sm flex items-center gap-2"
+          style={{ border: "1px solid #9AE6B4", background: "#F0FFF4", color: "#1A3A2E" }}>
+          <span>✓</span><span>已綁定 LINE 帳號</span>
+        </div>
+      ) : (
+        <button
+          type="button"
+          onClick={() => { window.location.href = "/api/user/link-line/start"; }}
+          className="w-full h-11 px-3 rounded-lg text-sm font-medium transition-colors"
+          style={{ border: "1.5px solid #06C755", background: "#06C755", color: "#fff" }}
+        >
+          綁定 LINE 以接收通知
+        </button>
+      )}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════
    市集招商
    ═══════════════════════════════════════════════════════ */
+interface MarketProduct {
+  name: string; price: string; intro: string; photo_name: string | null; preorder_limit: string;
+}
+interface MarketExperience {
+  name: string; price: string; desc: string; duration: string; capacity: string;
+}
+const EMPTY_PRODUCT: MarketProduct = { name: "", price: "", intro: "", photo_name: null, preorder_limit: "" };
+const EMPTY_EXPERIENCE: MarketExperience = { name: "", price: "", desc: "", duration: "", capacity: "" };
+
 function MarketFields() {
-  const [hasExperience, setHasExperience] = useState<string>("請選擇");
+  const [products, setProducts] = useState<MarketProduct[]>([{ ...EMPTY_PRODUCT }]);
+  const [experiences, setExperiences] = useState<MarketExperience[]>([]);
+  const [tableCount, setTableCount] = useState(0);
+  const [chairCount, setChairCount] = useState(0);
+  const [needsPower, setNeedsPower] = useState(false);
+
+  const updateProduct = (idx: number, patch: Partial<MarketProduct>) =>
+    setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
+  const addProduct = () => { if (products.length < 10) setProducts((prev) => [...prev, { ...EMPTY_PRODUCT }]); };
+  const removeProduct = (idx: number) => setProducts((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateExperience = (idx: number, patch: Partial<MarketExperience>) =>
+    setExperiences((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
+  const addExperience = () => { if (experiences.length < 10) setExperiences((prev) => [...prev, { ...EMPTY_EXPERIENCE }]); };
+  const removeExperience = (idx: number) => setExperiences((prev) => prev.filter((_, i) => i !== idx));
 
   return (
     <fieldset>
@@ -418,26 +494,171 @@ function MarketFields() {
       <div className="mt-4"><TextArea label="品牌簡介" required name="brand_intro" placeholder="介紹您的品牌故事，100字以內" /></div>
 
       <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>品牌圖片</div>
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-2 gap-4">
         <FileUpload label="品牌 Logo" required name="brand_logo" accept="image/*" />
         <FileUpload label="品牌情境照" name="brand_image" accept="image/*" />
-        <FileUpload label="商品照片" name="product_photo" accept="image/*" />
       </div>
 
-      <div className="mt-4"><TextArea label="預計販售品項與價格" required name="sell_goods" placeholder="手工餅乾 $80、擴香石 $350..." /></div>
-
-      <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>現場體驗 &amp; 設備</div>
-      <SelectField label="是否辦現場收費體驗活動？" name="has_experience"
-        options={["請選擇", "否", "是，有體驗活動"]} onChange={setHasExperience} />
-      {hasExperience === "是，有體驗活動" && (
-        <div className="mt-4"><TextArea label="體驗內容與價格" required name="experience_detail" placeholder="例：唱頌缽體驗 $350/人" /></div>
+      {/* ── 商品條列（最多 10 筆）── */}
+      <div className="flex items-center justify-between mt-6 mb-3 pb-1" style={{ borderBottom: "1px solid var(--color-dust)" }}>
+        <div className="text-sm font-semibold" style={{ color: "var(--color-bark)" }}>販售商品（最多 10 筆）</div>
+        <span className="text-xs" style={{ color: "var(--color-mist)" }}>{products.length}/10</span>
+      </div>
+      <div className="space-y-3">
+        {products.map((p, idx) => (
+          <div key={idx} className="rounded-lg p-4" style={{ border: "1px solid var(--color-dust)", background: "var(--color-warm-white)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium" style={{ color: "var(--color-bark)" }}>商品 {idx + 1}</span>
+              {products.length > 1 && (
+                <button type="button" onClick={() => removeProduct(idx)} className="text-xs" style={{ color: "#c87060" }}>移除</button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <CField label="商品名稱" required placeholder="手工餅乾"
+                value={p.name} onChange={(v) => updateProduct(idx, { name: v })} />
+              <CField label="單價 NT$" required type="number" placeholder="80"
+                value={p.price} onChange={(v) => updateProduct(idx, { price: v })} />
+            </div>
+            <div className="mt-3">
+              <CField label="簡介" placeholder="商品特色、成分、規格…" value={p.intro} onChange={(v) => updateProduct(idx, { intro: v })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <CField label="預購數量上限" type="number" placeholder="達上限停止預購"
+                value={p.preorder_limit} onChange={(v) => updateProduct(idx, { preorder_limit: v })} />
+              <InlineFile label="商品照片" fileName={p.photo_name}
+                onChange={(name) => updateProduct(idx, { photo_name: name })} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {products.length < 10 && (
+        <button type="button" onClick={addProduct}
+          className="w-full mt-3 h-10 rounded-lg text-sm font-medium transition-colors"
+          style={{ border: "1px dashed var(--color-dust)", color: "var(--color-bark)", background: "#fff" }}>
+          ＋ 新增商品
+        </button>
       )}
-      <div className="grid grid-cols-2 gap-4 mt-4">
-        <Field label="加租桌椅" name="equipment" placeholder="桌×1、椅×2 或 無" />
-        <SelectField label="是否需要電源？" name="needs_power" options={["請選擇", "不需要", "需要"]} />
+
+      {/* ── 現場體驗條列（選填，最多 10 筆）── */}
+      <div className="flex items-center justify-between mt-6 mb-3 pb-1" style={{ borderBottom: "1px solid var(--color-dust)" }}>
+        <div className="text-sm font-semibold" style={{ color: "var(--color-bark)" }}>現場體驗（選填，最多 10 筆）</div>
+        <span className="text-xs" style={{ color: "var(--color-mist)" }}>{experiences.length}/10</span>
       </div>
+      <div className="space-y-3">
+        {experiences.map((e, idx) => (
+          <div key={idx} className="rounded-lg p-4" style={{ border: "1px solid var(--color-dust)", background: "var(--color-warm-white)" }}>
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-sm font-medium" style={{ color: "var(--color-bark)" }}>體驗 {idx + 1}</span>
+              <button type="button" onClick={() => removeExperience(idx)} className="text-xs" style={{ color: "#c87060" }}>移除</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <CField label="體驗名稱" required placeholder="唱頌缽體驗"
+                value={e.name} onChange={(v) => updateExperience(idx, { name: v })} />
+              <CField label="單價 NT$" required type="number" placeholder="350"
+                value={e.price} onChange={(v) => updateExperience(idx, { price: v })} />
+            </div>
+            <div className="grid grid-cols-2 gap-3 mt-3">
+              <CField label="時長（分鐘）" type="number" placeholder="30"
+                value={e.duration} onChange={(v) => updateExperience(idx, { duration: v })} />
+              <CField label="人數上限" type="number" placeholder="6"
+                value={e.capacity} onChange={(v) => updateExperience(idx, { capacity: v })} />
+            </div>
+            <div className="mt-3">
+              <CField label="說明" placeholder="體驗流程、需要準備的事項…"
+                value={e.desc} onChange={(v) => updateExperience(idx, { desc: v })} />
+            </div>
+          </div>
+        ))}
+      </div>
+      {experiences.length < 10 && (
+        <button type="button" onClick={addExperience}
+          className="w-full mt-3 h-10 rounded-lg text-sm font-medium transition-colors"
+          style={{ border: "1px dashed var(--color-dust)", color: "var(--color-bark)", background: "#fff" }}>
+          ＋ 新增體驗
+        </button>
+      )}
+
+      {/* ── 設備需求 ── */}
+      <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>設備需求</div>
+      <div className="grid grid-cols-3 gap-4">
+        <CounterField label="加租桌" value={tableCount} onChange={setTableCount} />
+        <CounterField label="加租椅" value={chairCount} onChange={setChairCount} />
+        <ToggleField label="是否需要電源？" value={needsPower} onChange={setNeedsPower} />
+      </div>
+
       <div className="mt-4"><TextArea label="問題回饋（選填）" name="motivation" placeholder="想對我們說的話" /></div>
     </fieldset>
+  );
+}
+
+/* 商品/體驗卡片內用的精簡檔案上傳 */
+function InlineFile({ label, fileName, onChange }: { label: string; fileName: string | null; onChange: (name: string | null) => void }) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-ink)" }}>{label}</label>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => onChange(e.target.files?.[0]?.name ?? null)}
+      />
+      <button
+        type="button"
+        onClick={() => inputRef.current?.click()}
+        className="w-full h-11 rounded-lg text-sm flex items-center justify-center gap-1 transition-colors px-3"
+        style={{
+          border: `1.5px dashed ${fileName ? "var(--color-moss)" : "var(--color-dust)"}`,
+          background: fileName ? "rgba(78,205,196,0.05)" : "#fff",
+          color: fileName ? "var(--color-moss)" : "var(--color-mist)",
+        }}
+      >
+        {fileName ? <span className="truncate">✓ {fileName}</span> : <span>點擊上傳</span>}
+      </button>
+    </div>
+  );
+}
+
+/* +/- 計數器 */
+function CounterField({ label, value, onChange, min = 0, max = 20 }: { label: string; value: number; onChange: (n: number) => void; min?: number; max?: number }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-ink)" }}>{label}</label>
+      <div className="flex items-center h-11 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
+        <button type="button" onClick={() => onChange(Math.max(min, value - 1))}
+          className="w-11 h-full flex items-center justify-center text-lg font-medium"
+          style={{ color: "var(--color-bark)", borderRight: "1px solid var(--color-dust)" }}>−</button>
+        <div className="flex-1 text-center text-base" style={{ color: "var(--color-ink)" }}>{value}</div>
+        <button type="button" onClick={() => onChange(Math.min(max, value + 1))}
+          className="w-11 h-full flex items-center justify-center text-lg font-medium"
+          style={{ color: "var(--color-bark)", borderLeft: "1px solid var(--color-dust)" }}>＋</button>
+      </div>
+    </div>
+  );
+}
+
+/* Yes/No 切換 */
+function ToggleField({ label, value, onChange }: { label: string; value: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <div>
+      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-ink)" }}>{label}</label>
+      <div className="flex h-11 rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
+        <button type="button" onClick={() => onChange(false)}
+          className="flex-1 text-sm transition-colors"
+          style={{
+            background: !value ? "var(--color-teal)" : "#fff",
+            color: !value ? "#fff" : "var(--color-mist)",
+            borderRight: "1px solid var(--color-dust)",
+          }}>不需要</button>
+        <button type="button" onClick={() => onChange(true)}
+          className="flex-1 text-sm transition-colors"
+          style={{
+            background: value ? "var(--color-teal)" : "#fff",
+            color: value ? "#fff" : "var(--color-mist)",
+          }}>需要</button>
+      </div>
+    </div>
   );
 }
 

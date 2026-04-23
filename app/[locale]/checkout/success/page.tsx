@@ -28,8 +28,30 @@ function SuccessContent() {
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
+  // 先用 sessionStorage 立即渲染，避免「載入中…」閃現
   useEffect(() => {
     if (!orderId) return;
+    try {
+      const raw = sessionStorage.getItem(`order_snapshot_${orderId}`);
+      if (raw) {
+        const snap = JSON.parse(raw) as { items: Array<{ name: string; subtitle?: string; type: string; price: number; qty: number }>; total: number };
+        setOrder({
+          id: orderId,
+          status: "confirmed",
+          total: snap.total,
+          created_at: new Date().toISOString(),
+          order_items: snap.items.map((it, idx) => ({
+            id: `snap-${idx}`,
+            item_type: it.type,
+            quantity: it.qty,
+            price: it.price,
+            meta: { name: it.name, subtitle: it.subtitle },
+          })),
+        });
+        return;
+      }
+    } catch {}
+    // 沒有 snapshot（例如重新整理或外部進入）再走 API
     fetch(`/api/orders/${orderId}`)
       .then(r => r.ok ? r.json() : Promise.reject(r.status))
       .then(d => setOrder(d.order))
