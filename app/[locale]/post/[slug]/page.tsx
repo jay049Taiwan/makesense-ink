@@ -29,8 +29,8 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
 
-  // 文章不存在、已下架，或為「話題展售」（不提供獨立頁面）→ 導去下架畫面
-  const isShowcaseOnly = Array.isArray((article as any)?.web_tag) && (article as any).web_tag.includes("話題展售");
+  // 文章不存在、已下架，或為「話題推薦」（不提供獨立頁面）→ 導去下架畫面
+  const isShowcaseOnly = Array.isArray((article as any)?.web_tag) && (article as any).web_tag.includes("話題推薦");
   if (!article || article.status !== "published" || isShowcaseOnly) {
     return (
       <div className="flex items-center justify-center py-24 flex-col gap-2">
