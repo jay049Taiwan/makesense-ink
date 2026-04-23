@@ -169,9 +169,11 @@ export default function Header() {
               <Link href="/dashboard" className="whitespace-nowrap flex items-center justify-center h-9 px-5 rounded text-sm font-medium text-white transition-colors hover:opacity-90" style={{ background: "#b89e7a", textDecoration: "none" }}>
                 {(userEmail ? emailLocalPart(userEmail) : truncate(userName || "", 10)) || t("member")}你好
               </Link>
-              <div className="absolute right-0 top-full mt-1 hidden group-hover:block bg-white rounded shadow-lg border py-1 min-w-[120px] z-50">
-                <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>{t("myRecords")}</Link>
-                <button onClick={() => signOut({ callbackUrl: "/" })} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#999" }}>{t("logout")}</button>
+              <div className="absolute right-0 top-full pt-1 hidden group-hover:block min-w-[120px] z-50">
+                <div className="bg-white rounded shadow-lg border py-1">
+                  <Link href="/dashboard" className="block px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>{t("myRecords")}</Link>
+                  <button onClick={() => signOut({ callbackUrl: "/" })} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#999" }}>{t("logout")}</button>
+                </div>
               </div>
             </div>
           ) : (
