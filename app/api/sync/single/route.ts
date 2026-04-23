@@ -256,6 +256,43 @@ async function syncSingleDB05(nid: string, props: any) {
   return { table: "db05", note: `非官網內容（登記選項=${registerOption}, 表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
+// 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知
+async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStatus: string, result: "accepted" | "rejected") {
+  const { lineClient } = await import("@/lib/line");
+  const emailRaw = tx(props["登記信箱"]) || "";
+  const email = emailRaw.trim().toLowerCase();
+  const title = t(props["表單名稱"]) || "您的報名";
+
+  if (!email) {
+    return { table: "reservation", note: "DB05 無登記信箱，略過 LINE 推播", nid, skipped: true };
+  }
+
+  const { data: member } = await supabase
+    .from("members")
+    .select("line_uid")
+    .eq("email", email)
+    .maybeSingle();
+
+  if (!member?.line_uid) {
+    return { table: "reservation", note: `找不到 LINE 綁定（email=${email}）`, nid, skipped: true };
+  }
+
+  const text = result === "accepted"
+    ? `✅ 報名結果通知\n\n恭喜！您的「${title}」已錄取。\n後續細節我們會再以您提供的聯繫資訊說明。`
+    : `📣 報名結果通知\n\n很抱歉，您的「${title}」這次未錄取。\n若有收取保證金將退回原帳戶。歡迎下次再報名 🙏`;
+
+  try {
+    await lineClient.pushMessage({
+      to: member.line_uid,
+      messages: [{ type: "text" as const, text }],
+    });
+  } catch (e: any) {
+    return { table: "reservation", note: `LINE 推播失敗：${e.message}`, nid, skipped: true };
+  }
+
+  return { table: "reservation", admissionStatus, result, nid, linePushed: true, note: "market 路徑已推 LINE" };
+}
+
 // ── V2：DB05 預約報名 → 錄取時建庫存紀錄+扣庫存+LINE；未錄取時標記退款+LINE ──
 async function syncSingleReservation(nid: string, props: any) {
   const admissionStatus = st(props["錄取狀態"]);  // status 欄位：錄取 / 未錄取 / 無關錄取
@@ -276,7 +313,8 @@ async function syncSingleReservation(nid: string, props: any) {
     .maybeSingle();
 
   if (!order) {
-    return { table: "reservation", note: `找不到對應 DB05 的訂單（notion_db05_id=${nid}）`, nid, skipped: true };
+    // 市集報名等非購物車流程沒有 Supabase order → 直接依 DB05 登記信箱推 LINE
+    return await pushMarketAdmissionByEmail(nid, props, admissionStatus, result);
   }
 
   // 防重複：已通知過相同狀態就跳過
