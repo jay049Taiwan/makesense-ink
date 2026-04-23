@@ -250,6 +250,24 @@ async function syncTopics() {
       { property: "經營類型", select: { equals: "標籤" } },
     ],
   });
+
+  // 預先撈 Supabase 四張表的 notion_id → id 對應表，給 relation 解析用
+  const [prodMapRes, evMapRes, artMapRes, topMapRes] = await Promise.all([
+    supabase.from("products").select("id, notion_id"),
+    supabase.from("events").select("id, notion_id"),
+    supabase.from("articles").select("id, notion_id"),
+    supabase.from("topics").select("id, notion_id"),
+  ]);
+  const toMap = (r: any) => new Map((r.data || []).map((x: any) => [x.notion_id, x.id]));
+  const productIdByNid = toMap(prodMapRes);
+  const eventIdByNid = toMap(evMapRes);
+  const articleIdByNid = toMap(artMapRes);
+  const topicIdByNid = toMap(topMapRes);
+  const resolveRel = (prop: any, m: Map<string, string>): string[] => {
+    const ids = extractRelation(prop?.relation) || [];
+    return ids.map((id: string) => m.get(id.replace(/-/g, ""))).filter(Boolean) as string[];
+  };
+
   const rows = pages.map(page => {
     const props = p(page);
     const category = extractSelect(props["經營類型"]?.select);
@@ -259,6 +277,10 @@ async function syncTopics() {
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
+      related_product_ids: resolveRel(props["對應標籤庫存"], productIdByNid),
+      related_event_ids: resolveRel(props["對應標籤協作"], eventIdByNid),
+      related_article_ids: resolveRel(props["對應標籤表單"], articleIdByNid),
+      related_tag_ids: resolveRel(props["自對標籤"], topicIdByNid),
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
