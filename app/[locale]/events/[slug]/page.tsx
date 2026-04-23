@@ -22,6 +22,7 @@ interface EventData {
   tickets: { name: string; price: string; notion_id?: string }[];
   addons: { name: string; price: string }[];
   minCapacity: number | null;
+  notion_id?: string;
 }
 
 const fallbackEvent: EventData = {
@@ -79,6 +80,7 @@ function mapEventData(row: any): EventData {
     tickets,
     addons,
     minCapacity: row.min_capacity ?? null,
+    notion_id: row.notion_id || undefined,
   };
 }
 
@@ -384,34 +386,37 @@ export default function EventPage({
                         <button
                           disabled={!hasSelection}
                           onClick={() => {
-                            for (const t of event.tickets) {
-                              const q = ticketQtys[t.name] || 0;
-                              if (q > 0) {
-                                addItem({
-                                  id: `ticket-${slug}-${t.name}`,
-                                  name: event.title,
-                                  subtitle: t.name,
-                                  type: event.type,
-                                  price: parsePrice(t.price),
-                                  qty: q,
-                                  eventId: slug,
-                                  productId: t.notion_id,
-                                  meta: { date: event.date, guide: event.guide },
-                                });
+                            // 市集類型走獨立 API（/api/booking/market），不經購物車
+                            if (event.type !== "市集") {
+                              for (const t of event.tickets) {
+                                const q = ticketQtys[t.name] || 0;
+                                if (q > 0) {
+                                  addItem({
+                                    id: `ticket-${slug}-${t.name}`,
+                                    name: event.title,
+                                    subtitle: t.name,
+                                    type: event.type,
+                                    price: parsePrice(t.price),
+                                    qty: q,
+                                    eventId: slug,
+                                    productId: t.notion_id,
+                                    meta: { date: event.date, guide: event.guide },
+                                  });
+                                }
                               }
-                            }
-                            for (const a of event.addons) {
-                              const q = addonQtys[a.name] || 0;
-                              if (q > 0) {
-                                addItem({
-                                  id: `addon-${slug}-${a.name}`,
-                                  name: event.title,
-                                  subtitle: a.name + "（加購）",
-                                  type: event.type,
-                                  price: parsePrice(a.price),
-                                  qty: q,
-                                  eventId: slug,
-                                });
+                              for (const a of event.addons) {
+                                const q = addonQtys[a.name] || 0;
+                                if (q > 0) {
+                                  addItem({
+                                    id: `addon-${slug}-${a.name}`,
+                                    name: event.title,
+                                    subtitle: a.name + "（加購）",
+                                    type: event.type,
+                                    price: parsePrice(a.price),
+                                    qty: q,
+                                    eventId: slug,
+                                  });
+                                }
                               }
                             }
                             setShowRegistration(true);
@@ -444,6 +449,7 @@ export default function EventPage({
         onClose={() => setShowRegistration(false)}
         formType={event.type}
         eventTitle={event.title}
+        eventNotionId={event.notion_id}
         ticketSummary={
           [
             ...event.tickets.filter(t => (ticketQtys[t.name] || 0) > 0).map(t => `${t.name} ×${ticketQtys[t.name]}`),

@@ -41,4 +41,27 @@ export async function uploadToCloudinary(
   }
 }
 
+/**
+ * 上傳 Buffer/Base64 到 Cloudinary（用於用戶上傳的檔案）
+ */
+export async function uploadBufferToCloudinary(
+  buffer: Buffer,
+  folder: string,
+  publicId?: string
+): Promise<string | null> {
+  try {
+    const base64 = `data:image/jpeg;base64,${buffer.toString("base64")}`;
+    const result = await cloudinary.uploader.upload(base64, {
+      folder,
+      ...(publicId ? { public_id: publicId } : {}),
+      resource_type: "image",
+      transformation: [{ quality: "auto", fetch_format: "auto" }],
+    });
+    return result.secure_url;
+  } catch (err: any) {
+    console.error(`Cloudinary buffer upload failed:`, err.message);
+    return null;
+  }
+}
+
 export default cloudinary;

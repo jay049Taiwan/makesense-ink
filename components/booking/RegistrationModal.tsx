@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useImperativeHandle, useRef, useState, forwardRef } from "react";
 
 type FormType = "走讀" | "講座" | "市集" | "空間" | "諮詢" | "預購";
 
@@ -12,6 +12,8 @@ interface RegistrationModalProps {
   ticketSummary: string;
   /** 票券總張數（= 報名者人數）。走讀/講座會依此渲染 N 份報名者表單 */
   attendeeCount?: number;
+  /** 市集專用：關聯活動的 Notion ID（DB04） */
+  eventNotionId?: string;
   /** 送出時回呼：把 contact 與 N 位報名者資料回傳，父層負責寫進購物車與導向結帳頁 */
   onSubmit?: (data: {
     contact: { name: string; phone: string; email: string };
@@ -37,6 +39,7 @@ export default function RegistrationModal({
   eventTitle,
   ticketSummary,
   attendeeCount = 1,
+  eventNotionId,
   onSubmit,
 }: RegistrationModalProps) {
   const [step, setStep] = useState<"form" | "done">("form");
@@ -140,11 +143,31 @@ export default function RegistrationModal({
     setAttendees((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
   };
 
+  // 市集專用：MarketFields 暴露 getData() 給 handleSubmit
+  const marketRef = useRef<{ getData: () => Promise<any> } | null>(null);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     try {
-      if (onSubmit) {
+      if (formType === "市集") {
+        const data = await (marketRef.current?.getData?.() || Promise.resolve(null));
+        if (!data) throw new Error("表單資料讀取失敗");
+        const res = await fetch("/api/booking/market", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            eventNotionId,
+            contact,
+            brand: data.brand,
+            products: data.products,
+            experiences: data.experiences,
+            equipment: data.equipment,
+          }),
+        });
+        const json = await res.json();
+        if (!res.ok) throw new Error(json.error || "送出失敗");
+      } else if (onSubmit) {
         await onSubmit({ contact, attendees });
       }
       setStep("done");
@@ -237,7 +260,7 @@ export default function RegistrationModal({
                 ))
               ) : (
                 <>
-                  {formType === "市集" && <MarketFields />}
+                  {formType === "市集" && <MarketFields ref={marketRef} />}
                   {formType === "空間" && <SpaceFields />}
                   {formType === "諮詢" && (
                     <fieldset>
@@ -274,17 +297,32 @@ export default function RegistrationModal({
           ) : (
             <div className="text-center py-10">
               <p className="text-5xl mb-4">✅</p>
-              <h3 className="text-2xl font-semibold mb-3" style={{ color: "var(--color-ink)" }}>報名資料已送出</h3>
-              <p className="text-base mb-8" style={{ color: "var(--color-mist)" }}>{ticketSummary}</p>
+              <h3 className="text-2xl font-semibold mb-3" style={{ color: "var(--color-ink)" }}>
+                {formType === "市集" ? "報名已送出，審核中" : "報名資料已送出"}
+              </h3>
+              <p className="text-base mb-8" style={{ color: "var(--color-mist)" }}>
+                {formType === "市集"
+                  ? "我們將以 Email 與 LINE 通知審核結果。"
+                  : ticketSummary}
+              </p>
               <div className="flex gap-4 justify-center">
-                <a href="/checkout" className="px-8 py-3 rounded-lg text-base font-medium text-white"
-                  style={{ background: "var(--color-moss)" }}>
-                  前往結帳
-                </a>
-                <button onClick={onClose} className="px-8 py-3 rounded-lg text-base font-medium"
-                  style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}>
-                  稍候結帳
-                </button>
+                {formType === "市集" ? (
+                  <button onClick={onClose} className="px-8 py-3 rounded-lg text-base font-medium text-white"
+                    style={{ background: "var(--color-moss)" }}>
+                    關閉
+                  </button>
+                ) : (
+                  <>
+                    <a href="/checkout" className="px-8 py-3 rounded-lg text-base font-medium text-white"
+                      style={{ background: "var(--color-moss)" }}>
+                      前往結帳
+                    </a>
+                    <button onClick={onClose} className="px-8 py-3 rounded-lg text-base font-medium"
+                      style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}>
+                      稍候結帳
+                    </button>
+                  </>
+                )}
               </div>
             </div>
           )}
@@ -454,20 +492,87 @@ function LineBindButton() {
    市集招商
    ═══════════════════════════════════════════════════════ */
 interface MarketProduct {
-  name: string; price: string; intro: string; photo_name: string | null; preorder_limit: string;
+  name: string; price: string; intro: string; photo: File | null; preorder_limit: string;
 }
 interface MarketExperience {
   name: string; price: string; desc: string; duration: string; capacity: string;
 }
-const EMPTY_PRODUCT: MarketProduct = { name: "", price: "", intro: "", photo_name: null, preorder_limit: "" };
+const EMPTY_PRODUCT: MarketProduct = { name: "", price: "", intro: "", photo: null, preorder_limit: "" };
 const EMPTY_EXPERIENCE: MarketExperience = { name: "", price: "", desc: "", duration: "", capacity: "" };
 
-function MarketFields() {
+async function uploadOne(file: File, folder: string): Promise<string | null> {
+  const fd = new FormData();
+  fd.append("file", file);
+  fd.append("folder", folder);
+  try {
+    const r = await fetch("/api/upload-image", { method: "POST", body: fd });
+    if (!r.ok) return null;
+    const j = await r.json();
+    return j.url || null;
+  } catch { return null; }
+}
+
+const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function MarketFields(_props, ref) {
   const [products, setProducts] = useState<MarketProduct[]>([{ ...EMPTY_PRODUCT }]);
   const [experiences, setExperiences] = useState<MarketExperience[]>([]);
   const [tableCount, setTableCount] = useState(0);
   const [chairCount, setChairCount] = useState(0);
   const [needsPower, setNeedsPower] = useState(false);
+
+  // 把完整資料交給 parent（RegistrationModal）submit 用
+  useImperativeHandle(ref, () => ({
+    getData: async () => {
+      const readText = (name: string) =>
+        (document.querySelector(`[name="${name}"]`) as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | null)?.value?.trim() || "";
+      const readFile = (name: string) =>
+        (document.querySelector(`input[name="${name}"]`) as HTMLInputElement | null)?.files?.[0] || null;
+
+      // 品牌 Logo / 情境照上傳 Cloudinary
+      const logoFile = readFile("brand_logo");
+      const imageFile = readFile("brand_image");
+      const [logoUrl, imageUrl] = await Promise.all([
+        logoFile ? uploadOne(logoFile, "makesense/market-brand") : Promise.resolve(null),
+        imageFile ? uploadOne(imageFile, "makesense/market-brand") : Promise.resolve(null),
+      ]);
+
+      // 每個商品的照片平行上傳
+      const productsWithUrl = await Promise.all(
+        products
+          .filter((p) => p.name?.trim())
+          .map(async (p) => {
+            const photoUrl = p.photo ? await uploadOne(p.photo, "makesense/market-products") : null;
+            return {
+              name: p.name,
+              price: p.price,
+              intro: p.intro,
+              preorder_limit: p.preorder_limit,
+              photoUrl,
+            };
+          })
+      );
+
+      return {
+        brand: {
+          type: readText("booth_type") === "請選擇" ? "" : readText("booth_type"),
+          region: readText("brand_region") === "請選擇" ? "" : readText("brand_region"),
+          name: readText("brand_name"),
+          url: readText("brand_url"),
+          keywords: readText("brand_keywords"),
+          intro: readText("brand_intro"),
+          motivation: readText("motivation"),
+          logoUrl,
+          imageUrl,
+        },
+        products: productsWithUrl,
+        experiences: experiences.filter((e) => e.name?.trim()),
+        equipment: {
+          tableCount,
+          chairCount,
+          needsPower,
+        },
+      };
+    },
+  }), [products, experiences, tableCount, chairCount, needsPower]);
 
   const updateProduct = (idx: number, patch: Partial<MarketProduct>) =>
     setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
@@ -516,7 +621,7 @@ function MarketFields() {
               value={p.intro} onChange={(v) => updateProduct(idx, { intro: v })} />
             <RowInput placeholder="上限" type="number" className="w-16 flex-shrink-0"
               value={p.preorder_limit} onChange={(v) => updateProduct(idx, { preorder_limit: v })} />
-            <IconFile fileName={p.photo_name} onChange={(n) => updateProduct(idx, { photo_name: n })} />
+            <IconFile file={p.photo} onChange={(f) => updateProduct(idx, { photo: f })} />
             {products.length > 1 && (
               <button type="button" onClick={() => removeProduct(idx)}
                 className="w-8 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
@@ -577,7 +682,7 @@ function MarketFields() {
       <div className="mt-4"><TextArea label="問題回饋（選填）" name="motivation" placeholder="想對我們說的話" /></div>
     </fieldset>
   );
-}
+});
 
 /* 單行用的精簡 input */
 function RowInput({ placeholder, type = "text", value, onChange, className }: {
@@ -595,8 +700,8 @@ function RowInput({ placeholder, type = "text", value, onChange, className }: {
   );
 }
 
-/* 單行用的圖示檔案上傳按鈕 */
-function IconFile({ fileName, onChange }: { fileName: string | null; onChange: (name: string | null) => void }) {
+/* 單行用的圖示檔案上傳按鈕（受控） */
+function IconFile({ file, onChange }: { file: File | null; onChange: (f: File | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
     <>
@@ -605,20 +710,20 @@ function IconFile({ fileName, onChange }: { fileName: string | null; onChange: (
         type="file"
         accept="image/*"
         className="hidden"
-        onChange={(e) => onChange(e.target.files?.[0]?.name ?? null)}
+        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
       />
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
         className="w-9 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
         style={{
-          border: `1px solid ${fileName ? "var(--color-moss)" : "var(--color-dust)"}`,
-          background: fileName ? "rgba(78,205,196,0.05)" : "#fff",
-          color: fileName ? "var(--color-moss)" : "var(--color-mist)",
+          border: `1px solid ${file ? "var(--color-moss)" : "var(--color-dust)"}`,
+          background: file ? "rgba(78,205,196,0.05)" : "#fff",
+          color: file ? "var(--color-moss)" : "var(--color-mist)",
         }}
-        title={fileName || "上傳照片"}
+        title={file?.name || "上傳照片"}
       >
-        {fileName ? "✓" : "📷"}
+        {file ? "✓" : "📷"}
       </button>
     </>
   );
