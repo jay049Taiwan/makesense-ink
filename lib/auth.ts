@@ -30,6 +30,8 @@ async function upsertSupabaseMember(email: string, name: string, lineUid: string
 }
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
+  // Vercel 自訂網域需要 trustHost 才會放行 session cookie
+  trustHost: true,
   providers: [
     Google({
       clientId: process.env.AUTH_GOOGLE_ID!,
