@@ -33,9 +33,24 @@ export async function POST(req: NextRequest) {
 
   // 4. 處理每個事件（不阻擋回應）
   for (const event of events) {
-    handleEvent(event).catch((err) =>
-      console.error(`[line/webhook] event error:`, err.message)
-    );
+    // Debug: 記錄每個進來的事件到 Supabase（方便線上除錯）
+    supabase.from("line_message_log").insert({
+      user_id: event.source?.userId || "unknown",
+      message_type: "webhook_debug",
+      template: event.type || "unknown",
+      payload: { event_type: event.type, postback_data: event.postback?.data || null, message_type: event.message?.type || null },
+    }).then(() => {}, () => {});
+
+    handleEvent(event).catch((err) => {
+      console.error(`[line/webhook] event error:`, err.message, err.stack);
+      // 記錄錯誤到 Supabase
+      supabase.from("line_message_log").insert({
+        user_id: event.source?.userId || "unknown",
+        message_type: "error",
+        template: "handle_event_error",
+        payload: { error: err.message, event_type: event.type, postback_data: event.postback?.data || null },
+      }).then(() => {}, () => {});
+    });
   }
 
   // 5. 永遠回 200（避免 LINE 重試）
