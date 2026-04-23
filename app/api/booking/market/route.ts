@@ -3,6 +3,8 @@ export const maxDuration = 120;
 
 import { NextRequest, NextResponse } from "next/server";
 import { createPage, DB } from "@/lib/notion";
+import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEmail } from "@/lib/email";
 
 function toDashedNotionId(id: string | null | undefined): string | null {
   if (!id) return null;
@@ -165,6 +167,32 @@ export async function POST(req: NextRequest) {
       } catch (e: any) {
         console.warn("DB05 對應明細 回寫失敗:", e.message);
       }
+    }
+
+    // 儲存攤商品牌資料到 members.brand_profile，下次報名自動帶入
+    try {
+      const email = normalizeEmail(contact.email);
+      if (email) {
+        await supabaseAdmin
+          .from("members")
+          .update({
+            brand_profile: {
+              type: brand.type || null,
+              region: brand.region || null,
+              name: brand.name || null,
+              url: brand.url || null,
+              keywords: brand.keywords || null,
+              intro: brand.intro || null,
+              motivation: brand.motivation || null,
+              logoUrl: brand.logoUrl || null,
+              imageUrl: brand.imageUrl || null,
+              updated_at: new Date().toISOString(),
+            },
+          })
+          .eq("email", email);
+      }
+    } catch (e: any) {
+      console.warn("儲存 brand_profile 失敗:", e.message);
     }
 
     return NextResponse.json({
