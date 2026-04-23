@@ -347,9 +347,9 @@ export async function POST(req: NextRequest) {
         if (r.emergency_contact) p["登記備註"] = { rich_text: [{ text: { content: `緊急聯絡：${r.emergency_contact}` } }] };
       }
 
-      // 7-1. DB06 明細（兩種模式都建，以便 A 幫 BCD 報名時每位 attendee 都有一筆 DB06）
-      //   reservation 模式：登記選項=預約報名、不設庫存選項（不扣 DB07 庫存）
-      //   direct 模式：登記選項=紀錄庫存、庫存選項=出貨（扣 DB07 庫存）
+      // 7-1. DB06 明細
+      //   reservation：登記選項=預約報名，不連 DB07（對應庫存留空，避免跟真實庫存混淆）
+      //   direct：登記選項=紀錄庫存 + 庫存選項=出貨 + 對應庫存→DB07（實際扣庫存）
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
         const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
@@ -361,12 +361,12 @@ export async function POST(req: NextRequest) {
           "登記數量": { number: item.qty },
           "登記單價": { number: item.price },
         };
-        // direct 才有 庫存選項=出貨（這欄決定 DB07 庫存公式是否扣）
         if (orderMode === "direct") {
           db06Props["庫存選項"] = { select: { name: "出貨" } };
-        }
-        if (productNotionDashed) {
-          db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
+          // 只有 direct 連 DB07；reservation 不連（錄取後新 DB06 才會連）
+          if (productNotionDashed) {
+            db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
+          }
         }
         if (item.registration && Object.keys(item.registration).length > 0) {
           fillAttendeeProps(db06Props, item.registration, contact.name);
