@@ -60,25 +60,46 @@ export default function RegistrationModal({
   );
 
   // 載入上次報名資料（defaultValue 帶入）
+  // 上次市集報名的品牌資料（僅市集需要，由 Modal fetch 後傳給 MarketFields）
+  const [brandDefaults, setBrandDefaults] = useState<any | null | undefined>(undefined);
+  // 統一的「載入上次資料」進度（0 → 正在載入，結束後歸 0）
+  const [prefillCount, setPrefillCount] = useState(0);
+  const prefilling = prefillCount > 0;
+
   useEffect(() => {
     if (!isOpen) return;
 
-    // 1. 會員 profile → 聯絡資訊 baseline（一定會填）
-    fetch("/api/user/profile")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((p) => {
-        if (!p || p.error) return;
-        setContact((prev) => ({
-          name: prev.name || p.name || "",
-          phone: prev.phone || p.phone || "",
-          email: prev.email || p.email || "",
-        }));
-      })
-      .catch(() => {});
+    const fetches: Promise<any>[] = [];
 
-    // 2. 上次同類型報名 → attendees（可能沒有，有就帶入）
+    // 1. 會員 profile → 聯絡資訊 baseline
+    fetches.push(
+      fetch("/api/user/profile")
+        .then((r) => (r.ok ? r.json() : null))
+        .then((p) => {
+          if (!p || p.error) return;
+          setContact((prev) => ({
+            name: prev.name || p.name || "",
+            phone: prev.phone || p.phone || "",
+            email: prev.email || p.email || "",
+          }));
+        })
+        .catch(() => {})
+    );
+
+    // 1b. 市集：品牌上次資料
+    if (formType === "市集") {
+      fetches.push(
+        fetch("/api/user/vendor-profile")
+          .then((r) => (r.ok ? r.json() : null))
+          .then((d) => setBrandDefaults(d?.profile || null))
+          .catch(() => setBrandDefaults(null))
+      );
+    }
+
+    // 2. 上次同類型報名 → attendees
     const qs = new URLSearchParams({ formType }).toString();
-    fetch(`/api/user/last-registration?${qs}`)
+    fetches.push(
+      fetch(`/api/user/last-registration?${qs}`)
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
         if (!d) return;
@@ -106,7 +127,12 @@ export default function RegistrationModal({
           );
         }
       })
-      .catch(() => {});
+      .catch(() => {})
+    );
+
+    // 追蹤整體 loading
+    setPrefillCount(fetches.length);
+    Promise.allSettled(fetches).finally(() => setPrefillCount(0));
   }, [isOpen, formType]);
 
   // N 改變時，attendees 陣列同步伸縮
@@ -197,6 +223,13 @@ export default function RegistrationModal({
         <div className="overflow-y-auto px-8 py-6" style={{ maxHeight: "calc(92vh - 160px)" }}>
           {step === "form" ? (
             <form onSubmit={handleSubmit} className="space-y-7">
+              {prefilling && (
+                <div className="sticky top-0 z-10 rounded-lg px-4 py-2.5 flex items-center gap-2"
+                  style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)", color: "var(--color-teal)" }}>
+                  <span className="inline-block w-3 h-3 rounded-full animate-pulse" style={{ background: "var(--color-teal)" }} />
+                  <span className="text-sm">正在載入您上次填寫的資料…</span>
+                </div>
+              )}
 
               {/* ── 聯絡資訊（共用）── */}
               <fieldset>
@@ -260,7 +293,7 @@ export default function RegistrationModal({
                 ))
               ) : (
                 <>
-                  {formType === "市集" && <MarketFields ref={marketRef} />}
+                  {formType === "市集" && <MarketFields ref={marketRef} brandDefaults={brandDefaults} />}
                   {formType === "空間" && <SpaceFields />}
                   {formType === "諮詢" && (
                     <fieldset>
@@ -512,21 +545,12 @@ async function uploadOne(file: File, folder: string): Promise<string | null> {
   } catch { return null; }
 }
 
-const MarketFields = forwardRef<{ getData: () => Promise<any> }, {}>(function MarketFields(_props, ref) {
+const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults: any | null | undefined }>(function MarketFields({ brandDefaults }, ref) {
   const [products, setProducts] = useState<MarketProduct[]>([{ ...EMPTY_PRODUCT }]);
   const [experiences, setExperiences] = useState<MarketExperience[]>([]);
   const [tableCount, setTableCount] = useState(0);
   const [chairCount, setChairCount] = useState(0);
   const [needsPower, setNeedsPower] = useState(false);
-
-  // 上次報名的品牌資料（defaultValue 帶入）
-  const [brandDefaults, setBrandDefaults] = useState<any | null | undefined>(undefined);
-  useEffect(() => {
-    fetch("/api/user/vendor-profile")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setBrandDefaults(d?.profile || null))
-      .catch(() => setBrandDefaults(null));
-  }, []);
 
   // 把完整資料交給 parent（RegistrationModal）submit 用
   useImperativeHandle(ref, () => ({
