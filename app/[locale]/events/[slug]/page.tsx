@@ -431,6 +431,7 @@ export default function EventPage({
         onClose={() => setShowRegistration(false)}
         formType={event.type}
         eventTitle={event.title}
+        eventDate={event.date}
         eventNotionId={event.notion_id}
         ticketSummary={
           [

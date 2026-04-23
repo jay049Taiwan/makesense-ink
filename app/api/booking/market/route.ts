@@ -36,7 +36,7 @@ function toDashedNotionId(id: string | null | undefined): string | null {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { eventNotionId, contact, brand, products = [], experiences = [], schedules = [], equipment = {} } = body;
+    const { eventNotionId, eventTitle, eventDate, ticketSummary, contact, brand, products = [], experiences = [], schedules = [], equipment = {} } = body;
 
     // 基本驗證
     if (!contact?.name || !contact?.phone || !contact?.email) {
@@ -252,9 +252,12 @@ export async function POST(req: NextRequest) {
       try {
         const summary = [
           `🎪 市集報名已送出，審核中`,
+          eventTitle ? `活動：${eventTitle}` : null,
+          eventDate ? `日期：${eventDate}` : null,
+          ticketSummary ? `報名選項：${ticketSummary}` : null,
           `品牌：${brand.name}`,
-          products.length ? `商品：${products.length} 項` : null,
-          experiences.length ? `體驗：${experiences.length} 項` : null,
+          products.length ? `預售商品：${products.length} 項` : null,
+          experiences.length ? `現場體驗：${experiences.length} 項` : null,
           schedules.length ? `活動時間：${schedules.length} 項` : null,
           "",
           "我們將儘速審核並以您提供的聯繫資訊通知結果。",
