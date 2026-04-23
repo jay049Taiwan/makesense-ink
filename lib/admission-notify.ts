@@ -106,7 +106,7 @@ export async function processAdmission(opts: AdmissionNotifyOptions): Promise<Ad
   // 3. LINE 推播
   if (!skipLine && memberId) {
     try {
-      await notifyRegistrationResult(memberId, eventName, result, customMessage);
+      await notifyRegistrationResult(memberId, eventName, result, customMessage, orderId);
       outcome.linePushed = true;
     } catch (e: any) {
       console.error("[admission-notify] LINE 推播失敗:", e.message);

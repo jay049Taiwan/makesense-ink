@@ -158,48 +158,69 @@ export function buildRegistrationResultFlex(data: {
   eventName: string;
   result: "accepted" | "rejected";
   message?: string;
+  orderNumber?: string;
+  items?: { name: string; subtitle?: string | null; qty: number; price: number }[];
+  total?: number;
 }): FlexMessage {
   const isAccepted = data.result === "accepted";
   const icon = isAccepted ? "✅" : "❌";
   const statusText = isAccepted ? "恭喜！報名錄取" : "很抱歉，本次未錄取";
   const statusColor = isAccepted ? "#4ECDC4" : "#e53e3e";
 
+  // 訂單明細列（不含任何個人資料；票種/商品名 + 數量 + 金額）
+  const itemLines = (data.items || []).slice(0, 6).map((item) => ({
+    type: "box" as const,
+    layout: "horizontal" as const,
+    contents: [
+      {
+        type: "text" as const,
+        text: item.subtitle ? `${item.name}・${item.subtitle}` : item.name,
+        size: "sm" as const, color: "#333", flex: 4, wrap: true, maxLines: 2,
+      },
+      { type: "text" as const, text: `×${item.qty}`, size: "sm" as const, color: "#999", flex: 1, align: "center" as const },
+      { type: "text" as const, text: `$${item.price * item.qty}`, size: "sm" as const, color: "#333", flex: 2, align: "end" as const },
+    ],
+  }));
+
+  const bodyContents: any[] = [
+    { type: "text", text: `${icon} 報名結果通知`, size: "md", weight: "bold", color: statusColor },
+    { type: "separator" },
+    { type: "text", text: data.eventName, size: "lg", weight: "bold", wrap: true, margin: "md" },
+    { type: "text", text: statusText, size: "md", color: statusColor, margin: "sm" },
+  ];
+
+  if (data.orderNumber) {
+    bodyContents.push({ type: "text", text: `訂單編號：${data.orderNumber}`, size: "xs", color: "#999", margin: "md" });
+  }
+
+  if (itemLines.length > 0) {
+    bodyContents.push({ type: "separator", margin: "md" });
+    bodyContents.push({ type: "text", text: "訂單明細", size: "sm", weight: "bold", color: "#666", margin: "md" });
+    bodyContents.push({
+      type: "box", layout: "vertical", spacing: "sm", margin: "sm",
+      contents: itemLines,
+    });
+    if (typeof data.total === "number") {
+      bodyContents.push({ type: "separator", margin: "md" });
+      bodyContents.push({
+        type: "box", layout: "horizontal", margin: "md",
+        contents: [
+          { type: "text", text: "合計", size: "sm", color: "#333", flex: 1 },
+          { type: "text", text: `NT$ ${data.total}`, size: "md", weight: "bold", color: statusColor, flex: 2, align: "end" },
+        ],
+      });
+    }
+  }
+
+  if (data.message) {
+    bodyContents.push({ type: "separator", margin: "md" });
+    bodyContents.push({ type: "text", text: data.message, size: "sm", color: "#666", wrap: true, margin: "md" });
+  }
+
   const bubble: FlexBubble = {
     type: "bubble",
     size: "mega",
-    body: {
-      type: "box",
-      layout: "vertical",
-      spacing: "md",
-      contents: [
-        { type: "text", text: `${icon} 報名結果通知`, size: "md", weight: "bold", color: statusColor },
-        { type: "separator" },
-        { type: "text", text: data.eventName, size: "lg", weight: "bold", wrap: true, margin: "md" },
-        { type: "text", text: statusText, size: "md", color: statusColor, margin: "sm" },
-        ...(data.message ? [{
-          type: "text" as const,
-          text: data.message,
-          size: "sm" as const,
-          color: "#666",
-          wrap: true,
-          margin: "md" as const,
-        }] : []),
-      ],
-    },
-    footer: {
-      type: "box",
-      layout: "vertical",
-      spacing: "sm",
-      contents: [
-        {
-          type: "button",
-          action: { type: "uri", label: "查看詳情", uri: buildLiffUrl("dashboard/orders") },
-          style: "primary",
-          color: statusColor,
-          height: "sm",
-        },
-      ],
-    },
+    body: { type: "box", layout: "vertical", spacing: "md", contents: bodyContents },
   };
 
   return {

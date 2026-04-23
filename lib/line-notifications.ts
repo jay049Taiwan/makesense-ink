@@ -122,7 +122,8 @@ export async function notifyRegistrationResult(
   memberId: string,
   eventName: string,
   result: "accepted" | "rejected",
-  customMessage?: string
+  customMessage?: string,
+  orderId?: string,
 ): Promise<void> {
   const { data: member } = await supabase
     .from("members")
@@ -132,10 +133,36 @@ export async function notifyRegistrationResult(
 
   if (!member?.line_uid) return;
 
+  // 撈訂單明細（不含個人資料）
+  let items: { name: string; subtitle?: string | null; qty: number; price: number }[] = [];
+  let total: number | undefined;
+  let orderNumber: string | undefined;
+
+  if (orderId) {
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, total, order_items (quantity, price, meta)")
+      .eq("id", orderId)
+      .maybeSingle();
+    if (order) {
+      orderNumber = `MS-${String(order.id).slice(0, 8).toUpperCase()}`;
+      total = Number(order.total) || 0;
+      items = ((order as any).order_items || []).map((oi: any) => ({
+        name: oi.meta?.name || "項目",
+        subtitle: oi.meta?.subtitle || null,
+        qty: oi.quantity,
+        price: oi.price,
+      }));
+    }
+  }
+
   const message = buildRegistrationResultFlex({
     eventName,
     result,
     message: customMessage,
+    orderNumber,
+    items,
+    total,
   });
 
   try {
