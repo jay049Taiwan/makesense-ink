@@ -328,17 +328,33 @@ export default function EventPage({
                         <div className="flex flex-col gap-2 mb-4">
                           {event.tickets.map((t) => {
                             const q = ticketQtys[t.name] || 0;
+                            // 市集/空間：一次報名就是一組，用勾選式選擇（0 或 1）
+                            const fixedOneType = event.type === "市集" || event.type === "空間";
                             return (
                               <div key={t.name} className="flex items-center justify-between gap-3 rounded-lg px-3 py-2" style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                                 <div className="flex items-center gap-2 flex-1 min-w-0">
                                   <span className="text-[0.85em] font-medium truncate" style={{ color: "var(--color-ink)" }}>{t.name}</span>
                                   <span className="text-[0.8em] whitespace-nowrap" style={{ color: "var(--color-rust)" }}>NT$ {t.price}</span>
                                 </div>
-                                <div className="flex items-center border rounded shrink-0" style={{ borderColor: "var(--color-dust)" }}>
-                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>−</button>
-                                  <span className="w-6 h-7 flex items-center justify-center text-sm">{q}</span>
-                                  <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>+</button>
-                                </div>
+                                {fixedOneType ? (
+                                  <button
+                                    onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q > 0 ? 0 : 1 }))}
+                                    className="shrink-0 px-3 h-7 rounded text-xs font-medium transition-colors"
+                                    style={{
+                                      border: `1px solid ${q > 0 ? "var(--color-moss)" : "var(--color-dust)"}`,
+                                      background: q > 0 ? "var(--color-moss)" : "#fff",
+                                      color: q > 0 ? "#fff" : "var(--color-bark)",
+                                    }}
+                                  >
+                                    {q > 0 ? "✓ 已選" : "選擇"}
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center border rounded shrink-0" style={{ borderColor: "var(--color-dust)" }}>
+                                    <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: Math.max(0, q - 1) }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>−</button>
+                                    <span className="w-6 h-7 flex items-center justify-center text-sm">{q}</span>
+                                    <button onClick={() => setTicketQtys(p => ({ ...p, [t.name]: q + 1 }))} className="w-7 h-7 text-sm" style={{ color: "var(--color-bark)" }}>+</button>
+                                  </div>
+                                )}
                               </div>
                             );
                           })}
