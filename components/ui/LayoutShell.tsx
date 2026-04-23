@@ -9,12 +9,14 @@ function LayoutShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const isLiffMode = searchParams.get("liff_mode") === "true";
+  // 會員中心即使在 LIFF 模式也保留 header/footer，讓用戶能跳去其他頁面
+  const isDashboard = /\/dashboard(\/|$)/.test(pathname);
   const isNoChrome =
     pathname.startsWith("/telegram") ||
     pathname.startsWith("/buy") ||
     pathname.startsWith("/dev/") ||
     pathname.startsWith("/liff") ||
-    isLiffMode;
+    (isLiffMode && !isDashboard);
 
   if (isNoChrome) {
     return <main style={{ background: "#f8f7f4", minHeight: "100vh" }}>{children}</main>;
