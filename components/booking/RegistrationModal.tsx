@@ -161,6 +161,10 @@ export default function RegistrationModal({
     });
   }, [syncFirst, contact.name, contact.phone, contact.email]);
 
+  // 市集專用：MarketFields 暴露 getData() 給 handleSubmit
+  // 注意：所有 hook 都要放在 early return 之前，避免 Rules of Hooks 違規
+  const marketRef = useRef<{ getData: () => Promise<any> } | null>(null);
+
   if (!isOpen) return null;
 
   const updateAttendee = (idx: number, patch: Partial<Attendee>) => {
@@ -168,9 +172,6 @@ export default function RegistrationModal({
     if (idx === 0 && syncFirst) setSyncFirst(false);
     setAttendees((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
   };
-
-  // 市集專用：MarketFields 暴露 getData() 給 handleSubmit
-  const marketRef = useRef<{ getData: () => Promise<any> } | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
