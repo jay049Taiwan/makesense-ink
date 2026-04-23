@@ -88,7 +88,7 @@ export default function EventPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = use(params);
-  const { addItem } = useCart();
+  const { addItem, updateItem } = useCart();
   const [popupIndex, setPopupIndex] = useState<number | null>(null);
   const [showRegistration, setShowRegistration] = useState(false);
   const [event, setEvent] = useState<EventData>(fallbackEvent);
@@ -444,7 +444,35 @@ export default function EventPage({
         onClose={() => setShowRegistration(false)}
         formType={event.type}
         eventTitle={event.title}
-        ticketSummary="成人票 ×1"
+        ticketSummary={
+          [
+            ...event.tickets.filter(t => (ticketQtys[t.name] || 0) > 0).map(t => `${t.name} ×${ticketQtys[t.name]}`),
+            ...event.addons.filter(a => (addonQtys[a.name] || 0) > 0).map(a => `${a.name}（加購）×${addonQtys[a.name]}`),
+          ].join("、") || "成人票 ×1"
+        }
+        attendeeCount={Object.values(ticketQtys).reduce((s, q) => s + (q || 0), 0) || 1}
+        onSubmit={async ({ contact, attendees }) => {
+          // 依票券張數把 attendees 依序分配給各 ticket item
+          let cursor = 0;
+          for (const t of event.tickets) {
+            const q = ticketQtys[t.name] || 0;
+            if (q === 0) continue;
+            const itemId = `ticket-${slug}-${t.name}`;
+            const slice = attendees.slice(cursor, cursor + q);
+            cursor += q;
+            updateItem(itemId, {
+              contact,
+              registrations: slice.map(a => ({ ...a })),
+              registration: slice[0] ? { ...slice[0] } : undefined,
+            });
+          }
+          // 加購也回寫 contact（沒有報名者概念）
+          for (const a of event.addons) {
+            const q = addonQtys[a.name] || 0;
+            if (q === 0) continue;
+            updateItem(`addon-${slug}-${a.name}`, { contact });
+          }
+        }}
       />
     </div>
   );
