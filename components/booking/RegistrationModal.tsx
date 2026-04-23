@@ -164,15 +164,15 @@ export default function RegistrationModal({
                       )}
                     </div>
 
-                    {/* 每人必填：姓名 / 電話 / Email */}
+                    {/* 主要報名人必填姓名/電話/Email；其他報名人全選填 */}
                     <div className="grid grid-cols-2 gap-4">
-                      <CField label="姓名" required placeholder="真實姓名"
+                      <CField label="姓名" required={idx === 0} placeholder={idx === 0 ? "真實姓名" : "選填"}
                         value={att.name} onChange={(v) => updateAttendee(idx, { name: v })} />
-                      <CField label="聯絡電話" required type="tel" placeholder="0912-345-678"
+                      <CField label="聯絡電話" required={idx === 0} type="tel" placeholder={idx === 0 ? "0912-345-678" : "選填"}
                         value={att.phone} onChange={(v) => updateAttendee(idx, { phone: v })} />
                     </div>
                     <div className="mt-4">
-                      <CField label="Email" required type="email" placeholder="you@email.com"
+                      <CField label="Email" required={idx === 0} type="email" placeholder={idx === 0 ? "you@email.com" : "選填"}
                         value={att.email} onChange={(v) => updateAttendee(idx, { email: v })} />
                     </div>
 
@@ -254,9 +254,9 @@ function TourAttendeeFields({ idx, data, update }: { idx: number; data: Attendee
         <strong>保險資訊</strong>：走讀活動含公共意外責任險，請提供身份證字號與出生年月日以利投保。
       </div>
       <div className="grid grid-cols-2 gap-4 mt-4">
-        <CField label="身份證字號" required placeholder="A123456789"
+        <CField label="身份證字號" required={idx === 0} placeholder={idx === 0 ? "A123456789" : "選填"}
           value={data.id_number} onChange={(v) => update({ id_number: v })} />
-        <CField label="出生年月日" required type="date" placeholder="1990-01-01"
+        <CField label="出生年月日" required={idx === 0} type="date" placeholder="1990-01-01"
           value={data.birth_date} onChange={(v) => update({ birth_date: v })} />
       </div>
 

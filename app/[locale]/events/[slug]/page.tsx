@@ -450,14 +450,25 @@ export default function EventPage({
             ...event.addons.filter(a => (addonQtys[a.name] || 0) > 0).map(a => `${a.name}（加購）×${addonQtys[a.name]}`),
           ].join("、") || "成人票 ×1"
         }
-        attendeeCount={Object.values(ticketQtys).reduce((s, q) => s + (q || 0), 0) || 1}
+        attendeeCount={
+          // 只把「真票券」算進報名人數；名稱含「加購」的視為加購品，不計入
+          event.tickets
+            .filter(t => !/加購/.test(t.name))
+            .reduce((s, t) => s + (ticketQtys[t.name] || 0), 0) || 1
+        }
         onSubmit={async ({ contact, attendees }) => {
-          // 依票券張數把 attendees 依序分配給各 ticket item
+          // 依票券張數把 attendees 依序分配給各 ticket item（加購品跳過）
           let cursor = 0;
           for (const t of event.tickets) {
             const q = ticketQtys[t.name] || 0;
             if (q === 0) continue;
             const itemId = `ticket-${slug}-${t.name}`;
+            const isAddonLike = /加購/.test(t.name);
+            if (isAddonLike) {
+              // 加購品在 tickets 裡被誤分類：只寫 contact，不寫報名者
+              updateItem(itemId, { contact });
+              continue;
+            }
             const slice = attendees.slice(cursor, cursor + q);
             cursor += q;
             updateItem(itemId, {
@@ -466,7 +477,7 @@ export default function EventPage({
               registration: slice[0] ? { ...slice[0] } : undefined,
             });
           }
-          // 加購也回寫 contact（沒有報名者概念）
+          // 真加購也回寫 contact
           for (const a of event.addons) {
             const q = addonQtys[a.name] || 0;
             if (q === 0) continue;
