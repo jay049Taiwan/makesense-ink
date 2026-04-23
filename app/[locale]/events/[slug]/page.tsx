@@ -198,8 +198,8 @@ export default function EventPage({
 
       {/* Content */}
       <div className="mx-auto px-10 py-12" style={{ maxWidth: 1160 }}>
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_340px] gap-12">
-          {/* Left: Event details */}
+        <div className="grid grid-cols-1 gap-12">
+          {/* Event details */}
           <div>
             {/* Excerpt */}
             {event.excerpt && (
@@ -302,8 +302,8 @@ export default function EventPage({
             )}
           </div>
 
-          {/* Right: Ticket sidebar or 敲碗按鈕 */}
-          <aside className="lg:sticky lg:top-6">
+          {/* 底部置中：報名 panel 或 敲碗按鈕 */}
+          <aside className="mx-auto w-full" style={{ maxWidth: 520 }}>
             {(() => {
               // 判斷活動是否已過期
               const isExpired = event.rawDate ? new Date(event.rawDate).getTime() < Date.now() : false;
