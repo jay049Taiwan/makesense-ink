@@ -287,6 +287,36 @@ export async function POST(req: NextRequest) {
     try {
       const orderNumber = order.id.slice(0, 8);
 
+      // 7-0. 預先解析 DB08（報名者→人物） + DB04（主要活動）的 Notion page id
+      let contactDb08PageId: string | null = null;
+      if (email) {
+        try {
+          const person = await fetchPersonByEmail(email);
+          if (person?.id) contactDb08PageId = person.id; // 已是 dashed UUID
+        } catch (e: any) {
+          console.warn("[checkout] fetchPersonByEmail failed:", e.message);
+        }
+      }
+
+      // 主要活動 = 第一個票券類 item 的 eventId（可能為 null，例如純商品訂單）
+      const firstTicketItem = resolvedItems.find(({ item }) => !!item.eventId);
+      const mainEventNotionDashed = toDashedNotionId(firstTicketItem?.item.eventId || firstTicketItem?.eventInfo?.notion_id);
+
+      // 主要報名者（A）的報名資料：優先用第一張票的 registration，沒有就 fallback 聯絡人資料
+      const primaryReg = firstTicketItem?.item.registration || {};
+
+      // 共用：把 attendee 資料塞進 properties
+      function fillAttendeeProps(p: Record<string, any>, reg: Record<string, string> | undefined, fallbackName?: string) {
+        const r = reg || {};
+        const name = r.contact_name || r.name || fallbackName;
+        if (name) p["登記姓名"] = { rich_text: [{ text: { content: name } }] };
+        if (r.phone) p["登記電話"] = { rich_text: [{ text: { content: r.phone } }] };
+        if (r.email) p["登記信箱"] = { rich_text: [{ text: { content: r.email } }] };
+        if (r.birth_date) p["登記出生日"] = { date: { start: r.birth_date } };
+        if (r.dietary) p["登記飲食習慣"] = { rich_text: [{ text: { content: r.dietary } }] };
+        if (r.emergency_contact) p["登記備註"] = { rich_text: [{ text: { content: `緊急聯絡：${r.emergency_contact}` } }] };
+      }
+
       // 7-1. 先為每個 item 建 DB06 明細
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
@@ -303,6 +333,13 @@ export async function POST(req: NextRequest) {
         if (productNotionDashed) {
           db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
         }
+        // 票券類 item：帶 attendee 的登記資料
+        if (item.registration && Object.keys(item.registration).length > 0) {
+          fillAttendeeProps(db06Props, item.registration, contact.name);
+        }
+        if (mainEventNotionDashed && item.eventId) {
+          db06Props["對應協作"] = { relation: [{ id: mainEventNotionDashed }] };
+        }
 
         try {
           const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
@@ -312,15 +349,29 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      // 7-2. 建 DB05 訂單標頭，對應明細指向剛才建的 DB06 頁
+      // 7-2. 建 DB05 訂單標頭（帶報名者 A 的資料）
       const db05Props: Record<string, any> = {
         "表單名稱": { title: [{ text: { content: `官網訂單 ${orderNumber}` } }] },
         "表單類型": { select: { name: "報名登記" } },
         "登記選項": { select: { name: "紀錄庫存" } },
         "庫存細項": { select: { name: "出貨" } },
       };
+      // 訂單聯絡人（A）層級
+      if (contact.name) db05Props["登記聯絡人"] = { rich_text: [{ text: { content: contact.name } }] };
+      if (contact.phone) db05Props["登記電話"] = { rich_text: [{ text: { content: contact.phone } }] };
+      if (email) db05Props["登記信箱"] = { rich_text: [{ text: { content: email } }] };
+      if (note) db05Props["登記備註"] = { rich_text: [{ text: { content: note } }] };
+      // A 的 attendee 資料（若有填）
+      fillAttendeeProps(db05Props, primaryReg, contact.name);
+      // Relations
       if (db06PageIds.length > 0) {
         db05Props["對應明細"] = { relation: db06PageIds.map((id) => ({ id })) };
+      }
+      if (contactDb08PageId) {
+        db05Props["對應對象"] = { relation: [{ id: contactDb08PageId }] };
+      }
+      if (mainEventNotionDashed) {
+        db05Props["對應協作"] = { relation: [{ id: mainEventNotionDashed }] };
       }
 
       const db05Page: any = await createPage(DB.DB05_REGISTRATION, db05Props);
