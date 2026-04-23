@@ -9,6 +9,25 @@ import { supabase } from "@/lib/supabase";
 import { QRCodeSVG } from "qrcode.react";
 import AnalyticsPanel from "@/components/dashboard/AnalyticsPanel";
 
+// ── Dev mock 訂單資料 ──
+const DEV_ORDERS = [
+  { id: "ord-dev-001", created_at: "2026-04-04T10:30:00Z", total: 850, source: "liff",
+    order_items: [
+      { id: "oi-d001", name: "走讀收費", item_type: "event", quantity: 1, price: 450, reviews: [] },
+      { id: "oi-d002", name: "加購宜蘭街散步圖", item_type: "goods", quantity: 2, price: 200, reviews: [{ rating: 5, comment: "很實用！" }] },
+    ] },
+  { id: "ord-dev-002", created_at: "2026-03-31T14:20:00Z", total: 640, source: "web",
+    order_items: [
+      { id: "oi-d003", name: "手作繪圖木掛句", item_type: "goods", quantity: 1, price: 320, reviews: [] },
+      { id: "oi-d004", name: "手工縫製女孩鑰匙圈", item_type: "goods", quantity: 1, price: 320, reviews: [] },
+    ] },
+  { id: "ord-dev-003", created_at: "2026-03-15T09:00:00Z", total: 350, source: "web",
+    order_items: [
+      { id: "oi-d005", name: "宜蘭地方誌 Vol.3", item_type: "book", quantity: 1, price: 350, reviews: [{ rating: 4, comment: "內容豐富" }] },
+    ] },
+];
+const CAT_LABELS: Record<string, string> = { event: "活動", book: "選書", goods: "選物", article: "內容", ticket: "票券" };
+
 // ═══════════════════════════════════════════
 // 一般會員總覽
 // ═══════════════════════════════════════════
@@ -98,6 +117,7 @@ function MemberOverview() {
   const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
 
   const [purchases, setPurchases] = useState<any[]>([]);
+  const [orders, setOrders] = useState<any[]>([]);
   const [memberId, setMemberId] = useState<string | null>(null);
 
   // 從 Supabase 載入真實訂單
@@ -108,6 +128,7 @@ function MemberOverview() {
       const data = await res.json();
       if (data.orders && data.orders.length > 0) {
         setMemberId(data.memberId);
+        setOrders(data.orders);
         const realPurchases = data.orders.flatMap((order: any) =>
           (order.order_items || []).map((item: any) => ({
             id: item.id,
@@ -141,7 +162,25 @@ function MemberOverview() {
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
+  // Dev: 沒真實資料時用 mock 填充
+  useEffect(() => {
+    if (isDev && purchases.length === 0) {
+      setPurchases(DEV_ORDERS.flatMap(o => o.order_items.map(i => ({
+        id: i.id, orderItemId: i.id, memberId: "dev-member-001",
+        name: i.name, qty: i.quantity, price: i.price,
+        author: "—", publisher: "旅人書店",
+        date: new Date(o.created_at).toLocaleDateString("zh-TW"),
+        rating: i.reviews?.[0]?.rating || 0,
+        comment: i.reviews?.[0]?.comment || "",
+        category: i.item_type, topics: [],
+      }))));
+    }
+  }, [isDev, purchases.length]);
+
   const [showQR, setShowQR] = useState(false);
+  const [detailTab, setDetailTab] = useState<"orders" | "categories">("orders");
+  const [expandedOrders, setExpandedOrders] = useState<Set<string>>(new Set());
+  const [activeCategory, setActiveCategory] = useState("全部");
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
