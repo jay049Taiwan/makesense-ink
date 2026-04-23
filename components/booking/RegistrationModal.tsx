@@ -189,6 +189,7 @@ export default function RegistrationModal({
             brand: data.brand,
             products: data.products,
             experiences: data.experiences,
+            schedules: data.schedules,
             equipment: data.equipment,
           }),
         });
@@ -336,7 +337,7 @@ export default function RegistrationModal({
               </h3>
               <p className="text-base mb-8" style={{ color: "var(--color-mist)" }}>
                 {formType === "市集"
-                  ? "我們將以 Email 與 LINE 通知審核結果。"
+                  ? "我們將以您提供的聯繫資訊通知審核結果。"
                   : ticketSummary}
               </p>
               <div className="flex gap-4 justify-center">
@@ -531,8 +532,12 @@ interface MarketProduct {
 interface MarketExperience {
   name: string; price: string; desc: string; duration: string; capacity: string;
 }
+interface MarketSchedule {
+  theme: string; attr: string; time_from: string; time_to: string; price: string;
+}
 const EMPTY_PRODUCT: MarketProduct = { name: "", price: "", intro: "", photo: null, preorder_limit: "" };
 const EMPTY_EXPERIENCE: MarketExperience = { name: "", price: "", desc: "", duration: "", capacity: "" };
+const EMPTY_SCHEDULE: MarketSchedule = { theme: "", attr: "", time_from: "", time_to: "", price: "" };
 
 async function uploadOne(file: File, folder: string): Promise<string | null> {
   const fd = new FormData();
@@ -549,6 +554,7 @@ async function uploadOne(file: File, folder: string): Promise<string | null> {
 const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults: any | null | undefined }>(function MarketFields({ brandDefaults }, ref) {
   const [products, setProducts] = useState<MarketProduct[]>([{ ...EMPTY_PRODUCT }]);
   const [experiences, setExperiences] = useState<MarketExperience[]>([]);
+  const [schedules, setSchedules] = useState<MarketSchedule[]>([]);
   const [tableCount, setTableCount] = useState(0);
   const [chairCount, setChairCount] = useState(0);
   const [needsPower, setNeedsPower] = useState(false);
@@ -601,6 +607,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
         },
         products: productsWithUrl,
         experiences: experiences.filter((e) => e.name?.trim()),
+        schedules: schedules.filter((s) => s.theme?.trim()),
         equipment: {
           tableCount,
           chairCount,
@@ -608,7 +615,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
         },
       };
     },
-  }), [products, experiences, tableCount, chairCount, needsPower, brandDefaults]);
+  }), [products, experiences, schedules, tableCount, chairCount, needsPower, brandDefaults]);
 
   const updateProduct = (idx: number, patch: Partial<MarketProduct>) =>
     setProducts((prev) => prev.map((p, i) => (i === idx ? { ...p, ...patch } : p)));
@@ -619,6 +626,11 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
     setExperiences((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
   const addExperience = () => { if (experiences.length < 10) setExperiences((prev) => [...prev, { ...EMPTY_EXPERIENCE }]); };
   const removeExperience = (idx: number) => setExperiences((prev) => prev.filter((_, i) => i !== idx));
+
+  const updateSchedule = (idx: number, patch: Partial<MarketSchedule>) =>
+    setSchedules((prev) => prev.map((s, i) => (i === idx ? { ...s, ...patch } : s)));
+  const addSchedule = () => { if (schedules.length < 10) setSchedules((prev) => [...prev, { ...EMPTY_SCHEDULE }]); };
+  const removeSchedule = (idx: number) => setSchedules((prev) => prev.filter((_, i) => i !== idx));
 
   return (
     <fieldset>
@@ -657,7 +669,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
         {products.map((p, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <span className="text-xs w-6 text-center flex-shrink-0" style={{ color: "var(--color-mist)" }}>{idx + 1}</span>
-            <RowInput placeholder="商品名稱*" className="flex-1 min-w-0"
+            <RowInput placeholder="商品名稱*" className="flex-[2] min-w-0"
               value={p.name} onChange={(v) => updateProduct(idx, { name: v })} />
             <RowInput placeholder="價格*" type="number" className="w-16 flex-shrink-0"
               value={p.price} onChange={(v) => updateProduct(idx, { price: v })} />
@@ -691,7 +703,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
         {experiences.map((e, idx) => (
           <div key={idx} className="flex items-center gap-2">
             <span className="text-xs w-6 text-center flex-shrink-0" style={{ color: "var(--color-mist)" }}>{idx + 1}</span>
-            <RowInput placeholder="體驗名稱*" className="flex-1 min-w-0"
+            <RowInput placeholder="體驗名稱*" className="flex-[2] min-w-0"
               value={e.name} onChange={(v) => updateExperience(idx, { name: v })} />
             <RowInput placeholder="價格*" type="number" className="w-16 flex-shrink-0"
               value={e.price} onChange={(v) => updateExperience(idx, { price: v })} />
@@ -715,6 +727,42 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
         </button>
       )}
 
+      {/* ── 活動時間（選填，最多 10 筆）── */}
+      <div className="flex items-center justify-between mt-6 mb-3 pb-1" style={{ borderBottom: "1px solid var(--color-dust)" }}>
+        <div className="text-sm font-semibold" style={{ color: "var(--color-bark)" }}>活動時間（選填，最多 10 筆）</div>
+        <span className="text-xs" style={{ color: "var(--color-mist)" }}>{schedules.length}/10</span>
+      </div>
+      <div className="space-y-2">
+        {schedules.map((s, idx) => (
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs w-6 text-center flex-shrink-0" style={{ color: "var(--color-mist)" }}>{idx + 1}</span>
+            <RowInput placeholder="主題*" className="flex-[2] min-w-0"
+              value={s.theme} onChange={(v) => updateSchedule(idx, { theme: v })} />
+            <RowInput placeholder="屬性" className="flex-1 min-w-0"
+              value={s.attr} onChange={(v) => updateSchedule(idx, { attr: v })} />
+            <input type="time" value={s.time_from} onChange={(e) => updateSchedule(idx, { time_from: e.target.value })}
+              className="h-9 px-1 rounded text-sm outline-none w-[88px] flex-shrink-0"
+              style={{ border: "1px solid var(--color-dust)", background: "#fff" }} />
+            <span className="text-xs flex-shrink-0" style={{ color: "var(--color-mist)" }}>→</span>
+            <input type="time" value={s.time_to} onChange={(e) => updateSchedule(idx, { time_to: e.target.value })}
+              className="h-9 px-1 rounded text-sm outline-none w-[88px] flex-shrink-0"
+              style={{ border: "1px solid var(--color-dust)", background: "#fff" }} />
+            <RowInput placeholder="費用" type="number" className="w-16 flex-shrink-0"
+              value={s.price} onChange={(v) => updateSchedule(idx, { price: v })} />
+            <button type="button" onClick={() => removeSchedule(idx)}
+              className="w-8 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
+              style={{ color: "#c87060" }} title="移除">✕</button>
+          </div>
+        ))}
+      </div>
+      {schedules.length < 10 && (
+        <button type="button" onClick={addSchedule}
+          className="w-full mt-3 h-10 rounded-lg text-sm font-medium transition-colors"
+          style={{ border: "1px dashed var(--color-dust)", color: "var(--color-bark)", background: "#fff" }}>
+          ＋ 新增活動時間
+        </button>
+      )}
+
       {/* ── 設備需求 ── */}
       <div className="text-sm font-semibold mt-6 mb-3 pb-1" style={{ color: "var(--color-bark)", borderBottom: "1px solid var(--color-dust)" }}>設備需求</div>
       <div className="grid grid-cols-3 gap-4">
@@ -734,12 +782,16 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
 function RowInput({ placeholder, type = "text", value, onChange, className }: {
   placeholder: string; type?: string; value: string; onChange: (v: string) => void; className?: string;
 }) {
+  // type="number" 會出現 spinner，改用 text + inputMode 拿數字鍵盤又不顯示 spinner
+  const isNumeric = type === "number";
   return (
     <input
-      type={type}
+      type={isNumeric ? "text" : type}
+      inputMode={isNumeric ? "numeric" : undefined}
+      pattern={isNumeric ? "[0-9]*" : undefined}
       placeholder={placeholder}
       value={value}
-      onChange={(e) => onChange(e.target.value)}
+      onChange={(e) => onChange(isNumeric ? e.target.value.replace(/[^0-9]/g, "") : e.target.value)}
       className={`h-9 px-2 rounded text-sm outline-none ${className || ""}`}
       style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
     />

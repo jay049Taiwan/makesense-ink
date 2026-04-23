@@ -27,6 +27,13 @@ const DEV_ORDERS = [
     ] },
 ];
 const CAT_LABELS: Record<string, string> = { event: "活動", book: "選書", goods: "選物", article: "內容", ticket: "票券" };
+const CAT_COLORS: Record<string, { bg: string; color: string }> = {
+  event:   { bg: "#fff3e0", color: "#e65100" },
+  book:    { bg: "#f3e5f5", color: "#6a1b9a" },
+  goods:   { bg: "#e0f7f4", color: "#00695c" },
+  article: { bg: "#e8eaf6", color: "#283593" },
+  ticket:  { bg: "#fffde7", color: "#f57f17" },
+};
 
 // ═══════════════════════════════════════════
 // 一般會員總覽
@@ -437,24 +444,47 @@ function MemberOverview() {
                   {/* 訂單列 */}
                   <div onClick={() => setExpandedOrders(prev => {
                     const next = new Set(prev); next.has(order.id) ? next.delete(order.id) : next.add(order.id); return next;
-                  })} className="flex items-center justify-between px-6 py-4 cursor-pointer"
-                    style={{ background: isExpanded ? "#fafafa" : "#fff", transition: "background 0.15s" }}>
-                    <div className="flex items-center gap-3 flex-wrap">
-                      <span className="text-sm font-medium" style={{ color: "#333" }}>{orderDate}</span>
-                      <span className="text-xs px-2 py-0.5 rounded" style={{ background: "#f0f0f0", color: "#888" }}>
-                        #{order.id.slice(-6).toUpperCase()}
-                      </span>
-                      {order.source && order.source !== "web" && (
-                        <span className="text-xs px-2 py-0.5 rounded text-white"
-                          style={{ background: order.source === "liff" ? "#06C755" : "#0088CC" }}>
-                          {order.source === "liff" ? "LINE" : "TG"}
-                        </span>
-                      )}
+                  })} className="flex items-center gap-4 px-6 py-4 cursor-pointer"
+                    style={{ background: isExpanded ? "#faf8f4" : "#fff", transition: "background 0.15s" }}>
+
+                    {/* 日期區塊 */}
+                    <div className="flex-shrink-0 text-center" style={{ minWidth: 36 }}>
+                      <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1, color: "#1a1a2e", fontFamily: "monospace" }}>
+                        {new Date(order.created_at).toLocaleDateString("zh-TW", { day: "2-digit" })}
+                      </div>
+                      <div style={{ fontSize: 10, color: "#aaa", marginTop: 1 }}>
+                        {new Date(order.created_at).toLocaleDateString("zh-TW", { month: "2-digit" })}月
+                      </div>
                     </div>
-                    <div className="flex items-center gap-4 flex-shrink-0">
-                      <span className="text-xs" style={{ color: "#aaa" }}>{itemCount} 件</span>
-                      <span className="text-sm font-semibold" style={{ color: "#333" }}>NT${(order.total || 0).toLocaleString()}</span>
-                      <span style={{ color: "#aaa", fontSize: 11 }}>{isExpanded ? "▲" : "▼"}</span>
+
+                    {/* 細分隔線 */}
+                    <div style={{ width: 1, height: 36, background: "#e8e8e8", flexShrink: 0 }} />
+
+                    {/* 商品名稱預覽 */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate" style={{ color: "#222" }}>
+                        {order.order_items?.[0]?.name || "—"}
+                        {(order.order_items?.length || 0) > 1 && (
+                          <span style={{ color: "#aaa", fontSize: 12, fontWeight: 400 }}> 等 {order.order_items.length} 件</span>
+                        )}
+                      </p>
+                      <div className="flex items-center gap-1.5 mt-1">
+                        <span style={{ fontSize: 11, color: "#bbb", background: "#f5f5f5", borderRadius: 3, padding: "1px 5px", fontFamily: "monospace" }}>
+                          #{order.id.slice(-6).toUpperCase()}
+                        </span>
+                        {order.source && order.source !== "web" && (
+                          <span style={{ fontSize: 11, color: "#fff", borderRadius: 3, padding: "1px 5px",
+                            background: order.source === "liff" ? "#06C755" : "#0088CC" }}>
+                            {order.source === "liff" ? "LINE" : "TG"}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* 金額 + 箭頭 */}
+                    <div className="flex-shrink-0 text-right">
+                      <div style={{ fontSize: 15, fontWeight: 700, color: "#1a1a2e" }}>NT${(order.total || 0).toLocaleString()}</div>
+                      <div style={{ fontSize: 11, color: "#ccc", marginTop: 2 }}>{isExpanded ? "▲" : "▼"}</div>
                     </div>
                   </div>
 
@@ -466,14 +496,15 @@ function MemberOverview() {
                         const currentRating = ratings[item.id] ?? (item.reviews?.[0]?.rating || 0);
                         const currentComment = comments[item.id] ?? (item.reviews?.[0]?.comment || "");
                         const catLabel = CAT_LABELS[item.item_type] || item.item_type;
+                        const catColor = CAT_COLORS[item.item_type] || { bg: "#f0ebe3", color: "#7a5c40" };
                         return (
                           <div key={item.id} className="flex flex-wrap items-center gap-3 px-8 py-3"
                             style={{ borderBottom: "1px solid #f5f5f5" }}>
-                            <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-                              style={{ background: "#f0ebe3", color: "#7a5c40" }}>{catLabel}</span>
-                            <span className="text-sm flex-1 min-w-0" style={{ color: "#333" }}>{item.name}</span>
-                            <span className="text-xs flex-shrink-0" style={{ color: "#aaa" }}>×{item.quantity}</span>
-                            <span className="text-sm flex-shrink-0" style={{ color: "#666" }}>NT${item.price}</span>
+                            <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium"
+                              style={{ background: catColor.bg, color: catColor.color }}>{catLabel}</span>
+                            <span className="text-sm flex-1 min-w-0" style={{ color: "#222" }}>{item.name}</span>
+                            <span className="text-xs flex-shrink-0" style={{ color: "#bbb" }}>×{item.quantity}</span>
+                            <span className="text-sm font-medium flex-shrink-0" style={{ color: "#555" }}>NT${item.price}</span>
                             {isSubmitted
                               ? <StarDisplay rating={currentRating} />
                               : <StarInput value={currentRating} onChange={(v) => setRatings(prev => ({ ...prev, [item.id]: v }))} />}
@@ -524,12 +555,19 @@ function MemberOverview() {
               const isSubmitted = submitted[item.id] || item.rating > 0;
               const currentRating = ratings[item.id] ?? item.rating;
               const currentComment = comments[item.id] ?? item.comment;
+              const itemCatColor = CAT_COLORS[item.category] || { bg: "#f0ebe3", color: "#7a5c40" };
               return (
                 <div key={item.id} className="flex flex-wrap items-center gap-3 px-6 py-3"
                   style={{ borderBottom: "1px solid #f5f5f5" }}>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium" style={{ color: "#333" }}>{item.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>{item.date} · NT${item.price}</p>
+                    <div className="flex items-center gap-2 mb-0.5">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-medium flex-shrink-0"
+                        style={{ background: itemCatColor.bg, color: itemCatColor.color }}>
+                        {CAT_LABELS[item.category] || item.category}
+                      </span>
+                      <p className="text-sm font-medium truncate" style={{ color: "#222" }}>{item.name}</p>
+                    </div>
+                    <p className="text-xs" style={{ color: "#bbb" }}>{item.date} · NT${item.price}</p>
                   </div>
                   {isSubmitted
                     ? <StarDisplay rating={currentRating} />
