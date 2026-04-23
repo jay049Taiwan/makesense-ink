@@ -185,9 +185,8 @@ export default async function CultureClubPage() {
                         </span>
                       </div>
                       <div className="p-2.5">
-                        <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{item.title}</h4>
-                        {item.type === "product" && item.price != null && <p className="text-[0.75em] mt-1" style={{ color: "#b5522a" }}>NT$ {item.price}</p>}
-                        {item.type === "event" && item.date && <p className="text-[0.7em] mt-1" style={{ color: "#999" }}>{String(item.date).substring(0, 10)}</p>}
+                        <h4 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{item.title}</h4>
+                        {item.type === "product" && item.price != null && <p className="text-[0.8em]" style={{ color: "#b5522a" }}>NT$ {item.price}</p>}
                       </div>
                     </Link>
                   );
