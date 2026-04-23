@@ -211,6 +211,33 @@ export async function POST(req: NextRequest) {
               motivation: brand.motivation || null,
               logoUrl: brand.logoUrl || null,
               imageUrl: brand.imageUrl || null,
+              // 以下欄位下次報名會自動帶回
+              products: products.map((p: any) => ({
+                name: p.name || "",
+                price: p.price || "",
+                intro: p.intro || "",
+                preorder_limit: p.preorder_limit || "",
+                photoUrl: p.photoUrl || null,
+              })),
+              experiences: experiences.map((e: any) => ({
+                name: e.name || "",
+                price: e.price || "",
+                desc: e.desc || "",
+                duration: e.duration || "",
+                capacity: e.capacity || "",
+              })),
+              schedules: schedules.map((s: any) => ({
+                theme: s.theme || "",
+                attr: s.attr || "",
+                time_from: s.time_from || "",
+                time_to: s.time_to || "",
+                price: s.price || "",
+              })),
+              equipment: {
+                tableCount: Number(equipment.tableCount) || 0,
+                chairCount: Number(equipment.chairCount) || 0,
+                needsPower: !!equipment.needsPower,
+              },
               updated_at: new Date().toISOString(),
             },
           })

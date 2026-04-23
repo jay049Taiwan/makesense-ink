@@ -528,6 +528,7 @@ function LineBindButton() {
    ═══════════════════════════════════════════════════════ */
 interface MarketProduct {
   name: string; price: string; intro: string; photo: File | null; preorder_limit: string;
+  photoUrl?: string | null; // 上次上傳的 Cloudinary URL（沿用）
 }
 interface MarketExperience {
   name: string; price: string; desc: string; duration: string; capacity: string;
@@ -559,6 +560,44 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
   const [chairCount, setChairCount] = useState(0);
   const [needsPower, setNeedsPower] = useState(false);
 
+  // brandDefaults 載入後，把 products/experiences/schedules/equipment 一併帶回
+  useEffect(() => {
+    if (!brandDefaults) return;
+    if (Array.isArray(brandDefaults.products) && brandDefaults.products.length > 0) {
+      setProducts(brandDefaults.products.map((p: any) => ({
+        name: p.name || "",
+        price: p.price || "",
+        intro: p.intro || "",
+        preorder_limit: p.preorder_limit || "",
+        photo: null,
+        photoUrl: p.photoUrl || null,
+      })));
+    }
+    if (Array.isArray(brandDefaults.experiences) && brandDefaults.experiences.length > 0) {
+      setExperiences(brandDefaults.experiences.map((e: any) => ({
+        name: e.name || "",
+        price: e.price || "",
+        desc: e.desc || "",
+        duration: e.duration || "",
+        capacity: e.capacity || "",
+      })));
+    }
+    if (Array.isArray(brandDefaults.schedules) && brandDefaults.schedules.length > 0) {
+      setSchedules(brandDefaults.schedules.map((s: any) => ({
+        theme: s.theme || "",
+        attr: s.attr || "",
+        time_from: s.time_from || "",
+        time_to: s.time_to || "",
+        price: s.price || "",
+      })));
+    }
+    if (brandDefaults.equipment) {
+      setTableCount(Number(brandDefaults.equipment.tableCount) || 0);
+      setChairCount(Number(brandDefaults.equipment.chairCount) || 0);
+      setNeedsPower(!!brandDefaults.equipment.needsPower);
+    }
+  }, [brandDefaults]);
+
   // 把完整資料交給 parent（RegistrationModal）submit 用
   useImperativeHandle(ref, () => ({
     getData: async () => {
@@ -577,18 +616,18 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
       const logoUrl = newLogoUrl || brandDefaults?.logoUrl || null;
       const imageUrl = newImageUrl || brandDefaults?.imageUrl || null;
 
-      // 每個商品的照片平行上傳
+      // 每個商品的照片：有新檔就上傳 Cloudinary，沒有就沿用上次的 photoUrl
       const productsWithUrl = await Promise.all(
         products
           .filter((p) => p.name?.trim())
           .map(async (p) => {
-            const photoUrl = p.photo ? await uploadOne(p.photo, "makesense/market-products") : null;
+            const newPhotoUrl = p.photo ? await uploadOne(p.photo, "makesense/market-products") : null;
             return {
               name: p.name,
               price: p.price,
               intro: p.intro,
               preorder_limit: p.preorder_limit,
-              photoUrl,
+              photoUrl: newPhotoUrl || p.photoUrl || null,
             };
           })
       );
@@ -677,7 +716,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
               value={p.intro} onChange={(v) => updateProduct(idx, { intro: v })} />
             <RowInput placeholder="上限" type="number" className="w-16 flex-shrink-0"
               value={p.preorder_limit} onChange={(v) => updateProduct(idx, { preorder_limit: v })} />
-            <IconFile file={p.photo} onChange={(f) => updateProduct(idx, { photo: f })} />
+            <IconFile file={p.photo} savedUrl={p.photoUrl} onChange={(f) => updateProduct(idx, { photo: f })} />
             {products.length > 1 && (
               <button type="button" onClick={() => removeProduct(idx)}
                 className="w-8 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
@@ -798,9 +837,10 @@ function RowInput({ placeholder, type = "text", value, onChange, className }: {
   );
 }
 
-/* 單行用的圖示檔案上傳按鈕（受控） */
-function IconFile({ file, onChange }: { file: File | null; onChange: (f: File | null) => void }) {
+/* 單行用的圖示檔案上傳按鈕（受控）；有新檔或有舊 URL 都顯示 ✓ */
+function IconFile({ file, savedUrl, onChange }: { file: File | null; savedUrl?: string | null; onChange: (f: File | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const hasAny = !!file || !!savedUrl;
   return (
     <>
       <input
@@ -815,13 +855,13 @@ function IconFile({ file, onChange }: { file: File | null; onChange: (f: File | 
         onClick={() => inputRef.current?.click()}
         className="w-9 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
         style={{
-          border: `1px solid ${file ? "var(--color-moss)" : "var(--color-dust)"}`,
-          background: file ? "rgba(78,205,196,0.05)" : "#fff",
-          color: file ? "var(--color-moss)" : "var(--color-mist)",
+          border: `1px solid ${hasAny ? "var(--color-moss)" : "var(--color-dust)"}`,
+          background: hasAny ? "rgba(78,205,196,0.05)" : "#fff",
+          color: hasAny ? "var(--color-moss)" : "var(--color-mist)",
         }}
-        title={file?.name || "上傳照片"}
+        title={file?.name || (savedUrl ? "已有照片，點擊更換" : "上傳照片")}
       >
-        {file ? "✓" : "📷"}
+        {hasAny ? "✓" : "📷"}
       </button>
     </>
   );
