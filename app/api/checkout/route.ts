@@ -347,34 +347,36 @@ export async function POST(req: NextRequest) {
         if (r.emergency_contact) p["登記備註"] = { rich_text: [{ text: { content: `緊急聯絡：${r.emergency_contact}` } }] };
       }
 
-      // 7-1. DB06 明細（V2：僅 direct 模式建；reservation 模式等錄取時才建）
+      // 7-1. DB06 明細（兩種模式都建，以便 A 幫 BCD 報名時每位 attendee 都有一筆 DB06）
+      //   reservation 模式：登記選項=預約報名、不設庫存選項（不扣 DB07 庫存）
+      //   direct 模式：登記選項=紀錄庫存、庫存選項=出貨（扣 DB07 庫存）
       const db06PageIds: string[] = [];
-      if (orderMode === "direct") {
-        for (const { item, productInfo } of resolvedItems) {
-          // productInfo 可能為 null（票券類商品常沒在 Supabase products），
-          // 此時 fallback 回 item.productId（前端帶來的 DB07 notion_id）
-          const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
+      for (const { item, productInfo } of resolvedItems) {
+        const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
 
-          const db06Props: Record<string, any> = {
-            "明細名稱": { title: [{ text: { content: item.name } }] },
-            "明細類型": { select: { name: "庫存紀錄" } },
-            "庫存選項": { select: { name: "出貨" } },
-            "登記數量": { number: item.qty },
-            "登記單價": { number: item.price },
-          };
-          if (productNotionDashed) {
-            db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
-          }
-          if (item.registration && Object.keys(item.registration).length > 0) {
-            fillAttendeeProps(db06Props, item.registration, contact.name);
-          }
+        const db06Props: Record<string, any> = {
+          "明細名稱": { title: [{ text: { content: item.name } }] },
+          "明細類型": { select: { name: "庫存紀錄" } },
+          "登記選項": { select: { name: orderMode === "reservation" ? "預約報名" : "紀錄庫存" } },
+          "登記數量": { number: item.qty },
+          "登記單價": { number: item.price },
+        };
+        // direct 才有 庫存選項=出貨（這欄決定 DB07 庫存公式是否扣）
+        if (orderMode === "direct") {
+          db06Props["庫存選項"] = { select: { name: "出貨" } };
+        }
+        if (productNotionDashed) {
+          db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
+        }
+        if (item.registration && Object.keys(item.registration).length > 0) {
+          fillAttendeeProps(db06Props, item.registration, contact.name);
+        }
 
-          try {
-            const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
-            db06PageIds.push((db06Page as any).id as string);
-          } catch (e: any) {
-            console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
-          }
+        try {
+          const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
+          db06PageIds.push((db06Page as any).id as string);
+        } catch (e: any) {
+          console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
         }
       }
 
