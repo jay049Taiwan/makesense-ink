@@ -234,14 +234,16 @@ async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["表單類型"]);
   const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點（2026/04/22 改為用庫存選項判斷）
   const copyDetail = sel(props["文案細項"]);
+  const registerOption = sel(props["登記選項"]);
 
   // 庫存批次：表單類型=共識互動 + 庫存選項有值（進貨/出貨/盤點）
   if (formType === "共識互動" && stockAction) {
     return await syncStockBatch(nid, props);
   }
 
-  // V2：預約報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
-  if (formType === "預約報名") {
+  // V2：登記選項=預約報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
+  // （表單類型固定為「報名登記」，用 登記選項 區分 reservation / direct）
+  if (registerOption === "預約報名") {
     return await syncSingleReservation(nid, props);
   }
 
@@ -251,7 +253,7 @@ async function syncSingleDB05(nid: string, props: any) {
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網內容（登記選項=${registerOption}, 表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // ── V2：DB05 預約報名 → 錄取時建庫存紀錄+扣庫存+LINE；未錄取時標記退款+LINE ──
