@@ -504,30 +504,24 @@ function MarketFields() {
         <div className="text-sm font-semibold" style={{ color: "var(--color-bark)" }}>販售商品（最多 10 筆）</div>
         <span className="text-xs" style={{ color: "var(--color-mist)" }}>{products.length}/10</span>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {products.map((p, idx) => (
-          <div key={idx} className="rounded-lg p-4" style={{ border: "1px solid var(--color-dust)", background: "var(--color-warm-white)" }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium" style={{ color: "var(--color-bark)" }}>商品 {idx + 1}</span>
-              {products.length > 1 && (
-                <button type="button" onClick={() => removeProduct(idx)} className="text-xs" style={{ color: "#c87060" }}>移除</button>
-              )}
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <CField label="商品名稱" required placeholder="手工餅乾"
-                value={p.name} onChange={(v) => updateProduct(idx, { name: v })} />
-              <CField label="單價 NT$" required type="number" placeholder="80"
-                value={p.price} onChange={(v) => updateProduct(idx, { price: v })} />
-            </div>
-            <div className="mt-3">
-              <CField label="簡介" placeholder="商品特色、成分、規格…" value={p.intro} onChange={(v) => updateProduct(idx, { intro: v })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <CField label="預購數量上限" type="number" placeholder="達上限停止預購"
-                value={p.preorder_limit} onChange={(v) => updateProduct(idx, { preorder_limit: v })} />
-              <InlineFile label="商品照片" fileName={p.photo_name}
-                onChange={(name) => updateProduct(idx, { photo_name: name })} />
-            </div>
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs w-6 text-center flex-shrink-0" style={{ color: "var(--color-mist)" }}>{idx + 1}</span>
+            <RowInput placeholder="商品名稱*" className="flex-1 min-w-0"
+              value={p.name} onChange={(v) => updateProduct(idx, { name: v })} />
+            <RowInput placeholder="價格*" type="number" className="w-16 flex-shrink-0"
+              value={p.price} onChange={(v) => updateProduct(idx, { price: v })} />
+            <RowInput placeholder="簡介" className="flex-1 min-w-0"
+              value={p.intro} onChange={(v) => updateProduct(idx, { intro: v })} />
+            <RowInput placeholder="上限" type="number" className="w-16 flex-shrink-0"
+              value={p.preorder_limit} onChange={(v) => updateProduct(idx, { preorder_limit: v })} />
+            <IconFile fileName={p.photo_name} onChange={(n) => updateProduct(idx, { photo_name: n })} />
+            {products.length > 1 && (
+              <button type="button" onClick={() => removeProduct(idx)}
+                className="w-8 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
+                style={{ color: "#c87060" }} title="移除">✕</button>
+            )}
           </div>
         ))}
       </div>
@@ -544,29 +538,23 @@ function MarketFields() {
         <div className="text-sm font-semibold" style={{ color: "var(--color-bark)" }}>現場體驗（選填，最多 10 筆）</div>
         <span className="text-xs" style={{ color: "var(--color-mist)" }}>{experiences.length}/10</span>
       </div>
-      <div className="space-y-3">
+      <div className="space-y-2">
         {experiences.map((e, idx) => (
-          <div key={idx} className="rounded-lg p-4" style={{ border: "1px solid var(--color-dust)", background: "var(--color-warm-white)" }}>
-            <div className="flex items-center justify-between mb-3">
-              <span className="text-sm font-medium" style={{ color: "var(--color-bark)" }}>體驗 {idx + 1}</span>
-              <button type="button" onClick={() => removeExperience(idx)} className="text-xs" style={{ color: "#c87060" }}>移除</button>
-            </div>
-            <div className="grid grid-cols-2 gap-3">
-              <CField label="體驗名稱" required placeholder="唱頌缽體驗"
-                value={e.name} onChange={(v) => updateExperience(idx, { name: v })} />
-              <CField label="單價 NT$" required type="number" placeholder="350"
-                value={e.price} onChange={(v) => updateExperience(idx, { price: v })} />
-            </div>
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <CField label="時長（分鐘）" type="number" placeholder="30"
-                value={e.duration} onChange={(v) => updateExperience(idx, { duration: v })} />
-              <CField label="人數上限" type="number" placeholder="6"
-                value={e.capacity} onChange={(v) => updateExperience(idx, { capacity: v })} />
-            </div>
-            <div className="mt-3">
-              <CField label="說明" placeholder="體驗流程、需要準備的事項…"
-                value={e.desc} onChange={(v) => updateExperience(idx, { desc: v })} />
-            </div>
+          <div key={idx} className="flex items-center gap-2">
+            <span className="text-xs w-6 text-center flex-shrink-0" style={{ color: "var(--color-mist)" }}>{idx + 1}</span>
+            <RowInput placeholder="體驗名稱*" className="flex-1 min-w-0"
+              value={e.name} onChange={(v) => updateExperience(idx, { name: v })} />
+            <RowInput placeholder="價格*" type="number" className="w-16 flex-shrink-0"
+              value={e.price} onChange={(v) => updateExperience(idx, { price: v })} />
+            <RowInput placeholder="說明" className="flex-1 min-w-0"
+              value={e.desc} onChange={(v) => updateExperience(idx, { desc: v })} />
+            <RowInput placeholder="分鐘" type="number" className="w-14 flex-shrink-0"
+              value={e.duration} onChange={(v) => updateExperience(idx, { duration: v })} />
+            <RowInput placeholder="人數" type="number" className="w-14 flex-shrink-0"
+              value={e.capacity} onChange={(v) => updateExperience(idx, { capacity: v })} />
+            <button type="button" onClick={() => removeExperience(idx)}
+              className="w-8 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
+              style={{ color: "#c87060" }} title="移除">✕</button>
           </div>
         ))}
       </div>
@@ -591,12 +579,27 @@ function MarketFields() {
   );
 }
 
-/* 商品/體驗卡片內用的精簡檔案上傳 */
-function InlineFile({ label, fileName, onChange }: { label: string; fileName: string | null; onChange: (name: string | null) => void }) {
+/* 單行用的精簡 input */
+function RowInput({ placeholder, type = "text", value, onChange, className }: {
+  placeholder: string; type?: string; value: string; onChange: (v: string) => void; className?: string;
+}) {
+  return (
+    <input
+      type={type}
+      placeholder={placeholder}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      className={`h-9 px-2 rounded text-sm outline-none ${className || ""}`}
+      style={{ border: "1px solid var(--color-dust)", background: "#fff" }}
+    />
+  );
+}
+
+/* 單行用的圖示檔案上傳按鈕 */
+function IconFile({ fileName, onChange }: { fileName: string | null; onChange: (name: string | null) => void }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div>
-      <label className="block text-sm font-medium mb-1.5" style={{ color: "var(--color-ink)" }}>{label}</label>
+    <>
       <input
         ref={inputRef}
         type="file"
@@ -607,16 +610,17 @@ function InlineFile({ label, fileName, onChange }: { label: string; fileName: st
       <button
         type="button"
         onClick={() => inputRef.current?.click()}
-        className="w-full h-11 rounded-lg text-sm flex items-center justify-center gap-1 transition-colors px-3"
+        className="w-9 h-9 flex items-center justify-center rounded text-sm flex-shrink-0"
         style={{
-          border: `1.5px dashed ${fileName ? "var(--color-moss)" : "var(--color-dust)"}`,
+          border: `1px solid ${fileName ? "var(--color-moss)" : "var(--color-dust)"}`,
           background: fileName ? "rgba(78,205,196,0.05)" : "#fff",
           color: fileName ? "var(--color-moss)" : "var(--color-mist)",
         }}
+        title={fileName || "上傳照片"}
       >
-        {fileName ? <span className="truncate">✓ {fileName}</span> : <span>點擊上傳</span>}
+        {fileName ? "✓" : "📷"}
       </button>
-    </div>
+    </>
   );
 }
 
