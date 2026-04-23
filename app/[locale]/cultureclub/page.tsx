@@ -3,6 +3,7 @@ import Link from "next/link";
 import Calendar from "@/components/calendar/Calendar";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 import { fetchSBEvents, fetchSBArticles, fetchSBTopics, fetchSBProducts } from "@/lib/fetch-supabase";
+import { supabase } from "@/lib/supabase";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
 
@@ -26,9 +27,57 @@ const eventCatStyles: Record<string, { bg: string; text: string }> = {
 export default async function CultureClubPage() {
   const events = await fetchSBEvents(5);
   const articles = await fetchSBArticles(5);
-  const topics = await fetchSBTopics("viewpoint", 4);
   const tags = await fetchSBTopics("tag", 10);
   const products = await fetchSBProducts(undefined, 6);
+
+  // ── 話題觀點：每筆觀點 + 其關聯的產品/活動/文章/標籤卡片（全部以 updated_at DESC 混排）──
+  // 只顯示已發佈、有官網頁面的項目（因此自動跳過未同步進 Supabase 的原始資料）
+  const { data: vps } = await supabase
+    .from("topics")
+    .select("id, notion_id, name, summary, related_product_ids, related_event_ids, related_article_ids, related_tag_ids, updated_at")
+    .eq("tag_type", "viewpoint")
+    .eq("status", "active")
+    .order("updated_at", { ascending: false })
+    .limit(4);
+
+  const parseIds = (v: any): string[] => Array.isArray(v) ? v : (typeof v === "string" ? (() => { try { return JSON.parse(v); } catch { return []; } })() : []);
+  const prodIds = new Set<string>();
+  const eventIds = new Set<string>();
+  const articleIds = new Set<string>();
+  const tagIds = new Set<string>();
+  (vps || []).forEach((v: any) => {
+    parseIds(v.related_product_ids).forEach((id: string) => prodIds.add(id));
+    parseIds(v.related_event_ids).forEach((id: string) => eventIds.add(id));
+    parseIds(v.related_article_ids).forEach((id: string) => articleIds.add(id));
+    parseIds(v.related_tag_ids).forEach((id: string) => tagIds.add(id));
+  });
+
+  const [prodsRes, eventsRes, artsRes, tagsRes] = await Promise.all([
+    prodIds.size ? supabase.from("products").select("id, notion_id, name, price, images, updated_at").in("id", [...prodIds]).eq("status", "active") : Promise.resolve({ data: [] as any[] }),
+    eventIds.size ? supabase.from("events").select("id, notion_id, title, cover_url, event_date, updated_at").in("id", [...eventIds]).eq("status", "active") : Promise.resolve({ data: [] as any[] }),
+    articleIds.size ? supabase.from("articles").select("id, notion_id, title, cover_url, updated_at, web_tag").in("id", [...articleIds]).eq("status", "published") : Promise.resolve({ data: [] as any[] }),
+    tagIds.size ? supabase.from("topics").select("id, notion_id, name, updated_at").in("id", [...tagIds]).eq("tag_type", "tag").eq("status", "active") : Promise.resolve({ data: [] as any[] }),
+  ]);
+
+  const prodMap = new Map((prodsRes.data || []).map((r: any) => {
+    let photo: string | null = null;
+    try { const imgs = JSON.parse(r.images || "[]"); photo = imgs[0] || null; } catch {}
+    return [r.id, { type: "product", id: r.notion_id || r.id, title: r.name, photo, price: r.price, updated_at: r.updated_at }];
+  }));
+  const eventMap = new Map((eventsRes.data || []).map((r: any) => [r.id, { type: "event", id: r.notion_id || r.id, title: r.title, photo: r.cover_url, date: r.event_date, updated_at: r.updated_at }]));
+  // 話題推薦類的 article 沒有獨立頁面 → 不收進卡片
+  const artMap = new Map((artsRes.data || []).filter((r: any) => !Array.isArray(r.web_tag) || !r.web_tag.includes("話題推薦")).map((r: any) => [r.id, { type: "article", id: r.notion_id || r.id, title: r.title, photo: r.cover_url, updated_at: r.updated_at }]));
+  const tagMap = new Map((tagsRes.data || []).map((r: any) => [r.id, { type: "tag", id: r.notion_id || r.id, title: r.name, updated_at: r.updated_at }]));
+
+  const viewpointRows = (vps || []).map((v: any) => {
+    const items: any[] = [];
+    parseIds(v.related_product_ids).forEach((id: string) => { const x = prodMap.get(id); if (x) items.push(x); });
+    parseIds(v.related_event_ids).forEach((id: string) => { const x = eventMap.get(id); if (x) items.push(x); });
+    parseIds(v.related_article_ids).forEach((id: string) => { const x = artMap.get(id); if (x) items.push(x); });
+    parseIds(v.related_tag_ids).forEach((id: string) => { const x = tagMap.get(id); if (x) items.push(x); });
+    items.sort((a, b) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+    return { id: v.id, title: v.name, summary: v.summary, items };
+  }).filter((v: any) => v.items.length > 0);
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
 
@@ -94,34 +143,60 @@ export default async function CultureClubPage() {
         </div>
       </section>
 
-      {/* ── 區塊 4: 話題觀點（原「脈絡觀點」）── 跟書店「主題策展」同格式 */}
-      <section className="py-6">
-        <div className="flex items-center justify-between mb-6">
-          <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>話題觀點</h2>
-          <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多文化觀點 →</Link>
-        </div>
-        <div className="hscroll-track">
-          {topics.map((topic) => (
-            <Link
-              key={topic.id}
-              href={`/viewpoint/${topic.slug}`}
-              className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid #e8e0d4", background: "#fff" }}
-            >
-              <div className="aspect-square flex items-center justify-center relative" style={{ background: "#f2ede6" }}>
-                <ImagePlaceholder type="topic" />
-                <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: "#E3F2FD", color: "#1565C0" }}>
-                  觀點
-                </span>
+      {/* ── 區塊 4: 話題觀點 ── 每筆觀點 + 關聯卡片（產品/活動/文章/標籤，按更新時間 DESC 混排） */}
+      {viewpointRows.length > 0 && (
+        <div className="py-2">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>話題觀點</h2>
+            <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>前往更多文化觀點 →</Link>
+          </div>
+          {viewpointRows.map((vp: any) => (
+            <section key={vp.id} className="py-4">
+              <div className="mb-3">
+                <Link href={`/viewpoint/${vp.id}`} className="text-[1.15em] font-semibold hover:underline" style={{ color: "#1a1612" }}>{vp.title}</Link>
+                {vp.summary && <p className="text-[0.8em] mt-1" style={{ color: "#8b7355" }}>{vp.summary}</p>}
               </div>
-              <div className="p-2.5">
-                <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{topic.name}</h4>
-                {topic.summary && <p className="text-[0.7em] line-clamp-2 mt-1" style={{ color: "#8b7355" }}>{topic.summary}</p>}
+              <div className="hscroll-track">
+                {vp.items.map((item: any) => {
+                  const hrefMap: Record<string, string> = {
+                    product: `/product/${item.id}`,
+                    event: `/events/${item.id}`,
+                    article: `/post/${item.id}`,
+                    tag: `/viewpoint/${item.id}`,
+                  };
+                  const labelMap: Record<string, { text: string; bg: string; color: string }> = {
+                    product: { text: "選書/選物", bg: "#FFF3E0", color: "#E65100" },
+                    event: { text: "活動", bg: "#E3F2FD", color: "#1565C0" },
+                    article: { text: "文章", bg: "#E0F2F1", color: "#00695C" },
+                    tag: { text: "關鍵字", bg: "#F3E5F5", color: "#6A1B9A" },
+                  };
+                  const label = labelMap[item.type];
+                  return (
+                    <Link
+                      key={`${item.type}-${item.id}`}
+                      href={hrefMap[item.type]}
+                      className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+                      style={{ border: "1px solid #e8e0d4", background: "#fff" }}
+                    >
+                      <div className="aspect-square flex items-center justify-center relative overflow-hidden" style={{ background: "#f2ede6" }}>
+                        {item.photo ? <SafeImage src={item.photo} alt={item.title} placeholderType={item.type === "event" ? "event" : item.type === "article" ? "article" : "product"} /> : <ImagePlaceholder type={item.type === "event" ? "event" : item.type === "article" ? "article" : item.type === "tag" ? "topic" : "product"} />}
+                        <span className="absolute bottom-2 right-2 text-[0.65em] px-1.5 py-0.5 rounded-[3px]" style={{ background: label.bg, color: label.color }}>
+                          {label.text}
+                        </span>
+                      </div>
+                      <div className="p-2.5">
+                        <h4 className="text-[0.85em] line-clamp-2 font-medium" style={{ color: "#1a1612" }}>{item.title}</h4>
+                        {item.type === "product" && item.price != null && <p className="text-[0.75em] mt-1" style={{ color: "#b5522a" }}>NT$ {item.price}</p>}
+                        {item.type === "event" && item.date && <p className="text-[0.7em] mt-1" style={{ color: "#999" }}>{String(item.date).substring(0, 10)}</p>}
+                      </div>
+                    </Link>
+                  );
+                })}
               </div>
-            </Link>
+            </section>
           ))}
         </div>
-      </section>
+      )}
 
       {/* ── 區塊 5: 選書選物 ── */}
       <section className="py-6">

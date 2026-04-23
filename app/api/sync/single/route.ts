@@ -691,12 +691,32 @@ async function syncSingleRelation(nid: string, props: any) {
       console.warn("topic content fetch failed:", e.message);
     }
 
+    // 2026/04/24：DB08「觀點」要在 cultureclub 首頁呈現相關卡片（產品/活動/文章/標籤）
+    // 讀取 4 個 relation → 反查 Supabase 取對應 UUID（未同步的會自動跳過）
+    const resolveIds = async (table: string, notionRelIds: string[]): Promise<string[]> => {
+      if (!notionRelIds.length) return [];
+      const cleanIds = notionRelIds.map((id) => id.replace(/-/g, ""));
+      const { data } = await supabase.from(table).select("id, notion_id").in("notion_id", cleanIds);
+      const byNid = new Map((data || []).map((r: any) => [r.notion_id, r.id]));
+      return cleanIds.map((c) => byNid.get(c)).filter(Boolean) as string[];
+    };
+    const [relatedProductIds, relatedEventIds, relatedArticleIds, relatedTagIds] = await Promise.all([
+      resolveIds("products", rel(props["對應標籤庫存"])),
+      resolveIds("events",   rel(props["對應標籤協作"])),
+      resolveIds("articles", rel(props["對應標籤表單"])),
+      resolveIds("topics",   rel(props["自對標籤"])),
+    ]);
+
     const row: Record<string, any> = {
       notion_id: nid,
       name: t(props["經營名稱"]) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: tx(props["簡介摘要"]),
       region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
+      related_product_ids: relatedProductIds,
+      related_event_ids: relatedEventIds,
+      related_article_ids: relatedArticleIds,
+      related_tag_ids: relatedTagIds,
       status,
     };
     if (content) row.content = content;
