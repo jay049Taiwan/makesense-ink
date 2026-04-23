@@ -133,20 +133,8 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
   },
 
-  // Cookie 預設跟著當前 host（makesense.ink 或 Vercel preview URL 都吃得到）
-  // 若未來要跨子網域共用登入，再用環境變數 AUTH_COOKIE_DOMAIN 指定
-  cookies: {
-    sessionToken: {
-      name: "next-auth.session-token",
-      options: {
-        httpOnly: true,
-        sameSite: "lax",
-        path: "/",
-        secure: process.env.NODE_ENV === "production",
-        domain: process.env.AUTH_COOKIE_DOMAIN || undefined,
-      },
-    },
-  },
+  // 不覆寫 cookies — 讓 NextAuth v5 用預設（__Secure-authjs.session-token），
+  // 自訂成 v4 的 next-auth.session-token 會跟 v5 讀取時命名不符導致 session 讀不到。
 
   pages: {
     signIn: "/login",
