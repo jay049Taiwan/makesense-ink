@@ -1,10 +1,13 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { useCart } from "@/components/providers/CartProvider";
 
 export default function CartBadge() {
   const { totalItems } = useCart();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   return (
     <Link
@@ -18,7 +21,7 @@ export default function CartBadge() {
         <circle cx="20" cy="21" r="1" />
         <path d="m1 1 4 0 2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
       </svg>
-      {totalItems > 0 && (
+      {mounted && totalItems > 0 && (
         <span
           className="absolute flex items-center justify-center rounded-full text-white font-bold"
           style={{
