@@ -139,12 +139,20 @@ function HandoverTasks() {
 }
 
 // ═══════════════════════════════════════════
-// 庫存 — 保留 UI 框架，統計從 Supabase 讀取
+// 庫存 — 串接 /api/staff/inventory（DB06→DB05）
 // ═══════════════════════════════════════════
+type InvItem = { name: string; quantity: number; price: number; cost_price: number; notion_id?: string };
+type MiscItem = { name: string; amount: number };
+
 function InventoryPanel() {
-  const [mode, setMode] = useState<"商品出貨" | "商品進貨" | "商品盤點">("商品出貨");
-  const [subMode, setSubMode] = useState<"一般出貨" | "通路出貨" | "下架退換">("一般出貨");
+  const [operation, setOperation] = useState<"進貨" | "出貨" | "盤點">("出貨");
   const [stats, setStats] = useState({ lowStock: 0, outOfStock: 0 });
+  const [search, setSearch] = useState("");
+  const [searchResults, setSearchResults] = useState<{ id: string; notion_id: string; name: string; price: number; stock: number }[]>([]);
+  const [items, setItems] = useState<InvItem[]>([]);
+  const [miscItems, setMiscItems] = useState<MiscItem[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [resultMsg, setResultMsg] = useState("");
 
   useEffect(() => {
     (async () => {
@@ -154,6 +162,70 @@ function InventoryPanel() {
     })();
   }, []);
 
+  // 搜尋商品（debounce 300ms）
+  useEffect(() => {
+    if (!search.trim()) { setSearchResults([]); return; }
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from("products")
+        .select("id, notion_id, name, price, stock")
+        .ilike("name", `%${search.trim()}%`)
+        .limit(8);
+      setSearchResults(data || []);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  const addProduct = (p: { notion_id: string; name: string; price: number }) => {
+    if (items.find(i => i.notion_id === p.notion_id)) return;
+    setItems([...items, { name: p.name, quantity: 1, price: p.price || 0, cost_price: 0, notion_id: p.notion_id }]);
+    setSearch(""); setSearchResults([]);
+  };
+  const updateItem = (i: number, field: keyof InvItem, value: any) => {
+    setItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it));
+  };
+  const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
+  const addMisc = () => setMiscItems([...miscItems, { name: "", amount: 0 }]);
+  const updateMisc = (i: number, field: keyof MiscItem, value: any) => {
+    setMiscItems(prev => prev.map((it, idx) => idx === i ? { ...it, [field]: value } : it));
+  };
+  const removeMisc = (i: number) => setMiscItems(prev => prev.filter((_, idx) => idx !== i));
+
+  const submit = async () => {
+    if (items.length === 0) { setResultMsg("⚠️ 請至少加入一個品項"); return; }
+    setSubmitting(true); setResultMsg("");
+    try {
+      const res = await fetch("/api/staff/inventory", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          operation,
+          items: items.map(i => ({
+            name: i.name,
+            quantity: i.quantity,
+            price: operation === "出貨" ? i.price : undefined,
+            cost_price: operation === "進貨" ? i.cost_price : undefined,
+            notion_id: i.notion_id,
+          })),
+          misc_items: miscItems.filter(m => m.amount > 0),
+        }),
+      });
+      const json = await res.json();
+      if (!res.ok) { setResultMsg("❌ " + (json.error || "送出失敗")); }
+      else {
+        setResultMsg("✅ " + json.message);
+        setItems([]); setMiscItems([]);
+      }
+    } catch (e: any) {
+      setResultMsg("❌ 網路錯誤：" + e.message);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const total = items.reduce((s, i) => s + (operation === "進貨" ? i.cost_price : i.price) * i.quantity, 0)
+              + miscItems.reduce((s, m) => s + m.amount, 0);
+
   return (
     <div className="grid sm:grid-cols-[280px_1fr] gap-0" style={{ minHeight: 500 }}>
       <div className="p-4" style={{ borderRight: "1px solid #f0f0f0" }}>
@@ -162,30 +234,89 @@ function InventoryPanel() {
           <StatRow label="缺貨" value={`${stats.outOfStock} 項`} />
         </div>
         <p className="text-xs font-semibold mb-2" style={{ color: "#888" }}>庫存作業</p>
-        {(["商品出貨", "商品進貨", "商品盤點"] as const).map((m) => (
-          <button key={m} onClick={() => setMode(m)} className="w-full text-left px-4 py-3 rounded-lg mb-1 text-sm transition-colors"
-            style={{ background: mode === m ? "#fff" : "transparent", border: mode === m ? "2px solid #7a5c40" : "1px solid #e8e0d4", color: mode === m ? "#7a5c40" : "#666", fontWeight: mode === m ? 600 : 400, cursor: "pointer" }}>{m}</button>
-        ))}
-        <p className="text-xs font-semibold mb-2 mt-4" style={{ color: "#888" }}>庫存細項</p>
-        {(["一般出貨", "通路出貨", "下架退換"] as const).map((s) => (
-          <button key={s} onClick={() => setSubMode(s)} className="w-full text-left px-4 py-3 rounded-lg mb-1 text-sm transition-colors"
-            style={{ background: subMode === s ? "#fff" : "transparent", border: subMode === s ? "2px solid #7a5c40" : "1px solid #e8e0d4", color: subMode === s ? "#7a5c40" : "#666", fontWeight: subMode === s ? 600 : 400, cursor: "pointer" }}>{s}</button>
+        {(["出貨", "進貨", "盤點"] as const).map((m) => (
+          <button key={m} onClick={() => setOperation(m)} className="w-full text-left px-4 py-3 rounded-lg mb-1 text-sm transition-colors"
+            style={{ background: operation === m ? "#fff" : "transparent", border: operation === m ? "2px solid #7a5c40" : "1px solid #e8e0d4", color: operation === m ? "#7a5c40" : "#666", fontWeight: operation === m ? 600 : 400, cursor: "pointer" }}>商品{m}</button>
         ))}
       </div>
-      <div className="p-6 flex flex-col items-center justify-center">
-        <div className="w-full mb-8" style={{ maxWidth: 500 }}>
-          <div className="flex items-center gap-2">
-            <div className="flex-1 flex items-center h-11 px-4 rounded-lg" style={{ border: "1px solid #ddd" }}>
-              <input type="text" placeholder="掃碼 或 輸入商品名稱..." className="flex-1 text-sm outline-none bg-transparent" />
-              <span style={{ color: "#999" }}>🔍</span>
-            </div>
-            <button className="h-11 w-11 rounded-lg flex items-center justify-center" style={{ background: "#1a1a2e", border: "none", cursor: "pointer" }}>
-              <span className="text-white text-lg">📷</span>
-            </button>
+      <div className="p-6">
+        <h2 className="text-xl font-bold mb-4" style={{ color: "#333" }}>商品{operation}</h2>
+
+        {/* 搜尋 */}
+        <div className="relative mb-4" style={{ maxWidth: 500 }}>
+          <div className="flex items-center h-11 px-4 rounded-lg" style={{ border: "1px solid #ddd" }}>
+            <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              placeholder="輸入商品名稱搜尋..."
+              className="flex-1 text-sm outline-none bg-transparent" />
+            <span style={{ color: "#999" }}>🔍</span>
           </div>
+          {searchResults.length > 0 && (
+            <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-10"
+              style={{ background: "#fff", border: "1px solid #ddd", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+              {searchResults.map((p) => (
+                <button key={p.id} onClick={() => addProduct(p)}
+                  className="w-full text-left px-4 py-2 text-sm flex justify-between items-center hover:bg-gray-50"
+                  style={{ background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}>
+                  <span>{p.name}</span>
+                  <span className="text-xs" style={{ color: "#999" }}>庫存 {p.stock} · NT$ {p.price}</span>
+                </button>
+              ))}
+            </div>
+          )}
         </div>
-        <h2 className="text-xl font-bold mb-2" style={{ color: "#333" }}>{mode}</h2>
-        <p className="text-sm" style={{ color: "#999" }}>掃描商品條碼開始{mode}</p>
+
+        {/* 品項清單 */}
+        {items.length === 0 ? (
+          <p className="text-sm py-8 text-center" style={{ color: "#aaa" }}>請從上方搜尋並加入品項</p>
+        ) : (
+          <div className="mb-4">
+            {items.map((item, i) => (
+              <div key={i} className="flex gap-2 items-center mb-2 p-2 rounded" style={{ border: "1px solid #e8e0d4" }}>
+                <span className="flex-1 text-sm font-medium" style={{ color: "#333" }}>{item.name}</span>
+                <input type="number" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
+                  placeholder="數量" min={1}
+                  className="w-20 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+                {operation !== "盤點" && (
+                  <input type="number" value={(operation === "進貨" ? item.cost_price : item.price) || ""}
+                    onChange={(e) => updateItem(i, operation === "進貨" ? "cost_price" : "price", Number(e.target.value))}
+                    placeholder={operation === "進貨" ? "進價" : "售價"}
+                    className="w-24 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+                )}
+                <button onClick={() => removeItem(i)} className="text-xs px-2 py-1" style={{ color: "#e53e3e", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* 雜支（運費/稅）*/}
+        {operation !== "盤點" && (
+          <div className="mb-4">
+            <p className="text-xs font-semibold mb-2" style={{ color: "#888" }}>雜支（運費/稅，選填）</p>
+            {miscItems.map((m, i) => (
+              <div key={i} className="flex gap-2 items-center mb-2">
+                <input value={m.name} onChange={(e) => updateMisc(i, "name", e.target.value)} placeholder="項目（如：運費）"
+                  className="flex-1 px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+                <input type="number" value={m.amount || ""} onChange={(e) => updateMisc(i, "amount", Number(e.target.value))}
+                  placeholder="金額" className="w-28 px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+                <button onClick={() => removeMisc(i)} className="text-xs px-2 py-1" style={{ color: "#e53e3e", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+              </div>
+            ))}
+            <button onClick={addMisc} className="text-xs px-3 py-1.5 rounded" style={{ color: "#7a5c40", background: "none", border: "1px dashed #7a5c40", cursor: "pointer" }}>+ 新增雜支</button>
+          </div>
+        )}
+
+        {/* 送出 */}
+        <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: "1px solid #f0f0f0" }}>
+          <span className="text-sm font-bold" style={{ color: "#333" }}>
+            {operation === "盤點" ? `品項數：${items.length}` : `合計：NT$ ${total.toLocaleString()}`}
+          </span>
+          <button onClick={submit} disabled={submitting || items.length === 0}
+            className="px-6 py-2 rounded-lg text-sm font-bold text-white"
+            style={{ background: submitting ? "#aaa" : "#7a5c40", border: "none", cursor: submitting ? "not-allowed" : "pointer", opacity: items.length === 0 ? 0.5 : 1 }}>
+            {submitting ? "送出中…" : `送出${operation}`}
+          </button>
+        </div>
+        {resultMsg && <p className="text-sm mt-3" style={{ color: resultMsg.startsWith("✅") ? "#2d5016" : "#e53e3e" }}>{resultMsg}</p>}
       </div>
     </div>
   );

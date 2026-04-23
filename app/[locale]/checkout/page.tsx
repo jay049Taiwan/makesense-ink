@@ -37,13 +37,35 @@ export default function CheckoutPage() {
     }).catch(() => {});
   }, []);
 
+  // 報名視窗帶來的聯絡資訊 → 同步到本頁 state
+  useEffect(() => {
+    const c = items.find((i) => i.contact)?.contact;
+    if (c) {
+      if (c.name) setContactName(c.name);
+      if (c.phone) setContactPhone(c.phone);
+    }
+    // Email 用 DOM 直接填（維持原本 uncontrolled 結構）
+    const c2 = items.find((i) => i.contact)?.contact;
+    if (c2?.email) {
+      setTimeout(() => {
+        const el = document.querySelector('input[name="email"]') as HTMLInputElement | null;
+        if (el && !el.value) el.value = c2.email;
+      }, 0);
+    }
+  }, [items.length]);
+
 
   // 是否含票券（需審核）
   const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));
   // 是否含實體商品（需寄送選項）
   const hasProducts = items.some((i) => i.type === "商品" || i.type === "預購");
-  // 收集所有票券的報名資訊
-  const ticketRegistrations = items.filter((i) => i.registration && Object.keys(i.registration).length > 0);
+  // 收集所有票券的報名資訊（優先用 registrations 陣列，fallback 到 registration 單筆）
+  const ticketRegistrations = items.filter((i) =>
+    (i.registrations && i.registrations.length > 0) ||
+    (i.registration && Object.keys(i.registration).length > 0)
+  );
+  // 從報名視窗帶過來的聯絡資訊（任一 item.contact 即可；用第一筆）
+  const incomingContact = items.find((i) => i.contact)?.contact;
 
   const handleSubmit = async () => {
     setSubmitting(true);
@@ -61,7 +83,7 @@ export default function CheckoutPage() {
           items: items.map((i) => ({
             id: i.id, name: i.name, subtitle: i.subtitle, type: i.type,
             price: i.price, qty: i.qty, eventId: i.eventId, productId: i.productId,
-            meta: i.meta, registration: i.registration,
+            meta: i.meta, registration: i.registration, registrations: i.registrations,
           })),
           contact: {
             name: contactName || (document.querySelector('[name="contact_name"]') as HTMLInputElement)?.value || "",
@@ -169,54 +191,52 @@ export default function CheckoutPage() {
               </div>
             </Section>
 
-            {/* ── 2. 報名資訊（可編輯，多人分頁）── */}
+            {/* ── 2. 報名資訊（唯讀確認，來自報名視窗）── */}
             {ticketRegistrations.length > 0 && (
-              <Section title="報名資訊">
-                {/* 多人分頁 */}
-                {ticketRegistrations.length > 1 && (
-                  <div className="flex gap-1 mb-3">
-                    {ticketRegistrations.map((item, idx) => (
-                      <button
+              <Section title="報名資訊確認">
+                <div className="space-y-3">
+                  {ticketRegistrations.map((item) => {
+                    const regs: Record<string, string>[] = (item.registrations && item.registrations.length > 0)
+                      ? item.registrations
+                      : (item.registration ? [item.registration] : []);
+                    return (
+                      <div
                         key={item.id}
-                        onClick={() => setActiveRegIdx(idx)}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium transition-all"
-                        style={{
-                          background: activeRegIdx === idx ? "var(--color-teal)" : "var(--color-parchment)",
-                          color: activeRegIdx === idx ? "#fff" : "var(--color-mist)",
-                          border: "none", cursor: "pointer",
-                        }}
+                        className="rounded-xl p-4"
+                        style={{ background: "rgba(78,205,196,0.04)", border: "1.5px solid rgba(78,205,196,0.3)" }}
                       >
-                        {item.subtitle || `報名者 ${idx + 1}`}
-                      </button>
-                    ))}
-                  </div>
-                )}
-                {(() => {
-                  const item = ticketRegistrations[activeRegIdx] || ticketRegistrations[0];
-                  if (!item) return null;
-                  return (
-                    <div className="rounded-xl p-4" style={{ background: "rgba(78,205,196,0.04)", border: "1.5px solid rgba(78,205,196,0.3)" }}>
-                      <div className="flex items-center gap-2 mb-3">
-                        <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "var(--color-teal)" }}>{item.type}</span>
-                        <span className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>{item.name}</span>
+                        <div className="flex items-center gap-2 mb-3">
+                          <span className="text-xs px-2 py-0.5 rounded-full text-white" style={{ background: "var(--color-teal)" }}>{item.type}</span>
+                          <span className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
+                            {item.name}{item.subtitle ? ` · ${item.subtitle}` : ""} × {item.qty}
+                          </span>
+                        </div>
+                        <div className="space-y-3">
+                          {regs.map((r, rIdx) => (
+                            <div key={rIdx} className="rounded-lg p-3" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
+                              <p className="text-xs font-semibold mb-2" style={{ color: "var(--color-bark)" }}>
+                                報名者 {rIdx + 1}
+                              </p>
+                              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-2">
+                                {Object.entries(r)
+                                  .filter(([, v]) => v !== undefined && v !== null && String(v).trim() !== "")
+                                  .map(([key, val]) => (
+                                    <div key={key}>
+                                      <label className="text-[0.6em] block" style={{ color: "var(--color-mist)" }}>{FIELD_LABELS[key] || key}</label>
+                                      <p className="text-xs" style={{ color: "var(--color-ink)" }}>{String(val)}</p>
+                                    </div>
+                                  ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-3">
-                        {Object.entries(item.registration!).map(([key, val]) => (
-                          <div key={key}>
-                            <label className="text-[0.6em] mb-0.5 block" style={{ color: "var(--color-mist)" }}>{FIELD_LABELS[key] || key}</label>
-                            <input
-                              type="text"
-                              defaultValue={val}
-                              onChange={(e) => { item.registration![key] = e.target.value; }}
-                              className="w-full text-xs px-2 py-1.5 rounded-lg outline-none"
-                              style={{ border: "1px solid var(--color-dust)", background: "#fff", color: "var(--color-ink)" }}
-                            />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  );
-                })()}
+                    );
+                  })}
+                  <p className="text-[0.65em]" style={{ color: "var(--color-mist)" }}>
+                    如需修改，請回活動頁重新填寫報名視窗。
+                  </p>
+                </div>
               </Section>
             )}
 

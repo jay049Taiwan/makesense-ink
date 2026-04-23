@@ -18,7 +18,9 @@ export interface CartItem {
   eventId?: string;     // 對應活動 ID（活動票券用）
   productId?: string;   // 對應商品 ID（商品用）
   meta?: Record<string, string>; // 額外資訊（日期、場次等）
-  registration?: Record<string, string>; // 報名表單資訊（票券用）
+  registration?: Record<string, string>; // 報名表單資訊（票券用，單人）
+  registrations?: Record<string, string>[]; // N 人報名時每人一份
+  contact?: { name: string; phone: string; email: string }; // 從報名視窗帶入的聯絡資訊
 }
 
 /* ═══════════════════════════════════════════
@@ -29,6 +31,7 @@ interface CartContextValue {
   addItem: (item: Omit<CartItem, "qty"> & { qty?: number }) => void;
   removeItem: (id: string) => void;
   updateQty: (id: string, qty: number) => void;
+  updateItem: (id: string, patch: Partial<CartItem>) => void;
   clearCart: () => void;
   totalItems: number;
   totalPrice: number;
@@ -106,13 +109,17 @@ export default function CartProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const updateItem = useCallback((id: string, patch: Partial<CartItem>) => {
+    setItems((prev) => prev.map((i) => (i.id === id ? { ...i, ...patch } : i)));
+  }, []);
+
   const clearCart = useCallback(() => setItems([]), []);
 
   const totalItems = items.reduce((s, i) => s + i.qty, 0);
   const totalPrice = items.reduce((s, i) => s + i.price * i.qty, 0);
 
   return (
-    <CartContext.Provider value={{ items, addItem, removeItem, updateQty, clearCart, totalItems, totalPrice }}>
+    <CartContext.Provider value={{ items, addItem, removeItem, updateQty, updateItem, clearCart, totalItems, totalPrice }}>
       {children}
     </CartContext.Provider>
   );

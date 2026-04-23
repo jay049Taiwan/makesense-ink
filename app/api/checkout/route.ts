@@ -81,6 +81,7 @@ export async function POST(req: NextRequest) {
         productId?: string;
         meta?: Record<string, string>;
         registration?: Record<string, string>;
+        registrations?: Record<string, string>[];
       }[];
       contact: { name: string; phone: string; email: string };
       delivery: string;
@@ -233,7 +234,7 @@ export async function POST(req: NextRequest) {
         subtitle: item.subtitle || null,
         eventId: item.eventId || null,
         productId: item.productId || null,
-        productNotionId: productInfo?.notion_id || null,
+        productNotionId: productInfo?.notion_id || (item.productId ? normalizeNotionId(item.productId) : null),
         ...item.meta,
       },
     }));
@@ -263,32 +264,37 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 5. 建立報名資料（有 registration 的項目）
-    const registrationItems = items.filter((i) => i.registration && Object.keys(i.registration).length > 0);
+    // 5. 建立報名資料（registrations 陣列 → 每人一筆；fallback 到單筆 registration）
+    const registrationItems = items.filter((i) =>
+      (i.registrations && i.registrations.length > 0) ||
+      (i.registration && Object.keys(i.registration).length > 0)
+    );
     if (registrationItems.length > 0 && insertedItems) {
-      const registrations = registrationItems.map((item) => {
+      const regRows: any[] = [];
+      for (const item of registrationItems) {
         const matchedOrderItem = insertedItems.find(
           (oi: any) => oi.meta?.name === item.name && oi.item_type === item.type
         );
-        return {
-          order_item_id: matchedOrderItem?.id,
-          attendee_name: item.registration?.contact_name || contact.name,
-          attendee_phone: item.registration?.phone || contact.phone,
-          attendee_email: item.registration?.email || contact.email,
-          birth_date: item.registration?.birth_date || null,
-          dietary: item.registration?.dietary || null,
-          emergency_contact: item.registration?.emergency_contact || null,
-          custom_fields: item.registration || {},
-        };
-      }).filter((r) => r.order_item_id);
-
-      if (registrations.length > 0) {
-        const { error: regError } = await supabase
-          .from("registrations")
-          .insert(registrations);
-        if (regError) {
-          console.error("建立報名資料失敗:", regError);
+        if (!matchedOrderItem) continue;
+        const regs: Record<string, string>[] = (item.registrations && item.registrations.length > 0)
+          ? item.registrations
+          : [item.registration as Record<string, string>];
+        for (const r of regs) {
+          regRows.push({
+            order_item_id: matchedOrderItem.id,
+            attendee_name: (r as any).name || (r as any).contact_name || contact.name,
+            attendee_phone: (r as any).phone || contact.phone,
+            attendee_email: (r as any).email || contact.email,
+            birth_date: (r as any).birth_date || null,
+            dietary: (r as any).dietary || null,
+            emergency_contact: (r as any).emergency_contact || null,
+            custom_fields: r || {},
+          });
         }
+      }
+      if (regRows.length > 0) {
+        const { error: regError } = await supabase.from("registrations").insert(regRows);
+        if (regError) console.error("建立報名資料失敗:", regError);
       }
     }
 
@@ -333,7 +339,7 @@ export async function POST(req: NextRequest) {
       const mainEventNotionDashed = toDashedNotionId(firstTicketItem?.item.eventId || firstTicketItem?.eventInfo?.notion_id);
 
       // 主要報名者（A）的報名資料：優先用第一張票的 registration，沒有就 fallback 聯絡人資料
-      const primaryReg = firstTicketItem?.item.registration || {};
+      const primaryReg = firstTicketItem?.item.registrations?.[0] || firstTicketItem?.item.registration || {};
 
       // 共用：把 attendee 資料塞進 properties
       function fillAttendeeProps(p: Record<string, any>, reg: Record<string, string> | undefined, fallbackName?: string) {
@@ -354,29 +360,39 @@ export async function POST(req: NextRequest) {
       for (const { item, productInfo } of resolvedItems) {
         const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
 
-        const db06Props: Record<string, any> = {
-          "明細名稱": { title: [{ text: { content: item.name } }] },
-          "明細類型": { select: { name: "庫存紀錄" } },
-          "登記選項": { select: { name: orderMode === "reservation" ? "預約報名" : "紀錄庫存" } },
-          "登記數量": { number: item.qty },
-          "登記單價": { number: item.price },
-        };
-        if (orderMode === "direct") {
-          db06Props["庫存選項"] = { select: { name: "出貨" } };
-          // 只有 direct 連 DB07；reservation 不連（錄取後新 DB06 才會連）
-          if (productNotionDashed) {
-            db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
-          }
-        }
-        if (item.registration && Object.keys(item.registration).length > 0) {
-          fillAttendeeProps(db06Props, item.registration, contact.name);
-        }
+        // 有 registrations 陣列 → 每人一筆 DB06（qty=1）；否則維持一筆 DB06（qty=item.qty）
+        const regs = (item.registrations && item.registrations.length > 0)
+          ? item.registrations
+          : (item.registration && Object.keys(item.registration).length > 0 ? [item.registration] : [null]);
 
-        try {
-          const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
-          db06PageIds.push((db06Page as any).id as string);
-        } catch (e: any) {
-          console.warn(`[checkout] DB06 create failed for ${item.name}:`, e.message);
+        for (let i = 0; i < regs.length; i++) {
+          const reg = regs[i];
+          const perPersonQty = regs.length > 1 ? 1 : item.qty;
+          const titleSuffix = regs.length > 1 ? `（${i + 1}/${regs.length}）` : "";
+
+          const db06Props: Record<string, any> = {
+            "明細名稱": { title: [{ text: { content: item.name + titleSuffix } }] },
+            "明細類型": { select: { name: "報名登記" } },
+            "登記選項": { select: { name: orderMode === "reservation" ? "預約報名" : "紀錄庫存" } },
+            "登記數量": { number: perPersonQty },
+            "登記單價": { number: item.price },
+          };
+          if (orderMode === "direct") {
+            db06Props["庫存選項"] = { select: { name: "出貨" } };
+            if (productNotionDashed) {
+              db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
+            }
+          }
+          if (reg && Object.keys(reg).length > 0) {
+            fillAttendeeProps(db06Props, reg, contact.name);
+          }
+
+          try {
+            const db06Page = await createPage(DB.DB06_TRANSACTION, db06Props);
+            db06PageIds.push((db06Page as any).id as string);
+          } catch (e: any) {
+            console.warn(`[checkout] DB06 create failed for ${item.name}${titleSuffix}:`, e.message);
+          }
         }
       }
 

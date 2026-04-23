@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
+import { useLiff } from "@/components/providers/LiffProvider";
 
 interface OrderItem {
   id: string;
@@ -44,13 +45,18 @@ const statusLabel: Record<string, { label: string; color: string; bg: string }> 
 export default function OrdersPage() {
   const { data: session } = useSession();
   const devRole = useDevRole();
+  const { isLiffMode, isLiffReady, liffUser } = useLiff();
   const isDev = process.env.NODE_ENV === "development";
-  const email = isDev ? devRole.email : (session?.user?.email || "");
+  const email = isDev
+    ? devRole.email
+    : (isLiffMode ? (liffUser?.email || "") : (session?.user?.email || ""));
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // LIFF 模式下要等 LiffProvider 初始化完才判斷 email
+    if (isLiffMode && !isLiffReady) return;
     if (!email || email === "—") { setLoading(false); return; }
     fetch(`/api/orders?email=${encodeURIComponent(email)}`)
       .then((res) => res.json())
@@ -73,7 +79,7 @@ export default function OrdersPage() {
       })
       .catch(() => setOrders([]))
       .finally(() => setLoading(false));
-  }, [email]);
+  }, [email, isLiffMode, isLiffReady]);
 
   return (
     <div>
