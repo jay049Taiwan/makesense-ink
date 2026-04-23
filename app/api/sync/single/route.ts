@@ -266,6 +266,7 @@ async function syncSingleReservation(nid: string, props: any) {
     return { table: "reservation", note: `錄取狀態=${admissionStatus || "空"}，跳過`, nid, skipped: true };
   }
 
+  // V2：用 DB05 notion_id 精確匹配訂單，同時撈 confirmed_db05_notion_id 做冪等
   const { data: order } = await supabase
     .from("orders")
     .select("id, member_id, admission_notified_status, confirmed_db05_notion_id")
