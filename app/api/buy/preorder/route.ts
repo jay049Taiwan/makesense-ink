@@ -74,18 +74,25 @@ export async function POST(req: NextRequest) {
     }
 
     // 建 DB05 預購訂單標頭
+    // DB05 沒有 自對自 relation，攤商 ID 寫在備註作為追蹤
+    const noteLines = [
+      contact.note ? contact.note : null,
+      `─────`,
+      `攤商：${vendorBrand}`,
+      `攤商報名 ID：${vendorDb05Id.replace(/-/g, "")}`,
+      `訂單：${orderNumber}`,
+    ].filter(Boolean).join("\n");
+
     const db05Props: Record<string, any> = {
       "表單名稱": { title: [{ text: { content: `預購 ${orderNumber} · ${vendorBrand}` } }] },
       "表單類型": { select: { name: "報名登記" } },
       "登記選項": { select: { name: "預約報名" } },
       "登記聯絡人": { rich_text: [{ text: { content: contact.name } }] },
       "登記電話": { rich_text: [{ text: { content: contact.phone } }] },
+      "登記備註": { rich_text: [{ text: { content: noteLines.slice(0, 1900) } }] },
     };
     if (contact.email) db05Props["登記信箱"] = { rich_text: [{ text: { content: contact.email } }] };
-    if (contact.note) db05Props["登記備註"] = { rich_text: [{ text: { content: contact.note } }] };
     if (marketDashed) db05Props["對應協作"] = { relation: [{ id: marketDashed }] };
-    // 對應對象用來關聯攤商 DB05（讓主辦/攤商可從 Notion 查）
-    db05Props["對應表單"] = { relation: [{ id: toDashed(vendorDb05Id) }] };
     if (db06Ids.length > 0) {
       db05Props["對應明細"] = { relation: db06Ids.map((id) => ({ id })) };
     }
@@ -95,8 +102,8 @@ export async function POST(req: NextRequest) {
       const page: any = await createPage(DB.DB05_REGISTRATION, db05Props);
       preorderDb05Id = page?.id || null;
     } catch (e: any) {
-      console.error("預購 DB05 建立失敗:", e.message);
-      return NextResponse.json({ error: "預購建立失敗" }, { status: 500 });
+      console.error("預購 DB05 建立失敗:", e.message, JSON.stringify(e?.body || {}).slice(0, 500));
+      return NextResponse.json({ error: `預購建立失敗：${e.message || "unknown"}` }, { status: 500 });
     }
 
     // Supabase 也存一筆 order（source='preorder'）方便統計
