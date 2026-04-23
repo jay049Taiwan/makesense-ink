@@ -47,9 +47,10 @@ export default function OrdersPage() {
   const devRole = useDevRole();
   const { isLiffMode, isLiffReady, liffUser } = useLiff();
   const isDev = process.env.NODE_ENV === "development";
+  // LIFF 模式優先用 liffUser.email；若 LIFF 在外部瀏覽器拿不到 profile，fallback 到 NextAuth session
   const email = isDev
     ? devRole.email
-    : (isLiffMode ? (liffUser?.email || "") : (session?.user?.email || ""));
+    : (isLiffMode ? (liffUser?.email || session?.user?.email || "") : (session?.user?.email || ""));
 
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
