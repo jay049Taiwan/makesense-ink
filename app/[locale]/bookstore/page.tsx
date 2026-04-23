@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents, applyTranslations } from "@/lib/fetch-supabase";
+import { supabase } from "@/lib/supabase";
 import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
@@ -55,20 +56,68 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
   const t = await getTranslations("bookstore");
   const te = await getTranslations("events");
 
-  const [booksRaw, goodsRaw, articlesRaw, viewpointsRaw, eventsRaw] = await Promise.all([
+  const [booksRaw, goodsRaw, articlesRaw, eventsRaw, topicShowcasesRaw] = await Promise.all([
     fetchSBProducts("選書", 12),
     fetchSBProducts("選物", 12),
     fetchSBArticles(5),
-    fetchSBTopics("viewpoint", 3),
     fetchSBEvents(3),
+    // 話題展售：DB05 官網備項=話題展售 的文章，each with its related products
+    (async () => {
+      const { data: showcases } = await supabase
+        .from("articles")
+        .select("id, notion_id, title, summary, related_product_ids")
+        .eq("status", "active")
+        .contains("web_tag", ["話題展售"])
+        .order("updated_at", { ascending: false })
+        .limit(10);
+      if (!showcases || showcases.length === 0) return [];
+      // Collect all product ids
+      const allPids = new Set<string>();
+      showcases.forEach((s: any) => {
+        const ids = Array.isArray(s.related_product_ids) ? s.related_product_ids
+          : (typeof s.related_product_ids === "string" ? (() => { try { return JSON.parse(s.related_product_ids); } catch { return []; } })() : []);
+        ids.forEach((id: string) => allPids.add(id));
+      });
+      if (allPids.size === 0) return [];
+      const { data: prods } = await supabase
+        .from("products")
+        .select("id, notion_id, name, price, images, author_id, publisher_id, stock, status")
+        .in("id", [...allPids])
+        .eq("status", "active");
+      const { data: persons } = await supabase.from("persons").select("id, name");
+      const personMap = new Map((persons || []).map((p: any) => [p.id, p.name]));
+      const pMap = new Map((prods || []).map((p: any) => {
+        let photos: string[] = [];
+        try { photos = JSON.parse(p.images || "[]"); } catch {}
+        return [p.id, {
+          id: p.notion_id || p.id,
+          name: p.name,
+          price: p.price,
+          photo: photos[0] || null,
+          author: p.author_id ? personMap.get(p.author_id) : undefined,
+          publisher: p.publisher_id ? personMap.get(p.publisher_id) : undefined,
+          stock: p.stock,
+        }];
+      }));
+      return showcases.map((s: any) => {
+        const ids = Array.isArray(s.related_product_ids) ? s.related_product_ids
+          : (typeof s.related_product_ids === "string" ? (() => { try { return JSON.parse(s.related_product_ids); } catch { return []; } })() : []);
+        return {
+          id: s.id,
+          title: s.title,
+          summary: s.summary,
+          products: ids.map((id: string) => pMap.get(id)).filter(Boolean),
+        };
+      }).filter((s: any) => s.products.length > 0);
+    })(),
   ]);
 
   // 非中文時套用翻譯
   const books = await applyTranslations(booksRaw, "products", locale, ["name", "description"]);
   const goods = await applyTranslations(goodsRaw, "products", locale, ["name", "description"]);
   const articles = await applyTranslations(articlesRaw, "articles", locale, ["title"]);
-  const viewpoints = await applyTranslations(viewpointsRaw, "topics", locale, ["name", "summary"]);
   const events = await applyTranslations(eventsRaw, "events", locale, ["title", "description"]);
+  const topicShowcases = topicShowcasesRaw;
 
   return (
     <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
@@ -120,30 +169,22 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         </div>
       </section>
 
-      {/* ── 區塊 B4: 主題策展 ── */}
-      {viewpoints.length > 0 && (
-        <section className="py-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{t("themeCuration")}</h2>
-            <Link href="/viewpoint-stroll" className="text-xs" style={{ color: "var(--color-teal)" }}>{t("viewpointExplorer")} →</Link>
+      {/* ── 區塊 B4: 話題展售 ── 每個 DB05「官網備項=話題展售」的文章渲染一行，標題 = 主題名稱，內容卡片 = 對應庫存商品 */}
+      {topicShowcases.map((showcase: any) => (
+        <section key={showcase.id} className="py-6">
+          <div className="flex items-end justify-between mb-4">
+            <div>
+              <h2 className="text-[1.5em] font-bold" style={{ color: "#1a1612" }}>{showcase.title}</h2>
+              {showcase.summary && <p className="text-xs mt-1" style={{ color: "#8b7355" }}>{showcase.summary}</p>}
+            </div>
           </div>
           <div className="hscroll-track">
-            {viewpoints.map((vp) => (
-              <Link key={vp.id} href={`/viewpoint/${vp.slug}`}
-                className="flex-shrink-0 w-[260px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-                style={{ border: "1px solid #e8e0d4", background: "#fff" }}>
-                <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                  <ImagePlaceholder type="topic" />
-                </div>
-                <div className="p-3">
-                  <h3 className="text-[0.95em] font-medium line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{vp.name}</h3>
-                  {vp.summary && <p className="text-[0.75em] line-clamp-2" style={{ color: "#8b7355" }}>{vp.summary}</p>}
-                </div>
-              </Link>
+            {showcase.products.map((product: any) => (
+              <ProductCard key={product.id} id={product.id} name={product.name} price={product.price} photo={product.photo} author={product.author} publisher={product.publisher} />
             ))}
           </div>
         </section>
-      )}
+      ))}
 
       {/* ── 區塊 B5: 地方通訊 ── */}
       <section className="py-6">

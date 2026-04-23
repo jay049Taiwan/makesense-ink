@@ -482,7 +482,9 @@ async function syncArticles(wb = false) {
     const eRel = extractRelation(props["對應協作"]?.relation);
     const eNid = eRel[0]?.replace(/-/g, "");
     const pRel = extractRelation(props["對應庫存"]?.relation);
-    const pNid = pRel[0]?.replace(/-/g, "");
+    const pNids = pRel.map((r: string) => r.replace(/-/g, ""));
+    const pNid = pNids[0];
+    const pIdsAll = pNids.map((n: string) => pMap[n]).filter(Boolean);
     return {
       notion_id: nid(page),
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
@@ -490,6 +492,7 @@ async function syncArticles(wb = false) {
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
       related_product_id: pNid ? (pMap[pNid] || null) : null,
+      related_product_ids: pIdsAll,
       // 2026/04/22：官網備項是 select（單值），包成 text[] 儲存以便未來擴展
       web_tag: (() => {
         const v = extractSelect(props["官網備項"]?.select);
