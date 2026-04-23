@@ -27,7 +27,7 @@ export async function notifyOrderCreated(
   const statusText = hasEvent ? "【報名受理中】" : "【付款成功】";
   const textMessage = {
     type: "text" as const,
-    text: `🧾 訂單確認 ${statusText}\n訂單編號：${orderId.slice(0, 8).toUpperCase()}\n\n${itemLines}${moreText}\n\n合計：NT$ ${total.toLocaleString()}\n\n查看訂單：https://makesense.ink/dashboard`,
+    text: `🧾 訂單確認 ${statusText}\n訂單編號：${orderId.slice(0, 8).toUpperCase()}\n\n${itemLines}${moreText}\n\n合計：NT$ ${total.toLocaleString()}`,
   };
 
   try {
