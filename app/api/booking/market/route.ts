@@ -5,6 +5,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPage, DB } from "@/lib/notion";
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeEmail } from "@/lib/email";
+import { lineClient } from "@/lib/line";
 
 function toDashedNotionId(id: string | null | undefined): string | null {
   if (!id) return null;
@@ -186,9 +187,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 儲存攤商品牌資料到 members.brand_profile，下次報名自動帶入
+    let memberLineUid: string | null = null;
     try {
       const email = normalizeEmail(contact.email);
       if (email) {
+        const { data: memberRow } = await supabaseAdmin
+          .from("members")
+          .select("line_uid")
+          .eq("email", email)
+          .maybeSingle();
+        memberLineUid = memberRow?.line_uid || null;
+
         await supabaseAdmin
           .from("members")
           .update({
@@ -209,6 +218,27 @@ export async function POST(req: NextRequest) {
       }
     } catch (e: any) {
       console.warn("儲存 brand_profile 失敗:", e.message);
+    }
+
+    // 推 LINE 通知（若已綁定 LINE）
+    if (memberLineUid) {
+      try {
+        const summary = [
+          `🎪 市集報名已送出，審核中`,
+          `品牌：${brand.name}`,
+          products.length ? `商品：${products.length} 項` : null,
+          experiences.length ? `體驗：${experiences.length} 項` : null,
+          schedules.length ? `活動時間：${schedules.length} 項` : null,
+          "",
+          "我們將儘速審核並以您提供的聯繫資訊通知結果。",
+        ].filter(Boolean).join("\n");
+        await lineClient.pushMessage({
+          to: memberLineUid,
+          messages: [{ type: "text" as const, text: summary }],
+        });
+      } catch (e: any) {
+        console.warn("LINE 市集通知失敗:", e.message);
+      }
     }
 
     return NextResponse.json({
