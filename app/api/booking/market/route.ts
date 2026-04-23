@@ -35,7 +35,7 @@ function toDashedNotionId(id: string | null | undefined): string | null {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { eventNotionId, contact, brand, products = [], experiences = [], equipment = {} } = body;
+    const { eventNotionId, contact, brand, products = [], experiences = [], schedules = [], equipment = {} } = body;
 
     // 基本驗證
     if (!contact?.name || !contact?.phone || !contact?.email) {
@@ -141,6 +141,22 @@ export async function POST(req: NextRequest) {
         `體驗-${e.name}`,
         Number(e.price) || null,
         Number(e.capacity) || null,
+        parts.join(" / "),
+        null
+      );
+    }
+
+    // 活動時間
+    for (const s of schedules) {
+      if (!s?.theme) continue;
+      const parts = [
+        s.attr ? `屬性：${s.attr}` : "",
+        s.time_from || s.time_to ? `時間：${s.time_from || ""}${s.time_from || s.time_to ? "–" : ""}${s.time_to || ""}` : "",
+      ].filter(Boolean);
+      await makeDb06(
+        `活動-${s.theme}`,
+        Number(s.price) || null,
+        null,
         parts.join(" / "),
         null
       );
