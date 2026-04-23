@@ -468,19 +468,28 @@ async function syncArticles(wb = false) {
   const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案細項", select: { equals: "官網內容" } });
 
   const eIds: string[] = [];
-  for (const page of pages) { eIds.push(...extractRelation(p(page)["對應協作"]?.relation)); }
+  const pIds: string[] = [];
+  for (const page of pages) {
+    eIds.push(...extractRelation(p(page)["對應協作"]?.relation));
+    pIds.push(...extractRelation(p(page)["對應庫存"]?.relation));
+  }
   const eMap = await lookup("events", eIds);
+  const pMap = await lookup("products", pIds);
 
   const rows = pages.map(page => {
     const props = p(page);
     const dateInfo = extractDate(props["執行時間"]?.date);
     const eRel = extractRelation(props["對應協作"]?.relation);
     const eNid = eRel[0]?.replace(/-/g, "");
+    const pRel = extractRelation(props["對應庫存"]?.relation);
+    const pNid = pRel[0]?.replace(/-/g, "");
     return {
       notion_id: nid(page),
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
+      summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,
+      related_product_id: pNid ? (pMap[pNid] || null) : null,
       // 2026/04/22：官網備項是 select（單值），包成 text[] 儲存以便未來擴展
       web_tag: (() => {
         const v = extractSelect(props["官網備項"]?.select);

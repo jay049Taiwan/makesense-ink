@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import TasksPanel from "./TasksPanel";
 
 type StaffTab = "動態" | "交接" | "庫存" | "考勤" | "費用";
 
@@ -34,7 +35,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
       {/* 工作台內容 */}
       <div className="mb-20 mt-4">
         {activeTab === "動態" && <ActivityFeed />}
-        {activeTab === "交接" && <HandoverTasks />}
+        {activeTab === "交接" && <TasksPanel userEmail={email} />}
         {activeTab === "庫存" && <InventoryPanel />}
         {activeTab === "考勤" && <AttendancePanel />}
         {activeTab === "費用" && <ExpensePanel />}
@@ -119,21 +120,6 @@ function ActivityFeed() {
           </div>
         </div>
       ))}
-    </div>
-  );
-}
-
-// ═══════════════════════════════════════════
-// 交接 — 待同步 Notion DB03 資料到 Supabase，目前顯示空狀態
-// ═══════════════════════════════════════════
-function HandoverTasks() {
-  return (
-    <div className="flex flex-col items-center justify-center py-20">
-      <span className="text-4xl mb-4">📋</span>
-      <p className="text-sm font-semibold mb-2" style={{ color: "#333" }}>交接事項</p>
-      <p className="text-xs" style={{ color: "#999" }}>
-        交接任務將從 Notion 同步到這裡。請在 Notion DB03（工作項目進度）設定交接事項。
-      </p>
     </div>
   );
 }
