@@ -69,7 +69,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         .eq("status", "published")
         .contains("web_tag", ["話題展售"])
         .order("updated_at", { ascending: false })
-        .limit(10);
+        .limit(3);
       if (!showcases || showcases.length === 0) return [];
       // Collect all product ids
       const allPids = new Set<string>();
