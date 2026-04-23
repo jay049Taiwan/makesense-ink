@@ -464,13 +464,21 @@ async function syncSingleArticle(nid: string, props: any) {
     relatedEventId = data?.id || null;
   }
 
-  // 對應庫存 relation → products（付費文章：有值表示要付費解鎖；取第一筆）
+  // 對應庫存 relation → products
+  //   related_product_id：第一筆（付費文章解鎖用）
+  //   related_product_ids：全部商品 id 陣列（話題展售一對多用）
   const pRels = rel(props["對應庫存"]);
   let relatedProductId: string | null = null;
-  if (pRels[0]) {
-    const pClean = pRels[0].replace(/-/g, "");
-    const { data } = await supabase.from("products").select("id").eq("notion_id", pClean).maybeSingle();
-    relatedProductId = data?.id || null;
+  let relatedProductIds: string[] = [];
+  if (pRels.length > 0) {
+    const cleanIds = pRels.map((r) => r.replace(/-/g, ""));
+    const { data: prodRows } = await supabase
+      .from("products")
+      .select("id, notion_id")
+      .in("notion_id", cleanIds);
+    const byNid = new Map((prodRows || []).map((r: any) => [r.notion_id, r.id]));
+    relatedProductIds = cleanIds.map((c) => byNid.get(c)).filter(Boolean) as string[];
+    relatedProductId = relatedProductIds[0] || null;
   }
 
   // 抓文章正文（Notion blocks → HTML）
@@ -490,6 +498,7 @@ async function syncSingleArticle(nid: string, props: any) {
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,
     related_product_id: relatedProductId,
+    related_product_ids: relatedProductIds,
     // 2026/04/22：官網備項是 select（單值），包成 text[] 以便未來擴展
     web_tag: (() => {
       const v = extractSelect(props["官網備項"]?.select);
