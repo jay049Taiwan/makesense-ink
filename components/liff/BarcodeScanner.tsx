@@ -28,9 +28,15 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 15,
-            qrbox: { width: 300, height: 150 },
-            aspectRatio: 1.5,
+            fps: 10,
+            // 動態計算：qrbox 設成容器較短邊的 70%，保證 ROI 遮罩貼合容器
+            // 且在手機直立畫面也可以容納 EAN-13 條碼的完整寬度
+            qrbox: (viewW: number, viewH: number) => {
+              const side = Math.floor(Math.min(viewW, viewH) * 0.7);
+              // 橫長條更好掃 EAN-13：寬 = side，高 = side * 0.5
+              return { width: side, height: Math.floor(side * 0.5) };
+            },
+            aspectRatio: 1.0,
             formatsToSupport: [
               0,  // QR_CODE
               2,  // EAN_13
@@ -76,13 +82,12 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         </button>
       </div>
 
-      {/* 掃描區域 */}
-      <div className="flex-1 flex items-center justify-center relative">
-        <div id="barcode-reader" className="w-full max-w-sm" />
+      {/* 掃描區域：讓 html5-qrcode 自己填滿空間，不用 max-w-sm 壓縮 */}
+      <div className="flex-1 relative overflow-hidden" style={{ minHeight: 0 }}>
+        <div id="barcode-reader" style={{ width: "100%", height: "100%" }} />
 
-        {/* 掃描框提示 */}
         {!error && (
-          <p className="absolute bottom-8 left-0 right-0 text-center text-white/60 text-xs">
+          <p className="absolute bottom-4 left-0 right-0 text-center text-white/70 text-xs pointer-events-none">
             將條碼或 QR Code 對準框內
           </p>
         )}
