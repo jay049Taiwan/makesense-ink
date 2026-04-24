@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-line-signature") || "";
 
   // 先記錄收到的 webhook（簽章驗證前，方便除錯）
-  await supabase.from("line_message_log").insert({
+  const ins1 = await supabase.from("line_message_log").insert({
     user_id: "webhook_entry",
     message_type: "webhook_received",
     template: signature ? "with_signature" : "no_signature",
@@ -33,7 +33,15 @@ export async function POST(req: NextRequest) {
       template: "error",
       payload: { signature, body_preview: rawBody.slice(0, 200) },
     });
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+    return NextResponse.json({
+      error: "Invalid signature",
+      _debug: {
+        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
+        insertError: ins1.error?.message || null,
+      },
+    }, { status: 401 });
   }
 
   // 3. 解析事件
