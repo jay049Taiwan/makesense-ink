@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
 import { useLiff } from "@/components/providers/LiffProvider";
@@ -75,6 +76,15 @@ export default function LiffShopPage() {
   const [scanError, setScanError] = useState("");
   const { addItem } = useCart();
   const { liffUser } = useLiff();
+  const searchParams = useSearchParams();
+  const catParam = (searchParams.get("cat") || "").toLowerCase();
+  const catMap: Record<string, string> = { book: "商品/選書", goods: "商品/選物", digital: "商品/數位" };
+  const categoryFilter = catMap[catParam] || null;
+  const catOrClause = categoryFilter
+    ? `category.eq.${categoryFilter}`
+    : catOrClause;
+  const catLabel: Record<string, string> = { book: "主題選書", goods: "風格選物", digital: "數位內容" };
+  const headerTitle = catLabel[catParam] || "";
 
   const mapProduct = (p: any): ProductItem => {
     let photo: string | null = null;
@@ -162,7 +172,7 @@ export default function LiffShopPage() {
         .select("id, notion_id, name, price, images, author_id, category, description")
         .eq("status", "active")
         .gt("stock", 0)
-        .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位");
+        .or(catOrClause);
 
       if (preferredCategory) {
         query1 = query1.eq("category", preferredCategory);
@@ -184,7 +194,7 @@ export default function LiffShopPage() {
           .select("id, notion_id, name, price, images, author_id")
           .eq("status", "active")
           .gt("stock", 0)
-          .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+          .or(catOrClause)
           .order("updated_at", { ascending: false })
           .limit(8);
 
@@ -204,7 +214,7 @@ export default function LiffShopPage() {
           .select("id, notion_id, name, price, images, author_id, related_topic_ids")
           .eq("status", "active")
           .gt("stock", 0)
-          .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+          .or(catOrClause)
           .limit(20);
 
         const matched = (topicProds || [])
@@ -227,7 +237,7 @@ export default function LiffShopPage() {
         .select("id, notion_id, name, price, images, author_id")
         .eq("status", "active")
         .gt("stock", 0)
-        .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
+        .or(catOrClause)
         .order("created_at", { ascending: true })
         .limit(8);
 
@@ -290,6 +300,13 @@ export default function LiffShopPage() {
 
   return (
     <div className="pb-4">
+      {/* 分類標題 */}
+      {headerTitle && (
+        <div className="px-4 pt-4 pb-1">
+          <h1 className="text-lg font-bold" style={{ color: "#2d2a26" }}>{headerTitle}</h1>
+        </div>
+      )}
+
       {/* 頂部搜尋列 */}
       <div className="sticky top-0 z-50 px-4 pt-4 pb-3" style={{ background: "#f8f7f4" }}>
         <div className="flex gap-2">
