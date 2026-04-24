@@ -156,7 +156,7 @@ async function handleEvent(event: any) {
           await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_2_reply_sent" });
 
           const message = await generateTopicSuggestion();
-          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_3_generated", payload: { altText: (message as any)?.altText || null } });
+          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_3_generated", payload: { message } });
 
           await lineClient.pushMessage({
             to: userId,
@@ -165,11 +165,19 @@ async function handleEvent(event: any) {
           await supabase.from("line_message_log").insert({ user_id: userId, message_type: "reply", template: "topic_suggest" });
         } catch (err: any) {
           console.error("[topic_suggest] Error:", err.message, err.stack);
+          // LINE SDK 的錯誤詳情可能藏在多個地方
+          const lineErr = err?.originalError || err;
+          const details = {
+            message: err?.message || String(err),
+            statusCode: lineErr?.statusCode || lineErr?.response?.status || null,
+            body: lineErr?.response?.data || lineErr?.body || lineErr?.response?.body || null,
+            headers: lineErr?.response?.headers || null,
+          };
           await supabase.from("line_message_log").insert({
             user_id: userId,
             message_type: "error",
             template: "topic_suggest_error",
-            payload: { message: err?.message || String(err), stack: err?.stack?.slice(0, 500) || null, response: err?.originalError?.response?.data || err?.response?.data || null },
+            payload: details,
           });
           try {
             await lineClient.pushMessage({
