@@ -92,17 +92,18 @@ export default function LiffViewpointsPage() {
     (async () => {
       const { data, error } = await supabase
         .from("topics")
-        .select("id, notion_id, name, summary, region, status")
+        .select("id, notion_id, name, summary, region, status, tag_type")
         .eq("status", "active")
-        .contains("region", [selected.replace(/[市鎮鄉]$/, "")]);
+        .eq("tag_type", "viewpoint");
 
       if (error) { console.error("Viewpoints err:", error); setLoading(false); return; }
 
-      // 如果 contains 不精確，前端再過濾
+      // 前端篩選：region 包含完整鄉鎮名 或 去後綴後的核心名
+      const core = selected.replace(/[市鎮鄉]$/, "");
       const items = (data || [])
         .filter(t => {
           const regions = Array.isArray(t.region) ? t.region : [];
-          return regions.some((r: string) => r.includes(selected.replace(/[市鎮鄉]$/, "")));
+          return regions.some((r: string) => r === selected || r === core || r.includes(core));
         })
         .slice(0, 10)
         .map(t => ({
