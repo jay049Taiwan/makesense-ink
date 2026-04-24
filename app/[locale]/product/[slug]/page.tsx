@@ -31,55 +31,60 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
 
   useEffect(() => {
     async function load() {
-      const { data } = await supabase
-        .from("products")
-        .select("id, notion_id, name, price, stock, category, sub_category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status")
-        .or(`notion_id.eq.${slug},id.eq.${slug}`)
-        .maybeSingle();
+      try {
+        const { data } = await supabase
+          .from("products")
+          .select("id, notion_id, name, price, stock, category, sub_category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status")
+          .or(`notion_id.eq.${slug},id.eq.${slug}`)
+          .maybeSingle();
 
-      if (data) {
-        // Resolve author/publisher names
-        const personIds = [data.author_id, data.publisher_id].filter(Boolean);
-        let personMap: Record<string, string> = {};
-        if (personIds.length > 0) {
-          const { data: persons } = await supabase.from("persons").select("id, name").in("id", personIds);
-          for (const p of persons || []) personMap[p.id] = p.name;
+        if (data) {
+          // Resolve author/publisher names
+          const personIds = [data.author_id, data.publisher_id].filter(Boolean);
+          let personMap: Record<string, string> = {};
+          if (personIds.length > 0) {
+            const { data: persons } = await supabase.from("persons").select("id, name").in("id", personIds);
+            for (const p of persons || []) personMap[p.id] = p.name;
+          }
+
+          let photos: string[] = [];
+          try { photos = JSON.parse(data.images || "[]"); } catch {}
+
+          // Resolve related topics
+          let relatedTopics: { id: string; name: string; slug: string }[] = [];
+          const topicIds: string[] = (() => { try { return JSON.parse(data.related_topic_ids || "[]"); } catch { return []; } })();
+          if (topicIds.length > 0) {
+            const { data: topics } = await supabase.from("topics").select("id, notion_id, name").in("id", topicIds);
+            relatedTopics = (topics || []).map(t => ({ id: t.id, name: t.name, slug: t.notion_id || t.id }));
+          }
+
+          // Resolve related articles
+          let relatedArticles: { id: string; title: string; slug: string }[] = [];
+          const articleIds: string[] = (() => { try { return JSON.parse(data.related_article_ids || "[]"); } catch { return []; } })();
+          if (articleIds.length > 0) {
+            const { data: articles } = await supabase.from("articles").select("id, notion_id, title").in("id", articleIds);
+            relatedArticles = (articles || []).map(a => ({ id: a.id, title: a.title, slug: a.notion_id || a.id }));
+          }
+
+          setProduct({
+            name: data.name,
+            price: data.price,
+            stock: data.stock,
+            category: data.category || "",
+            subCategory: data.sub_category || null,
+            description: data.description,
+            photos,
+            author: data.author_id ? (personMap[data.author_id] || "—") : "—",
+            publisher: data.publisher_id ? (personMap[data.publisher_id] || "—") : "—",
+            relatedTopics,
+            relatedArticles,
+          });
         }
-
-        let photos: string[] = [];
-        try { photos = JSON.parse(data.images || "[]"); } catch {}
-
-        // Resolve related topics
-        let relatedTopics: { id: string; name: string; slug: string }[] = [];
-        const topicIds: string[] = (() => { try { return JSON.parse(data.related_topic_ids || "[]"); } catch { return []; } })();
-        if (topicIds.length > 0) {
-          const { data: topics } = await supabase.from("topics").select("id, notion_id, name").in("id", topicIds);
-          relatedTopics = (topics || []).map(t => ({ id: t.id, name: t.name, slug: t.notion_id || t.id }));
-        }
-
-        // Resolve related articles
-        let relatedArticles: { id: string; title: string; slug: string }[] = [];
-        const articleIds: string[] = (() => { try { return JSON.parse(data.related_article_ids || "[]"); } catch { return []; } })();
-        if (articleIds.length > 0) {
-          const { data: articles } = await supabase.from("articles").select("id, notion_id, title").in("id", articleIds);
-          relatedArticles = (articles || []).map(a => ({ id: a.id, title: a.title, slug: a.notion_id || a.id }));
-        }
-
-        setProduct({
-          name: data.name,
-          price: data.price,
-          stock: data.stock,
-          category: data.category || "",
-          subCategory: data.sub_category || null,
-          description: data.description,
-          photos,
-          author: data.author_id ? (personMap[data.author_id] || "—") : "—",
-          publisher: data.publisher_id ? (personMap[data.publisher_id] || "—") : "—",
-          relatedTopics,
-          relatedArticles,
-        });
+      } catch (err) {
+        console.error("[product page] load failed:", err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     }
     load();
   }, [slug]);
