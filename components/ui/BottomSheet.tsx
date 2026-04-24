@@ -9,6 +9,7 @@ export interface BottomSheetItem {
   price: number;
   photo?: string | null;
   type: "article" | "product";
+  description?: string | null;
 }
 
 /**
@@ -71,21 +72,37 @@ export default function BottomSheet({
               NT$ {item.price.toLocaleString()}
             </p>
           )}
+          {item.type === "product" && item.description && (
+            <p className="text-sm mt-2 leading-relaxed" style={{ color: "#555" }}>
+              {item.description.length > 300 ? item.description.slice(0, 300) + "…" : item.description}
+            </p>
+          )}
         </div>
 
         {/* 操作按鈕 */}
-        <div className="px-4 pb-6 pt-2 flex gap-3">
-          {item.type === "product" && item.price > 0 ? (
-            <button
-              onClick={handleAdd}
-              className="flex-1 py-3 rounded-xl text-white font-semibold text-sm"
-              style={{ background: "var(--color-brown)" }}
-            >
-              加入購物車
-            </button>
+        <div className="px-4 pb-6 pt-2 flex gap-3 flex-wrap">
+          {item.type === "product" ? (
+            <>
+              {item.price > 0 && (
+                <button
+                  onClick={handleAdd}
+                  className="flex-1 min-w-[120px] py-3 rounded-xl text-white font-semibold text-sm"
+                  style={{ background: "var(--color-brown)" }}
+                >
+                  ＋ 加入購物車
+                </button>
+              )}
+              <a
+                href="/bookstore"
+                className="flex-1 min-w-[100px] py-3 rounded-xl text-center font-semibold text-sm"
+                style={{ background: "var(--color-parchment)", color: "var(--color-brown)" }}
+              >
+                看更多
+              </a>
+            </>
           ) : (
             <a
-              href={item.type === "product" ? `/product/${item.id}` : `/post/${item.id}`}
+              href={`/post/${item.id}`}
               className="flex-1 py-3 rounded-xl text-center font-semibold text-sm"
               style={{ background: "var(--color-parchment)", color: "var(--color-brown)" }}
             >

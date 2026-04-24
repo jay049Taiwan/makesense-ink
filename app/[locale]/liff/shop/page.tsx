@@ -15,28 +15,52 @@ interface ProductItem {
   photo: string | null;
   slug: string;
   author?: string;
+  description?: string;
 }
 
-function ProductCard({ item, onTap }: { item: ProductItem; onTap: (item: ProductItem) => void }) {
+function ProductCard({
+  item,
+  onTap,
+  onQuickAdd,
+}: {
+  item: ProductItem;
+  onTap: (item: ProductItem) => void;
+  onQuickAdd: (item: ProductItem) => void;
+}) {
   return (
-    <button
-      onClick={() => onTap(item)}
-      className="rounded-xl overflow-hidden text-left w-full transition-shadow hover:shadow-md"
+    <div
+      className="rounded-xl overflow-hidden w-full relative"
       style={{ background: "#fff", border: "1px solid #ece8e1" }}
     >
-      <div className="aspect-[4/3] overflow-hidden">
-        <SafeImage src={item.photo} alt={item.name} placeholderType="product" />
-      </div>
-      <div className="p-3">
-        <h3 className="text-sm font-medium line-clamp-2" style={{ color: "#2d2a26" }}>{item.name}</h3>
-        {item.author && item.author !== "—" && (
-          <p className="text-xs mt-0.5" style={{ color: "#999" }}>{item.author}</p>
-        )}
-        <p className="text-sm font-bold mt-1" style={{ color: "#b87333" }}>
-          NT$ {item.price.toLocaleString()}
-        </p>
-      </div>
-    </button>
+      <button onClick={() => onTap(item)} className="block w-full text-left">
+        <div className="aspect-[4/3] overflow-hidden">
+          <SafeImage src={item.photo} alt={item.name} placeholderType="product" />
+        </div>
+        <div className="p-3 pb-2">
+          <h3 className="text-sm font-medium line-clamp-2" style={{ color: "#2d2a26" }}>{item.name}</h3>
+          {item.author && item.author !== "—" && (
+            <p className="text-xs mt-0.5" style={{ color: "#999" }}>{item.author}</p>
+          )}
+          <p className="text-sm font-bold mt-1" style={{ color: "#b87333" }}>
+            NT$ {item.price.toLocaleString()}
+          </p>
+        </div>
+      </button>
+      {/* 加入購物車快捷按鈕 */}
+      <button
+        onClick={(e) => { e.stopPropagation(); onQuickAdd(item); }}
+        className="absolute bottom-2 right-2 w-9 h-9 rounded-full flex items-center justify-center shadow-md active:scale-95 transition"
+        style={{ background: "#7a5c40", color: "#fff" }}
+        aria-label="加入購物車"
+      >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+          <circle cx="9" cy="21" r="1" />
+          <circle cx="20" cy="21" r="1" />
+          <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6" />
+          <path d="M12 10v6M9 13h6" stroke="#fff" />
+        </svg>
+      </button>
+    </div>
   );
 }
 
@@ -55,7 +79,18 @@ export default function LiffShopPage() {
   const mapProduct = (p: any): ProductItem => {
     let photo: string | null = null;
     try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
-    return { id: p.notion_id || p.id, name: p.name, price: p.price, photo, slug: p.notion_id || p.id };
+    return {
+      id: p.notion_id || p.id,
+      name: p.name,
+      price: p.price,
+      photo,
+      slug: p.notion_id || p.id,
+      description: p.description || undefined,
+    };
+  };
+
+  const handleQuickAdd = (item: ProductItem) => {
+    addItem({ id: item.id, name: item.name, price: item.price, type: "商品" });
   };
 
   // 載入推薦商品（個人化）
@@ -124,7 +159,7 @@ export default function LiffShopPage() {
       // 「你可能會喜歡」— 偏好類別優先，否則最新
       let query1 = supabase
         .from("products")
-        .select("id, notion_id, name, price, images, author_id, category")
+        .select("id, notion_id, name, price, images, author_id, category, description")
         .eq("status", "active")
         .gt("stock", 0)
         .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位");
@@ -248,7 +283,7 @@ export default function LiffShopPage() {
   };
 
   const openSheet = (item: ProductItem) => {
-    setSheetItem({ id: item.id, name: item.name, price: item.price, photo: item.photo, type: "product" });
+    setSheetItem({ id: item.id, name: item.name, price: item.price, photo: item.photo, type: "product", description: item.description });
   };
 
   const isShowingSearch = query.trim().length > 0;
@@ -304,7 +339,7 @@ export default function LiffShopPage() {
           {searchResults.length > 0 ? (
             <div className="grid grid-cols-2 gap-3">
               {searchResults.map((item) => (
-                <ProductCard key={item.id} item={item} onTap={openSheet} />
+                <ProductCard key={item.id} item={item} onTap={openSheet} onQuickAdd={handleQuickAdd} />
               ))}
             </div>
           ) : !searching && (
@@ -324,7 +359,7 @@ export default function LiffShopPage() {
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {recommend1.map((item) => (
-                  <ProductCard key={item.id} item={item} onTap={openSheet} />
+                  <ProductCard key={item.id} item={item} onTap={openSheet} onQuickAdd={handleQuickAdd} />
                 ))}
               </div>
             </section>
@@ -338,7 +373,7 @@ export default function LiffShopPage() {
               </h2>
               <div className="grid grid-cols-2 gap-3">
                 {recommend2.map((item) => (
-                  <ProductCard key={item.id} item={item} onTap={openSheet} />
+                  <ProductCard key={item.id} item={item} onTap={openSheet} onQuickAdd={handleQuickAdd} />
                 ))}
               </div>
             </section>

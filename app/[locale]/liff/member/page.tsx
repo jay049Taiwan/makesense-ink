@@ -99,12 +99,12 @@ export default function LiffCartPage() {
 
       {/* 底部文字連結 */}
       <nav className="px-4 py-5 text-center" style={{ borderTop: "1px solid #ece8e1" }}>
-        <div className="flex items-center justify-center gap-4 text-xs flex-wrap" style={{ color: "#7a5c40" }}>
-          <a href="/dashboard?liff_mode=true" className="underline underline-offset-4">前往個人會員資料</a>
+        <div className="flex items-center justify-center gap-3 text-xs whitespace-nowrap" style={{ color: "#7a5c40" }}>
+          <a href="/dashboard?liff_mode=true" className="underline underline-offset-4">個人會員資料</a>
           <span style={{ color: "#ccc" }}>·</span>
-          <a href="/bookstore?liff_mode=true" className="underline underline-offset-4">探索旅人書店</a>
+          <a href="/bookstore?liff_mode=true" className="underline underline-offset-4">旅人書店</a>
           <span style={{ color: "#ccc" }}>·</span>
-          <a href="/cultureclub?liff_mode=true" className="underline underline-offset-4">前往宜蘭文化俱樂部</a>
+          <a href="/cultureclub?liff_mode=true" className="underline underline-offset-4">宜蘭文化俱樂部</a>
         </div>
       </nav>
     </div>
