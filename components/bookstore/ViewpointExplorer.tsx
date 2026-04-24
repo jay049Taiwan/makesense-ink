@@ -1,9 +1,9 @@
 "use client";
 
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Link from "next/link";
-import mapboxgl from "mapbox-gl";
-import "mapbox-gl/dist/mapbox-gl.css";
+import { geoIdentity, geoPath } from "d3-geo";
+import rough from "roughjs";
 import { supabase } from "@/lib/supabase";
 import SafeImage from "@/components/ui/SafeImage";
 
@@ -32,40 +32,34 @@ const TOWNSHIP_ORDER = [
   "蘇澳鎮", "三星鄉", "冬山鄉", "五結鄉", "大同鄉", "南澳鄉",
 ];
 
-// 宜蘭縣大致 bbox
-const YILAN_BOUNDS: [[number, number], [number, number]] = [
-  [121.30, 24.30], // SW
-  [122.00, 25.00], // NE
-];
+// 山區鄉鎮（畫三角山峰裝飾）
+const MOUNTAIN_TOWNS = new Set(["大同鄉", "南澳鄉", "員山鄉"]);
 
-// 計算 GeoJSON Feature 的 bbox（Polygon / MultiPolygon）
-function bboxOfFeature(f: any): [[number, number], [number, number]] {
-  let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
-  const walk = (c: any): void => {
-    if (typeof c[0] === "number") {
-      const [x, y] = c;
-      if (x < minX) minX = x; if (x > maxX) maxX = x;
-      if (y < minY) minY = y; if (y > maxY) maxY = y;
-    } else {
-      c.forEach(walk);
-    }
-  };
-  walk(f.geometry.coordinates);
-  return [[minX, minY], [maxX, maxY]];
-}
+const WIDTH = 640;
+const HEIGHT = 580;
 
-const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN || "";
+// 羊皮紙/復古地圖配色
+const PAPER_BG = "#f4ead5";
+const INK_DARK = "#5a3c20";
+const INK_MID = "#8b7355";
+const LAND_BASE = "#e0cf9f";
+const LAND_DIM = "#ecdfbd";
+const LAND_ACTIVE = "#d4b370";
+const MOUNTAIN_FILL = "#a08060";
+const SEA_INK = "#6b8da8";
+const PIN_RED = "#b83a2e";
+const PIN_PAPER = "#fffbf0";
 
 export default function ViewpointExplorer() {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const mapRef = useRef<mapboxgl.Map | null>(null);
+  const svgRef = useRef<SVGSVGElement | null>(null);
+  const roughLayerRef = useRef<SVGGElement | null>(null);
+
   const [geo, setGeo] = useState<GeoData | null>(null);
   const [viewpoints, setViewpoints] = useState<Viewpoint[]>([]);
   const [selected, setSelected] = useState<string>("宜蘭縣");
-  const [activeVp, setActiveVp] = useState<Viewpoint | null>(null);
-  const [mapReady, setMapReady] = useState(false);
+  const [hovered, setHovered] = useState<string | null>(null);
+  const [activeVp, setActiveVp] = useState<string | null>(null);
 
-  // 載資料
   useEffect(() => {
     fetch("/geo/yilan.geo.json").then(r => r.json()).then(setGeo).catch(() => setGeo(null));
     (async () => {
@@ -79,218 +73,104 @@ export default function ViewpointExplorer() {
     })();
   }, []);
 
-  // 計算各鄉鎮觀點數
+  const projection = useMemo(() => {
+    if (!geo) return null;
+    return geoIdentity().reflectY(true).fitExtent([[24, 24], [WIDTH - 24, HEIGHT - 24]], geo as any);
+  }, [geo]);
+  const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
+
+  // 觀點依 region 分配到鄉鎮中心
+  const vpPoints = useMemo(() => {
+    if (!geo || !projection || !pathGen) return [];
+    const centroidMap = new Map<string, [number, number]>();
+    geo.features.forEach(f => {
+      centroidMap.set(f.properties.TOWNNAME, pathGen.centroid(f as any));
+    });
+    const buckets = new Map<string, Viewpoint[]>();
+    viewpoints.forEach(vp => {
+      const regions = Array.isArray(vp.region) ? vp.region : [];
+      const town = regions.find(r => centroidMap.has(r)) || "未分類";
+      if (!buckets.has(town)) buckets.set(town, []);
+      buckets.get(town)!.push(vp);
+    });
+    const points: { vp: Viewpoint; x: number; y: number; town: string }[] = [];
+    buckets.forEach((vps, town) => {
+      const center = centroidMap.get(town);
+      if (!center) return;
+      if (vps.length === 1) {
+        points.push({ vp: vps[0], x: center[0], y: center[1], town });
+      } else {
+        // 同鄉鎮多觀點：水平錯開避免直立標籤重疊
+        const spread = Math.min(70, vps.length * 24);
+        const start = -spread / 2;
+        vps.forEach((vp, i) => {
+          const offsetX = vps.length === 1 ? 0 : start + (i * spread) / (vps.length - 1);
+          points.push({
+            vp,
+            x: center[0] + offsetX,
+            y: center[1] + (i % 2 === 0 ? 0 : 16),
+            town,
+          });
+        });
+      }
+    });
+    return points;
+  }, [geo, projection, pathGen, viewpoints]);
+
+  const selectedIsCounty = selected === "宜蘭縣";
+  const visiblePoints = selectedIsCounty ? vpPoints : vpPoints.filter(p => p.town === selected);
+
   const countByTown = useMemo(() => {
     const m = new Map<string, number>();
     m.set("宜蘭縣", viewpoints.length);
     TOWNSHIP_ORDER.forEach(t => m.set(t, 0));
-    viewpoints.forEach(vp => {
-      (vp.region || []).forEach(r => {
-        if (m.has(r)) m.set(r, m.get(r)! + 1);
-      });
-    });
+    vpPoints.forEach(p => m.set(p.town, (m.get(p.town) || 0) + 1));
     return m;
-  }, [viewpoints]);
+  }, [vpPoints, viewpoints]);
 
-  // 觀點對應鄉鎮 centroid（用 GeoJSON 計算）
-  const vpPositions = useMemo(() => {
-    if (!geo) return new Map<string, [number, number]>();
-    const centroids = new Map<string, [number, number]>();
+  const activeVpData = activeVp ? vpPoints.find(p => p.vp.id === activeVp) : null;
+
+  // 用 rough.js 繪製手繪感鄉鎮多邊形
+  useEffect(() => {
+    if (!geo || !pathGen || !roughLayerRef.current || !svgRef.current) return;
+    const rc = rough.svg(svgRef.current);
+    const layer = roughLayerRef.current;
+    while (layer.firstChild) layer.removeChild(layer.firstChild);
+
     geo.features.forEach(f => {
-      // 簡易 centroid：bbox 中心
-      const [[minX, minY], [maxX, maxY]] = bboxOfFeature(f);
-      centroids.set(f.properties.TOWNNAME, [(minX + maxX) / 2, (minY + maxY) / 2]);
-    });
+      const name = f.properties.TOWNNAME;
+      const active = selected === name;
+      const dim = !selectedIsCounty && !active;
+      const hover = hovered === name;
+      const d = pathGen(f as any) || "";
+      if (!d) return;
 
-    const buckets = new Map<string, Viewpoint[]>();
-    viewpoints.forEach(vp => {
-      const town = (vp.region || []).find(r => centroids.has(r)) || "";
-      if (!town) return;
-      if (!buckets.has(town)) buckets.set(town, []);
-      buckets.get(town)!.push(vp);
-    });
+      // 用鄉鎮名當 seed，保持每次重繪抖動一致
+      const seed = Array.from(name).reduce((a, c) => a + c.charCodeAt(0), 0);
 
-    const result = new Map<string, [number, number]>();
-    buckets.forEach((vps, town) => {
-      const center = centroids.get(town);
-      if (!center) return;
-      vps.forEach((vp, i) => {
-        if (vps.length === 1) {
-          result.set(vp.id, center);
-        } else {
-          // 環形偏移（單位：度，約 0.005° ≈ 500m）
-          const angle = (i / vps.length) * Math.PI * 2 - Math.PI / 2;
-          const r = 0.008;
-          result.set(vp.id, [center[0] + Math.cos(angle) * r, center[1] + Math.sin(angle) * r]);
-        }
+      const node = rc.path(d, {
+        stroke: active ? INK_DARK : INK_MID,
+        strokeWidth: active ? 2.2 : 1.3,
+        fill: active ? LAND_ACTIVE : dim ? LAND_DIM : hover ? "#d9c89e" : LAND_BASE,
+        fillStyle: "hachure",
+        hachureAngle: 42,
+        hachureGap: active ? 4.5 : 6,
+        roughness: 1.5,
+        bowing: 1.8,
+        preserveVertices: true,
+        seed,
       });
+      layer.appendChild(node);
     });
-    return result;
-  }, [geo, viewpoints]);
-
-  // 初始化 Mapbox
-  useEffect(() => {
-    if (!containerRef.current || !MAPBOX_TOKEN || !geo) return;
-    if (mapRef.current) return; // already init
-
-    mapboxgl.accessToken = MAPBOX_TOKEN;
-    const map = new mapboxgl.Map({
-      container: containerRef.current,
-      style: "mapbox://styles/mapbox/light-v11",
-      bounds: YILAN_BOUNDS,
-      fitBoundsOptions: { padding: 40 },
-      attributionControl: false,
-    });
-    mapRef.current = map;
-
-    map.addControl(new mapboxgl.NavigationControl({ showCompass: false }), "top-right");
-    map.addControl(new mapboxgl.AttributionControl({ compact: true }), "bottom-right");
-
-    map.on("load", () => {
-      // 加鄉鎮多邊形 layer
-      map.addSource("yilan-towns", { type: "geojson", data: geo as any });
-      map.addLayer({
-        id: "town-fill",
-        type: "fill",
-        source: "yilan-towns",
-        paint: {
-          "fill-color": [
-            "case",
-            ["==", ["get", "TOWNNAME"], ["literal", selected]], "#c4a882",
-            "#e8dcc4",
-          ],
-          "fill-opacity": 0.55,
-        },
-      });
-      map.addLayer({
-        id: "town-line",
-        type: "line",
-        source: "yilan-towns",
-        paint: {
-          "line-color": "#7a5c40",
-          "line-width": [
-            "case",
-            ["==", ["get", "TOWNNAME"], ["literal", selected]], 3,
-            1.2,
-          ],
-        },
-      });
-      map.addLayer({
-        id: "town-label",
-        type: "symbol",
-        source: "yilan-towns",
-        layout: {
-          "text-field": ["get", "TOWNNAME"],
-          "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
-          "text-size": 12,
-          "text-allow-overlap": false,
-        },
-        paint: {
-          "text-color": "#5a3c20",
-          "text-halo-color": "#faf8f4",
-          "text-halo-width": 1.5,
-        },
-      });
-
-      // 點鄉鎮 → 觸發 select
-      map.on("click", "town-fill", (e) => {
-        const f = e.features?.[0];
-        if (!f) return;
-        const name = (f.properties as any)?.TOWNNAME;
-        if (name) setSelected(name);
-      });
-      map.on("mouseenter", "town-fill", () => { map.getCanvas().style.cursor = "pointer"; });
-      map.on("mouseleave", "town-fill", () => { map.getCanvas().style.cursor = ""; });
-
-      setMapReady(true);
-    });
-
-    return () => {
-      map.remove();
-      mapRef.current = null;
-    };
-  }, [geo]);
-
-  // 選擇變化時 → fitBounds + 更新 highlight
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady || !geo) return;
-
-    if (selected === "宜蘭縣") {
-      map.fitBounds(YILAN_BOUNDS, { padding: 40, duration: 1200 });
-    } else {
-      const f = geo.features.find(x => x.properties.TOWNNAME === selected);
-      if (f) {
-        map.fitBounds(bboxOfFeature(f), { padding: 60, duration: 1200 });
-      }
-    }
-
-    // 更新 highlight 樣式
-    if (map.getLayer("town-fill")) {
-      map.setPaintProperty("town-fill", "fill-color", [
-        "case",
-        ["==", ["get", "TOWNNAME"], ["literal", selected]], "#c4a882",
-        "#e8dcc4",
-      ] as any);
-      map.setPaintProperty("town-line", "line-width", [
-        "case",
-        ["==", ["get", "TOWNNAME"], ["literal", selected]], 3,
-        1.2,
-      ] as any);
-    }
-  }, [selected, mapReady, geo]);
-
-  // 觀點 markers
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady) return;
-
-    // 清掉舊的
-    markersRef.current.forEach(m => m.remove());
-    markersRef.current = [];
-
-    const visibleVps = selected === "宜蘭縣"
-      ? viewpoints
-      : viewpoints.filter(vp => (vp.region || []).includes(selected));
-
-    visibleVps.forEach(vp => {
-      const pos = vpPositions.get(vp.id);
-      if (!pos) return;
-
-      const el = document.createElement("div");
-      el.style.cssText = "width:18px;height:18px;border-radius:50%;background:#e8935a;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,0.25);cursor:pointer;";
-      el.onclick = (e) => {
-        e.stopPropagation();
-        setActiveVp(vp);
-      };
-
-      const marker = new mapboxgl.Marker({ element: el, anchor: "center" })
-        .setLngLat(pos)
-        .addTo(map);
-      markersRef.current.push(marker);
-    });
-  }, [viewpoints, vpPositions, mapReady, selected]);
-
-  // Token 缺失 fallback
-  if (!MAPBOX_TOKEN) {
-    return (
-      <section className="py-6 pb-16">
-        <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "#1a1612" }}>觀點漫遊</h2>
-        <div className="rounded-xl p-8 text-center" style={{ background: "#faf8f4", border: "1px solid #e0d8cc" }}>
-          <p className="text-sm" style={{ color: "#999" }}>地圖載入中…（請設定 NEXT_PUBLIC_MAPBOX_TOKEN）</p>
-        </div>
-      </section>
-    );
-  }
+  }, [geo, pathGen, selected, selectedIsCounty, hovered]);
 
   return (
     <section className="py-6 pb-16">
-      <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "#1a1612" }}>觀點漫遊</h2>
+      <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "#1a1612", fontFamily: "'Noto Serif TC', serif" }}>觀點漫遊</h2>
       <p className="text-[0.9em] mb-6" style={{ color: "#999" }}>從地圖出發，探索宜蘭的每個角落</p>
 
       <div className="grid sm:grid-cols-[140px_1fr] gap-4">
-        {/* 左欄 */}
+        {/* 左欄：全縣 + 12 鄉鎮 */}
         <div className="hidden sm:flex flex-col gap-1.5">
           {(["宜蘭縣", ...TOWNSHIP_ORDER] as const).map((name) => {
             const count = countByTown.get(name) ?? 0;
@@ -299,9 +179,9 @@ export default function ViewpointExplorer() {
               <button key={name} onClick={() => { setSelected(name); setActiveVp(null); }}
                 className="px-3 py-2 text-left text-[0.85em] rounded-lg transition-all flex items-center justify-between"
                 style={{
-                  background: active ? "#7a5c40" : "#f7f7f7",
-                  color: active ? "#fff" : "#555",
-                  border: active ? "none" : "1px solid #eee",
+                  background: active ? "#7a5c40" : "#f7f3ea",
+                  color: active ? "#fff" : "#5a4a30",
+                  border: active ? "none" : "1px solid #e5dcc8",
                   fontWeight: active ? 700 : 400,
                   cursor: "pointer",
                 }}>
@@ -330,45 +210,266 @@ export default function ViewpointExplorer() {
           })}
         </div>
 
-        {/* 地圖容器 */}
-        <div className="relative rounded-xl overflow-hidden" style={{ border: "1px solid #e0d8cc" }}>
-          <div ref={containerRef} style={{ width: "100%", height: 560 }} onClick={() => setActiveVp(null)} />
+        {/* 地圖區 */}
+        <div className="relative rounded-xl overflow-hidden"
+          style={{
+            background: PAPER_BG,
+            border: "2px solid #b89b6e",
+            boxShadow: "inset 0 0 70px rgba(139,115,85,0.18)",
+          }}
+          onClick={() => setActiveVp(null)}>
 
-          {/* 區域資訊 */}
-          <div className="absolute top-3 left-3 px-3 py-1.5 rounded-lg z-10 pointer-events-none" style={{ background: "rgba(255,255,255,0.9)", backdropFilter: "blur(4px)" }}>
-            <span className="text-sm font-bold" style={{ color: "#7a5c40" }}>{selected}</span>
-            <span className="text-xs ml-2" style={{ color: "#999" }}>{countByTown.get(selected) ?? 0} 個觀點</span>
+          <svg ref={svgRef} viewBox={`0 0 ${WIDTH} ${HEIGHT}`} className="w-full" style={{ maxHeight: 620, display: "block" }}>
+            <defs>
+              {/* 羊皮紙紋理 */}
+              <filter id="paperNoise">
+                <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="4" />
+                <feColorMatrix values="0 0 0 0 0.45  0 0 0 0 0.36  0 0 0 0 0.25  0 0 0 0.12 0" />
+                <feComposite in2="SourceGraphic" operator="in" />
+              </filter>
+              {/* 四角陰影漸層（模擬舊紙張氧化） */}
+              <radialGradient id="paperVignette" cx="50%" cy="50%" r="75%">
+                <stop offset="60%" stopColor="rgba(0,0,0,0)" />
+                <stop offset="100%" stopColor="rgba(120,90,50,0.25)" />
+              </radialGradient>
+            </defs>
+
+            {/* 紙張底 */}
+            <rect width={WIDTH} height={HEIGHT} fill={PAPER_BG} />
+            <rect width={WIDTH} height={HEIGHT} filter="url(#paperNoise)" opacity="0.55" />
+
+            {/* 太平洋題字 */}
+            <text x={WIDTH - 18} y={HEIGHT / 2} fill={SEA_INK} fontSize="16" textAnchor="middle" opacity="0.55"
+              transform={`rotate(90, ${WIDTH - 18}, ${HEIGHT / 2})`}
+              style={{ fontFamily: "'Noto Serif TC', serif", letterSpacing: 6, fontWeight: 600 }}>
+              太 平 洋
+            </text>
+
+            {/* 海浪裝飾線（右側沿海） */}
+            {[...Array(4)].map((_, i) => (
+              <path key={`wave-${i}`}
+                d={`M ${WIDTH - 50 - i * 8} ${80 + i * 120} q 6 -4 12 0 t 12 0 t 12 0`}
+                stroke={SEA_INK} strokeWidth="0.8" fill="none" opacity="0.3" />
+            ))}
+
+            {/* 手繪鄉鎮多邊形（rough.js 產生） */}
+            <g ref={roughLayerRef} />
+
+            {/* 山峰裝飾（山區鄉鎮） */}
+            {geo && pathGen && geo.features
+              .filter(f => MOUNTAIN_TOWNS.has(f.properties.TOWNNAME))
+              .map(f => {
+                const name = f.properties.TOWNNAME;
+                const active = selected === name;
+                const dim = !selectedIsCounty && !active;
+                if (dim) return null;
+                const [cx, cy] = pathGen.centroid(f as any);
+                const peaks = name === "大同鄉" || name === "南澳鄉" ? 3 : 1;
+                return (
+                  <g key={`mt-${name}`} pointerEvents="none" opacity={active ? 1 : 0.75}>
+                    {[...Array(peaks)].map((_, i) => {
+                      const dx = (i - (peaks - 1) / 2) * 22;
+                      const baseY = cy + 22;
+                      const topY = baseY - 16 - (i === Math.floor(peaks / 2) ? 6 : 0);
+                      return (
+                        <g key={i}>
+                          <path
+                            d={`M ${cx + dx - 12} ${baseY} L ${cx + dx} ${topY} L ${cx + dx + 12} ${baseY} Z`}
+                            fill={MOUNTAIN_FILL} stroke={INK_DARK} strokeWidth="0.8" strokeLinejoin="round" />
+                          {/* 山頂雪線 */}
+                          <path
+                            d={`M ${cx + dx - 4} ${topY + 5} L ${cx + dx} ${topY} L ${cx + dx + 4} ${topY + 5}`}
+                            fill="none" stroke="#fff8e8" strokeWidth="1.2" strokeLinecap="round" opacity="0.85" />
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })}
+
+            {/* 鄉鎮名（毛筆體） */}
+            {geo && pathGen && geo.features.map((f) => {
+              const name = f.properties.TOWNNAME;
+              const active = selected === name;
+              const dim = !selectedIsCounty && !active;
+              if (dim) return null;
+              const [cx, cy] = pathGen.centroid(f as any);
+              const isMountain = MOUNTAIN_TOWNS.has(name);
+              return (
+                <text key={`lbl-${name}`} x={cx} y={isMountain ? cy - 28 : cy - 10}
+                  fill={active ? INK_DARK : "#5a4a30"}
+                  fontSize={active ? 14 : 11}
+                  fontWeight={active ? 700 : 600}
+                  textAnchor="middle" dominantBaseline="middle" pointerEvents="none"
+                  style={{ fontFamily: "'Noto Serif TC', serif", letterSpacing: 1 }}>
+                  {name}
+                </text>
+              );
+            })}
+
+            {/* 龜山島（手繪小島） */}
+            {projection && (() => {
+              const p = projection([121.954, 24.839]);
+              if (!p) return null;
+              return (
+                <g pointerEvents="none">
+                  <ellipse cx={p[0]} cy={p[1]} rx={10} ry={5}
+                    fill={LAND_BASE} stroke={INK_MID} strokeWidth="1" opacity="0.9" />
+                  <path d={`M ${p[0] - 6} ${p[1]} q 3 -3 6 0 t 6 0`}
+                    fill="none" stroke={INK_DARK} strokeWidth="0.8" opacity="0.7" />
+                  <text x={p[0]} y={p[1] + 16} fill={INK_DARK} fontSize={10} textAnchor="middle"
+                    style={{ fontFamily: "'Noto Serif TC', serif" }}>龜山島</text>
+                </g>
+              );
+            })()}
+
+            {/* 互動點擊層（透明，覆蓋多邊形） */}
+            {geo && pathGen && geo.features.map((f) => {
+              const name = f.properties.TOWNNAME;
+              const d = pathGen(f as any) || "";
+              return (
+                <path key={`click-${name}`} d={d}
+                  fill="transparent"
+                  style={{ cursor: "pointer" }}
+                  onClick={(e) => { e.stopPropagation(); setSelected(name); setActiveVp(null); }}
+                  onMouseEnter={() => setHovered(name)}
+                  onMouseLeave={() => setHovered(null)} />
+              );
+            })}
+
+            {/* 觀點標籤（金子常光式直立白框） */}
+            {visiblePoints.map((pt) => {
+              const isActive = activeVp === pt.vp.id;
+              const fullName = pt.vp.name || "";
+              const maxChars = 7;
+              const displayName = fullName.length > maxChars ? fullName.slice(0, maxChars - 1) + "…" : fullName;
+              const chars = [...displayName];
+              const charSize = 11;
+              const padding = 5;
+              const pinW = 17;
+              const poleH = 6;
+              const rectH = chars.length * charSize + padding * 2;
+              let rectTop = pt.y - poleH - rectH;
+              let flipped = false;
+              if (rectTop < 6) {
+                rectTop = pt.y + poleH;
+                flipped = true;
+              }
+              const poleTop = flipped ? pt.y + 1 : pt.y - poleH;
+              const poleBottom = flipped ? rectTop : pt.y - 1;
+
+              return (
+                <g key={pt.vp.id} style={{ cursor: "pointer" }}
+                  onClick={(e) => { e.stopPropagation(); setActiveVp(isActive ? null : pt.vp.id); }}>
+                  {/* 指示桿 */}
+                  <line x1={pt.x} y1={poleTop} x2={pt.x} y2={poleBottom}
+                    stroke={INK_DARK} strokeWidth={isActive ? 1.5 : 1} />
+
+                  {/* 白框 */}
+                  <rect x={pt.x - pinW / 2} y={rectTop}
+                    width={pinW} height={rectH}
+                    fill={PIN_PAPER}
+                    stroke={isActive ? PIN_RED : INK_DARK}
+                    strokeWidth={isActive ? 2 : 1}
+                    rx={1}
+                    style={{ filter: "drop-shadow(1px 2px 2px rgba(80,60,30,0.25))" }} />
+
+                  {/* 頂部紅色色塊（金子常光特徵） */}
+                  <rect x={pt.x - pinW / 2} y={rectTop}
+                    width={pinW} height={3.5}
+                    fill={PIN_RED} rx={1} />
+
+                  {/* 直立文字（逐字堆疊） */}
+                  {chars.map((ch, i) => (
+                    <text key={i}
+                      x={pt.x}
+                      y={rectTop + padding + 6 + charSize * i}
+                      fontSize={charSize}
+                      fill={INK_DARK}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      pointerEvents="none"
+                      style={{ fontFamily: "'Noto Serif TC', serif", fontWeight: isActive ? 700 : 500 }}>
+                      {ch}
+                    </text>
+                  ))}
+
+                  {/* 實際位置紅點 */}
+                  <circle cx={pt.x} cy={pt.y} r={isActive ? 3 : 2.2}
+                    fill={PIN_RED} stroke="#fff8e8" strokeWidth="0.8" />
+                </g>
+              );
+            })}
+
+            {/* 紙張邊緣陰影（最上層，不遮蔽互動） */}
+            <rect width={WIDTH} height={HEIGHT} fill="url(#paperVignette)" pointerEvents="none" />
+          </svg>
+
+          {/* 左上角區域徽章 */}
+          <div className="absolute top-3 left-3 px-3 py-1.5 rounded"
+            style={{
+              background: "rgba(255,251,242,0.92)",
+              border: "1px solid #b89b6e",
+              backdropFilter: "blur(2px)",
+              fontFamily: "'Noto Serif TC', serif",
+            }}>
+            <span className="text-sm font-bold" style={{ color: INK_DARK }}>{selected}</span>
+            <span className="text-xs ml-2" style={{ color: "#8a7a5a" }}>{countByTown.get(selected) ?? 0} 個觀點</span>
           </div>
 
+          {/* 右下指北針 */}
+          <div className="absolute bottom-3 right-3 w-12 h-12 flex items-center justify-center"
+            style={{
+              background: "rgba(255,251,242,0.85)",
+              border: "1px solid #b89b6e",
+              borderRadius: "50%",
+            }}>
+            <svg viewBox="0 0 40 40" width={36} height={36}>
+              <polygon points="20,6 24,20 20,16 16,20" fill={PIN_RED} stroke={INK_DARK} strokeWidth="0.8" />
+              <polygon points="20,34 24,20 20,24 16,20" fill={PAPER_BG} stroke={INK_DARK} strokeWidth="0.8" />
+              <text x="20" y="5" fontSize="6" fill={INK_DARK} textAnchor="middle" fontWeight="700"
+                style={{ fontFamily: "'Noto Serif TC', serif" }}>北</text>
+            </svg>
+          </div>
+
+          {/* Loading */}
+          {!geo && (
+            <div className="absolute inset-0 flex items-center justify-center text-sm" style={{ color: "#8a7a5a" }}>
+              捲軸展開中…
+            </div>
+          )}
+
           {/* 浮動彈出卡片 */}
-          {activeVp && (
+          {activeVpData && (
             <div className="absolute z-30 rounded-xl shadow-xl overflow-hidden"
               onClick={(e) => e.stopPropagation()}
               style={{
                 width: 280,
-                background: "#fff",
-                border: "1px solid #e8e0d4",
-                left: 16,
-                bottom: 16,
+                background: PIN_PAPER,
+                border: "2px solid #b89b6e",
+                left: `${Math.min(75, Math.max(5, (activeVpData.x / WIDTH) * 100))}%`,
+                top: `${Math.min(50, Math.max(5, (activeVpData.y / HEIGHT) * 100 + 3))}%`,
+                transform: activeVpData.x / WIDTH > 0.6 ? "translateX(-90%)" : "translateX(0)",
               }}>
               <div className="aspect-[16/10] overflow-hidden" style={{ background: "#f2ede6" }}>
-                <SafeImage src={activeVp.cover_url} alt={activeVp.name} placeholderType="topic" />
+                <SafeImage src={activeVpData.vp.cover_url} alt={activeVpData.vp.name} placeholderType="topic" />
               </div>
               <div className="p-3">
                 <span className="inline-block text-[0.65em] px-1.5 py-0.5 rounded-[3px] mb-1"
-                  style={{ background: "#E3F2FD", color: "#1565C0" }}>觀點</span>
-                <h4 className="text-sm font-semibold mb-1.5 leading-snug" style={{ color: "#1a1612" }}>
-                  {activeVp.name}
+                  style={{ background: PIN_RED, color: "#fff" }}>觀點</span>
+                <h4 className="text-sm font-semibold mb-1.5 leading-snug"
+                  style={{ color: INK_DARK, fontFamily: "'Noto Serif TC', serif" }}>
+                  {activeVpData.vp.name}
                 </h4>
-                {activeVp.summary && (
-                  <p className="text-[0.75em] leading-relaxed line-clamp-5 mb-3" style={{ color: "#666" }}>
-                    {activeVp.summary.slice(0, 300)}
-                    {activeVp.summary.length > 300 && "…"}
+                {activeVpData.vp.summary && (
+                  <p className="text-[0.75em] leading-relaxed line-clamp-5 mb-3" style={{ color: "#6b5a40" }}>
+                    {activeVpData.vp.summary.slice(0, 300)}
+                    {activeVpData.vp.summary.length > 300 && "…"}
                   </p>
                 )}
-                <Link href={`/viewpoint/${activeVp.notion_id || activeVp.id}`}
+                <Link href={`/viewpoint/${activeVpData.vp.notion_id || activeVpData.vp.id}`}
                   className="block text-center text-xs py-2 rounded-md font-medium"
-                  style={{ background: "#7a5c40", color: "#fff", textDecoration: "none" }}>
+                  style={{ background: INK_DARK, color: "#fffbf0", textDecoration: "none" }}>
                   看更多 →
                 </Link>
               </div>
