@@ -67,7 +67,7 @@ export async function buildNewsletterCarousel(): Promise<ImageCarouselMessage> {
   const { data } = await supabaseAdmin
     .from("articles")
     .select("id, notion_id, title, cover_url")
-    .eq("status", "active")
+    .eq("status", "published")
     .order("updated_at", { ascending: false })
     .limit(10);
 
@@ -130,7 +130,7 @@ export async function buildTopicCarousel(): Promise<ImageCarouselMessage> {
   const { data: articles } = await supabaseAdmin
     .from("articles")
     .select("id, notion_id, title, cover_url, related_product_ids")
-    .eq("status", "active")
+    .eq("status", "published")
     .contains("web_tag", ["話題推薦"])
     .order("updated_at", { ascending: false })
     .limit(10);
