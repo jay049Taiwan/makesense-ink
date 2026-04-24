@@ -36,7 +36,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
   const [activeTab, setActiveTab] = useState<StaffTab>("動態");
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-3 sm:px-0" style={{ maxWidth: 1100, margin: "0 auto" }}>
       {/* 問候列 */}
       <div className="rounded-xl p-5" style={{ background: "#1a1a2e", color: "#fff" }}>
         <p className="text-xl font-bold mb-2">{displayName} <span className="font-normal">您好</span></p>
@@ -226,8 +226,8 @@ function InventoryPanel() {
               + miscItems.reduce((s, m) => s + m.amount, 0);
 
   return (
-    <div className="grid sm:grid-cols-[280px_1fr] gap-0" style={{ minHeight: 500 }}>
-      <div className="p-4" style={{ borderRight: "1px solid #f0f0f0" }}>
+    <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
+      <div className="py-3 sm:p-4 sm:border-r" style={{ borderColor: "#f0f0f0" }}>
         <div className="space-y-2 mb-6">
           <StatRow label="低庫存" value={`${stats.lowStock} 項`} />
           <StatRow label="缺貨" value={`${stats.outOfStock} 項`} />
@@ -238,7 +238,7 @@ function InventoryPanel() {
             style={{ background: operation === m ? "#fff" : "transparent", border: operation === m ? "2px solid #7a5c40" : "1px solid #e8e0d4", color: operation === m ? "#7a5c40" : "#666", fontWeight: operation === m ? 600 : 400, cursor: "pointer" }}>商品{m}</button>
         ))}
       </div>
-      <div className="p-6">
+      <div className="py-3 sm:p-6">
         <h2 className="text-xl font-bold mb-4" style={{ color: "#333" }}>商品{operation}</h2>
 
         {/* 搜尋 */}
@@ -337,8 +337,8 @@ function AttendancePanel() {
   const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日 ${"日一二三四五六"[now.getDay()]}`;
 
   return (
-    <div className="grid sm:grid-cols-[280px_1fr] gap-0" style={{ minHeight: 500 }}>
-      <div className="p-4" style={{ borderRight: "1px solid #f0f0f0" }}>
+    <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
+      <div className="py-3 sm:p-4 sm:border-r" style={{ borderColor: "#f0f0f0" }}>
         <div className="text-center mb-6 py-4 rounded-lg" style={{ border: "1px solid #e8e0d4" }}>
           <p className="text-4xl font-bold tracking-wider" style={{ color: "#333", fontFamily: "monospace" }}>{timeStr}</p>
           <p className="text-xs mt-1" style={{ color: "#999" }}>{dateStr}</p>
@@ -348,7 +348,7 @@ function AttendancePanel() {
             style={{ background: subTab === t ? "#2d5016" : "transparent", color: subTab === t ? "#fff" : "#666", border: subTab === t ? "none" : "1px solid #e8e0d4", fontWeight: subTab === t ? 600 : 400, cursor: "pointer" }}>{t}</button>
         ))}
       </div>
-      <div className="p-6">
+      <div className="py-3 sm:p-6">
         {subTab === "打卡" && (
           <div className="flex flex-col items-center">
             <div className="flex justify-center mb-8">
@@ -385,14 +385,14 @@ function ExpensePanel() {
   const updatePurchase = (i: number, field: string, value: any) => { setPurchaseItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item)); };
 
   return (
-    <div className="grid sm:grid-cols-[240px_1fr] gap-0" style={{ minHeight: 500 }}>
-      <div className="p-4" style={{ borderRight: "1px solid #f0f0f0" }}>
+    <div className="grid grid-cols-1 sm:grid-cols-[240px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
+      <div className="py-3 sm:p-4 sm:border-r" style={{ borderColor: "#f0f0f0" }}>
         {(["請款", "請購"] as const).map((m) => (
           <button key={m} onClick={() => setMode(m)} className="w-full text-left px-4 py-3 rounded-lg mb-1 text-sm transition-colors"
             style={{ background: mode === m ? "#fff" : "transparent", border: mode === m ? "2px solid #7a5c40" : "1px solid #e8e0d4", color: mode === m ? "#7a5c40" : "#666", fontWeight: mode === m ? 600 : 400, cursor: "pointer" }}>{m}</button>
         ))}
       </div>
-      <div className="p-6">
+      <div className="py-3 sm:p-6">
         {mode === "請款" && (
           <div style={{ maxWidth: 500 }}>
             <h3 className="text-base font-bold mb-4" style={{ color: "#333" }}>請款申請</h3>
@@ -447,9 +447,9 @@ function ExpensePanel() {
 
 function StatRow({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: "#f8f7f4" }}>
-      <span className="text-xs" style={{ color: "#888" }}>{label}</span>
-      <span className="text-sm font-bold" style={{ color: "#333" }}>{value}</span>
+    <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-lg" style={{ background: "#f8f7f4" }}>
+      <span className="text-xs flex-shrink-0" style={{ color: "#888" }}>{label}</span>
+      <span className="text-sm font-bold whitespace-nowrap" style={{ color: "#333" }}>{value}</span>
     </div>
   );
 }

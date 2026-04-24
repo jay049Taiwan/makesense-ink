@@ -90,7 +90,7 @@ export default function TelegramWorkbenchPage() {
   const displayName = user ? `${user.first_name}${user.last_name ? ` ${user.last_name}` : ""}` : "員工";
 
   return (
-    <div className="px-2 py-4">
+    <div className="py-2">
       <WorkbenchShell
         displayName={displayName}
         email={user?.username ? `@${user.username}` : "—"}
