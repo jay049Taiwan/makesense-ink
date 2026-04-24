@@ -295,7 +295,13 @@ async function syncTopics() {
       name: extractTitle(props["經營名稱"]?.title) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
-      region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
+      cover_url: fileUrl(props["上傳檔案"]) || null,
+      region: (() => {
+        const ms = extractMultiSelect(props["行政區域"]?.multi_select);
+        if (ms && ms.length) return ms;
+        const s = extractSelect(props["行政區域"]?.select);
+        return s ? [s] : [];
+      })(),
       related_product_ids: resolveRel(props["對應標籤庫存"], productIdByNid),
       related_event_ids: resolveRel(props["對應標籤協作"], eventIdByNid),
       related_article_ids: resolveRel(props["對應標籤表單"], articleIdByNid),

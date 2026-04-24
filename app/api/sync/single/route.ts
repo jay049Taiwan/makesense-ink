@@ -712,7 +712,13 @@ async function syncSingleRelation(nid: string, props: any) {
       name: t(props["經營名稱"]) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: tx(props["簡介摘要"]),
-      region: extractMultiSelect(props["行政區域"]?.multi_select) || [],
+      cover_url: fileUrl(props["上傳檔案"]),
+      region: (() => {
+        const ms = extractMultiSelect(props["行政區域"]?.multi_select);
+        if (ms && ms.length) return ms;
+        const s = extractSelect(props["行政區域"]?.select);
+        return s ? [s] : [];
+      })(),
       related_product_ids: relatedProductIds,
       related_event_ids: relatedEventIds,
       related_article_ids: relatedArticleIds,
