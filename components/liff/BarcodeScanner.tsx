@@ -39,12 +39,13 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
             aspectRatio: 1.0,
             formatsToSupport: [
               0,  // QR_CODE
-              2,  // EAN_13
-              3,  // EAN_8
-              4,  // CODE_128
-              7,  // CODE_39
-              10, // UPC_A
-              11, // UPC_E
+              3,  // CODE_39
+              5,  // CODE_128
+              8,  // ITF
+              9,  // EAN_13 ← 書籍條碼
+              10, // EAN_8
+              14, // UPC_A
+              15, // UPC_E
             ],
           },
           (decodedText: string) => {
