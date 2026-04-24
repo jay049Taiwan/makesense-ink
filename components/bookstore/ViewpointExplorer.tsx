@@ -80,6 +80,210 @@ const MOUNTAIN_RANGE: [number, number][] = [
   [121.52, 24.62], [121.56, 24.56], [121.52, 24.50], [121.56, 24.44],
 ];
 
+// 各鄉鎮在地地景特色（放大視角時顯示）
+type FeatureKind = "rice" | "mountain" | "forest" | "sea" | "hotspring" | "harbor" | "town" | "lake" | "onion" | "cape";
+const TOWN_FEATURES: Record<string, { kind: FeatureKind; coord: [number, number]; label?: string }[]> = {
+  "頭城鎮": [
+    { kind: "sea", coord: [121.85, 24.86], label: "烏石港" },
+    { kind: "mountain", coord: [121.73, 24.92] },
+    { kind: "mountain", coord: [121.76, 24.89] },
+    { kind: "cape", coord: [121.92, 25.00], label: "三貂角" },
+  ],
+  "礁溪鄉": [
+    { kind: "hotspring", coord: [121.77, 24.82], label: "礁溪溫泉" },
+    { kind: "rice", coord: [121.76, 24.84] },
+    { kind: "mountain", coord: [121.70, 24.84] },
+  ],
+  "宜蘭市": [
+    { kind: "town", coord: [121.76, 24.76], label: "宜蘭城" },
+    { kind: "rice", coord: [121.78, 24.74] },
+    { kind: "rice", coord: [121.74, 24.75] },
+  ],
+  "壯圍鄉": [
+    { kind: "rice", coord: [121.80, 24.77] },
+    { kind: "rice", coord: [121.82, 24.74] },
+    { kind: "sea", coord: [121.86, 24.75], label: "壯圍沙丘" },
+  ],
+  "員山鄉": [
+    { kind: "rice", coord: [121.70, 24.75] },
+    { kind: "mountain", coord: [121.60, 24.76] },
+    { kind: "forest", coord: [121.64, 24.74] },
+    { kind: "lake", coord: [121.65, 24.73], label: "雙連埤" },
+  ],
+  "大同鄉": [
+    { kind: "mountain", coord: [121.50, 24.55] },
+    { kind: "mountain", coord: [121.48, 24.65] },
+    { kind: "mountain", coord: [121.55, 24.50] },
+    { kind: "forest", coord: [121.53, 24.45], label: "太平山" },
+    { kind: "forest", coord: [121.58, 24.60] },
+    { kind: "forest", coord: [121.50, 24.70] },
+  ],
+  "南澳鄉": [
+    { kind: "mountain", coord: [121.53, 24.40] },
+    { kind: "mountain", coord: [121.60, 24.47] },
+    { kind: "forest", coord: [121.65, 24.45] },
+    { kind: "sea", coord: [121.78, 24.44], label: "南澳海岸" },
+    { kind: "forest", coord: [121.55, 24.50] },
+  ],
+  "蘇澳鎮": [
+    { kind: "harbor", coord: [121.86, 24.59], label: "蘇澳港" },
+    { kind: "mountain", coord: [121.80, 24.56] },
+    { kind: "sea", coord: [121.87, 24.60] },
+    { kind: "cape", coord: [121.82, 24.51], label: "南方澳" },
+  ],
+  "冬山鄉": [
+    { kind: "rice", coord: [121.78, 24.64] },
+    { kind: "lake", coord: [121.74, 24.62], label: "梅花湖" },
+    { kind: "rice", coord: [121.80, 24.63] },
+    { kind: "forest", coord: [121.76, 24.60] },
+  ],
+  "五結鄉": [
+    { kind: "rice", coord: [121.81, 24.70] },
+    { kind: "rice", coord: [121.79, 24.69] },
+    { kind: "sea", coord: [121.84, 24.70], label: "蘭陽溪口" },
+  ],
+  "羅東鎮": [
+    { kind: "town", coord: [121.77, 24.68], label: "羅東街" },
+    { kind: "forest", coord: [121.76, 24.67], label: "羅東林場" },
+    { kind: "rice", coord: [121.78, 24.69] },
+  ],
+  "三星鄉": [
+    { kind: "onion", coord: [121.67, 24.68], label: "三星蔥田" },
+    { kind: "rice", coord: [121.65, 24.66] },
+    { kind: "rice", coord: [121.70, 24.67] },
+    { kind: "mountain", coord: [121.60, 24.65] },
+  ],
+};
+
+// 地景圖示（手繪風）
+function LandscapeIcon({ kind, x, y, label }: { kind: FeatureKind; x: number; y: number; label?: string }) {
+  const s = 1;
+  const render = () => {
+    switch (kind) {
+      case "mountain":
+        return (
+          <g>
+            <path d={`M ${x - 14 * s} ${y + 8} L ${x} ${y - 14 * s} L ${x + 14 * s} ${y + 8} Z`}
+              fill={"#a08060"} stroke={"#5a3c20"} strokeWidth={0.8} strokeLinejoin="round" />
+            <path d={`M ${x - 4 * s} ${y - 8} L ${x} ${y - 14 * s} L ${x + 4 * s} ${y - 8}`}
+              fill="none" stroke={"#fff8e8"} strokeWidth={1.2} strokeLinecap="round" />
+          </g>
+        );
+      case "forest":
+        return (
+          <g>
+            {[-8, 0, 8].map((dx, i) => (
+              <g key={i}>
+                <path d={`M ${x + dx - 6} ${y + 8} L ${x + dx} ${y - 8} L ${x + dx + 6} ${y + 8} Z`}
+                  fill={"#5a8a5a"} stroke={"#3a5a3a"} strokeWidth={0.8} strokeLinejoin="round" opacity={0.85} />
+                <line x1={x + dx} y1={y + 8} x2={x + dx} y2={y + 12} stroke={"#5a3c20"} strokeWidth={1.2} />
+              </g>
+            ))}
+          </g>
+        );
+      case "rice":
+        // 田字格：2×2 + 十字
+        return (
+          <g opacity={0.85}>
+            <rect x={x - 10} y={y - 10} width={20} height={20} fill={"#e8d580"} stroke={"#8b7355"} strokeWidth={1} />
+            <line x1={x - 10} y1={y} x2={x + 10} y2={y} stroke={"#8b7355"} strokeWidth={0.8} />
+            <line x1={x} y1={y - 10} x2={x} y2={y + 10} stroke={"#8b7355"} strokeWidth={0.8} />
+            {/* 幾撮稻穗小點 */}
+            {[[-5, -5], [5, -5], [-5, 5], [5, 5]].map(([dx, dy], i) => (
+              <circle key={i} cx={x + dx} cy={y + dy} r={1.2} fill={"#8a6a2a"} opacity={0.7} />
+            ))}
+          </g>
+        );
+      case "sea":
+        return (
+          <g opacity={0.7}>
+            {[0, 6, 12].map((dy, i) => (
+              <path key={i}
+                d={`M ${x - 14} ${y + dy} q 3 -3 6 0 t 6 0 t 6 0 t 6 0`}
+                fill="none" stroke={"#6b8da8"} strokeWidth={1} strokeLinecap="round" />
+            ))}
+          </g>
+        );
+      case "hotspring":
+        return (
+          <g>
+            <circle cx={x} cy={y + 4} r={7} fill={"#f4d4c8"} stroke={"#b83a2e"} strokeWidth={1} />
+            {/* 蒸氣 */}
+            {[-5, 0, 5].map((dx, i) => (
+              <path key={i}
+                d={`M ${x + dx} ${y - 2} q 1.5 -3 0 -6 t 0 -6`}
+                fill="none" stroke={"#b83a2e"} strokeWidth={1} strokeLinecap="round" opacity={0.7} />
+            ))}
+          </g>
+        );
+      case "harbor":
+        // 小船
+        return (
+          <g>
+            <path d={`M ${x - 10} ${y + 3} L ${x + 10} ${y + 3} L ${x + 6} ${y + 8} L ${x - 6} ${y + 8} Z`}
+              fill={"#8b7355"} stroke={"#5a3c20"} strokeWidth={0.8} />
+            <line x1={x} y1={y + 3} x2={x} y2={y - 8} stroke={"#5a3c20"} strokeWidth={1} />
+            <path d={`M ${x} ${y - 8} L ${x + 6} ${y - 3} L ${x} ${y - 1} Z`}
+              fill={"#b83a2e"} stroke={"#5a3c20"} strokeWidth={0.6} />
+          </g>
+        );
+      case "town":
+        // 三座小屋
+        return (
+          <g>
+            {[-10, 0, 10].map((dx, i) => (
+              <g key={i}>
+                <rect x={x + dx - 5} y={y + 0} width={10} height={8} fill={"#d9b88a"} stroke={"#5a3c20"} strokeWidth={0.8} />
+                <path d={`M ${x + dx - 5} ${y} L ${x + dx} ${y - 6} L ${x + dx + 5} ${y} Z`}
+                  fill={"#b83a2e"} stroke={"#5a3c20"} strokeWidth={0.8} strokeLinejoin="round" />
+              </g>
+            ))}
+          </g>
+        );
+      case "lake":
+        return (
+          <g>
+            <ellipse cx={x} cy={y} rx={12} ry={6} fill={"#a8c8dc"} stroke={"#4a7a95"} strokeWidth={1} opacity={0.85} />
+            <path d={`M ${x - 6} ${y} q 2 -2 4 0 t 4 0`} fill="none" stroke={"#4a7a95"} strokeWidth={0.6} opacity={0.7} />
+          </g>
+        );
+      case "onion":
+        // 三星蔥：幾根綠色條
+        return (
+          <g>
+            {[-6, -2, 2, 6].map((dx, i) => (
+              <g key={i}>
+                <line x1={x + dx} y1={y + 8} x2={x + dx} y2={y - 6} stroke={"#5aa85a"} strokeWidth={1.8} strokeLinecap="round" />
+                <circle cx={x + dx} cy={y + 8} r={2} fill={"#fff8e8"} stroke={"#5a3c20"} strokeWidth={0.6} />
+              </g>
+            ))}
+          </g>
+        );
+      case "cape":
+        // 岬角：尖形
+        return (
+          <g opacity={0.8}>
+            <path d={`M ${x - 10} ${y + 4} L ${x + 6} ${y - 6} L ${x + 10} ${y + 4} Z`}
+              fill={"#a08060"} stroke={"#5a3c20"} strokeWidth={0.8} strokeLinejoin="round" />
+          </g>
+        );
+      default:
+        return null;
+    }
+  };
+  return (
+    <g pointerEvents="none">
+      {render()}
+      {label && (
+        <text x={x} y={y + 22} fill="#5a3c20" fontSize={10} textAnchor="middle"
+          style={{ fontFamily: "'Noto Serif TC', serif", fontWeight: 600 }}>
+          {label}
+        </text>
+      )}
+    </g>
+  );
+}
+
 export default function ViewpointExplorer() {
   const svgRef = useRef<SVGSVGElement | null>(null);
   const roughLayerRef = useRef<SVGGElement | null>(null);
@@ -233,6 +437,23 @@ export default function ViewpointExplorer() {
     return MOUNTAIN_RANGE.map(c => projection(c)).filter(Boolean) as [number, number][];
   }, [projection]);
 
+  // 選中鄉鎮的輪廓路徑（用於裁切河流/山脈）
+  const selectedTownshipD = useMemo(() => {
+    if (selectedIsCounty || !pathGen || !geo) return null;
+    const f = geo.features.find(f => f.properties.TOWNNAME === selected);
+    return f ? pathGen(f as any) : null;
+  }, [geo, pathGen, selected, selectedIsCounty]);
+
+  // 鄉鎮地景特色（投影為 SVG 座標）
+  const townFeaturePoints = useMemo(() => {
+    if (!projection || selectedIsCounty) return [];
+    const feats = TOWN_FEATURES[selected] || [];
+    return feats.map(f => {
+      const p = projection(f.coord);
+      return p ? { ...f, x: p[0], y: p[1] } : null;
+    }).filter(Boolean) as { kind: FeatureKind; coord: [number, number]; label?: string; x: number; y: number }[];
+  }, [projection, selected, selectedIsCounty]);
+
   // 判定一點是否在目前 viewBox 內（簡單邊界濾除）
   const inView = (x: number, y: number) => x > -10 && x < WIDTH + 10 && y > -10 && y < HEIGHT + 10;
 
@@ -302,6 +523,12 @@ export default function ViewpointExplorer() {
                 <stop offset="60%" stopColor="rgba(0,0,0,0)" />
                 <stop offset="100%" stopColor="rgba(120,90,50,0.25)" />
               </radialGradient>
+              {/* 選中鄉鎮輪廓：用於裁切河流/山脈（放大視角下） */}
+              {selectedTownshipD && (
+                <clipPath id="townClip">
+                  <path d={selectedTownshipD} />
+                </clipPath>
+              )}
             </defs>
 
             {/* 紙張 */}
@@ -325,55 +552,61 @@ export default function ViewpointExplorer() {
             {/* 手繪鄉鎮 */}
             <g ref={roughLayerRef} />
 
-            {/* 河流（多層：底寬淡色 + 上窄深色，營造手繪描邊感） */}
-            {riverPaths.map((r, idx) => (
-              <g key={`river-${idx}`} pointerEvents="none">
-                <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth="5" strokeLinecap="round" opacity="0.35" />
-                <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth="2.5" strokeLinecap="round" opacity="0.8" />
-                <path d={r.d} fill="none" stroke="#4a7a95" strokeWidth="0.8" strokeLinecap="round" opacity="0.6" strokeDasharray="2 3" />
-                {/* 河名（只在全縣視角顯示） */}
-                {selectedIsCounty && inView(r.tail[0], r.tail[1]) && (
-                  <text
-                    x={(r.head[0] + r.tail[0]) / 2}
-                    y={(r.head[1] + r.tail[1]) / 2 - 3}
-                    fill="#3a5f75" fontSize="9" textAnchor="middle"
-                    style={{ fontFamily: "'Noto Serif TC', serif", fontStyle: "italic" }}>
-                    {r.name}
-                  </text>
-                )}
-              </g>
-            ))}
+            {/* 地景（河流 + 山脈 + 在地特色）— 放大視角時裁切到該鄉鎮輪廓內 */}
+            <g clipPath={selectedIsCounty ? undefined : "url(#townClip)"}>
+              {/* 河流 */}
+              {riverPaths.map((r, idx) => (
+                <g key={`river-${idx}`} pointerEvents="none">
+                  <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth={selectedIsCounty ? 5 : 7} strokeLinecap="round" opacity="0.35" />
+                  <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth={selectedIsCounty ? 2.5 : 3.5} strokeLinecap="round" opacity="0.8" />
+                  <path d={r.d} fill="none" stroke="#4a7a95" strokeWidth="0.8" strokeLinecap="round" opacity="0.6" strokeDasharray="2 3" />
+                  {selectedIsCounty && inView(r.tail[0], r.tail[1]) && (
+                    <text
+                      x={(r.head[0] + r.tail[0]) / 2}
+                      y={(r.head[1] + r.tail[1]) / 2 - 3}
+                      fill="#3a5f75" fontSize="9" textAnchor="middle"
+                      style={{ fontFamily: "'Noto Serif TC', serif", fontStyle: "italic" }}>
+                      {r.name}
+                    </text>
+                  )}
+                </g>
+              ))}
 
-            {/* 山脈（中央山脈東側，全縣 + 山區鄉鎮視角才畫） */}
-            {(selectedIsCounty || ["大同鄉", "南澳鄉", "員山鄉", "三星鄉", "冬山鄉"].includes(selected)) &&
-              mountainPoints.map(([mx, my], i) => {
-                if (!inView(mx, my)) return null;
-                // 每個點畫一組 3 個連續山峰
-                const scale = selectedIsCounty ? 1 : 1.4;
-                return (
-                  <g key={`mt-${i}`} pointerEvents="none" opacity={selectedIsCounty ? 0.85 : 0.95}>
-                    {[-1, 0, 1].map((k) => {
-                      const dx = k * 14 * scale;
-                      const baseY = my + 10 * scale;
-                      const topY = baseY - (k === 0 ? 22 * scale : 16 * scale);
-                      const peakX = mx + dx;
-                      return (
-                        <g key={k}>
-                          <path
-                            d={`M ${peakX - 10 * scale} ${baseY} L ${peakX} ${topY} L ${peakX + 10 * scale} ${baseY} Z`}
-                            fill={MOUNTAIN_FILL} stroke={INK_DARK} strokeWidth={0.8} strokeLinejoin="round" />
-                          {/* 雪線 */}
-                          {k === 0 && (
+              {/* 山脈（中央山脈東側） */}
+              {(selectedIsCounty || ["大同鄉", "南澳鄉", "員山鄉", "三星鄉"].includes(selected)) &&
+                mountainPoints.map(([mx, my], i) => {
+                  if (!inView(mx, my)) return null;
+                  const scale = selectedIsCounty ? 1 : 1.4;
+                  return (
+                    <g key={`mt-${i}`} pointerEvents="none" opacity={0.9}>
+                      {[-1, 0, 1].map((k) => {
+                        const dx = k * 14 * scale;
+                        const baseY = my + 10 * scale;
+                        const topY = baseY - (k === 0 ? 22 * scale : 16 * scale);
+                        const peakX = mx + dx;
+                        return (
+                          <g key={k}>
                             <path
-                              d={`M ${peakX - 3.5 * scale} ${topY + 5} L ${peakX} ${topY} L ${peakX + 3.5 * scale} ${topY + 5}`}
-                              fill="none" stroke="#fff8e8" strokeWidth={1.2} strokeLinecap="round" opacity={0.85} />
-                          )}
-                        </g>
-                      );
-                    })}
-                  </g>
-                );
+                              d={`M ${peakX - 10 * scale} ${baseY} L ${peakX} ${topY} L ${peakX + 10 * scale} ${baseY} Z`}
+                              fill={MOUNTAIN_FILL} stroke={INK_DARK} strokeWidth={0.8} strokeLinejoin="round" />
+                            {k === 0 && (
+                              <path
+                                d={`M ${peakX - 3.5 * scale} ${topY + 5} L ${peakX} ${topY} L ${peakX + 3.5 * scale} ${topY + 5}`}
+                                fill="none" stroke="#fff8e8" strokeWidth={1.2} strokeLinecap="round" opacity={0.85} />
+                            )}
+                          </g>
+                        );
+                      })}
+                    </g>
+                  );
+                })}
+
+              {/* 在地特色地景（只在放大視角） */}
+              {!selectedIsCounty && townFeaturePoints.map((f, i) => {
+                if (!inView(f.x, f.y)) return null;
+                return <LandscapeIcon key={`feat-${i}`} kind={f.kind} x={f.x} y={f.y} label={f.label} />;
               })}
+            </g>
 
             {/* 鄉鎮名 */}
             {pathGen && visibleFeatures.map((f) => {
