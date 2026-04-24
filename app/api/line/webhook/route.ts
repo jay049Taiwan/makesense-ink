@@ -189,10 +189,10 @@ async function handleEvent(event: any) {
  */
 async function handleCarouselPostback(action: string, userId: string, replyToken: string) {
   const labelMap: Record<string, string> = {
-    newsletter_carousel: "📮 幫你翻翻最近的地方通訊…",
-    events_carousel: "🎪 幫你挑幾個近期活動…",
-    topic_carousel: "🎲 幫你抽一輪好話題…",
-    topic_suggest: "🎲 幫你抽一輪好話題…",
+    newsletter_carousel: "幫你翻翻最近的地方通訊…",
+    events_carousel: "幫你挑幾個近期活動…",
+    topic_carousel: "幫你抽一輪好話題…",
+    topic_suggest: "幫你抽一輪好話題…",
   };
   await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: `${action}_step_1` });
 

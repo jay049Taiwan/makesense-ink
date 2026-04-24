@@ -21,14 +21,14 @@ DIVIDER = "#5a4530"
 TEXT_COLOR = "#ffffff"
 SUBTITLE_COLOR = "#d4c5b0"
 
-# 6 格內容
+# 6 格內容（移除 emoji / icon，純文字）
 BUTTONS = [
-    {"emoji": "📚", "label": "選書選物", "sub": "Books & Goods", "bg": BG_TOP},
-    {"emoji": "🎪", "label": "活動體驗", "sub": "Events", "bg": "#4ECDC4"},
-    {"emoji": "🗺️", "label": "觀點漫遊", "sub": "Viewpoints", "bg": BG_TOP},
-    {"emoji": "📮", "label": "地方通訊", "sub": "Newsletter", "bg": BG_BOT},
-    {"emoji": "🎲", "label": "話題推薦", "sub": "Topics", "bg": "#4A7C59"},
-    {"emoji": "🛒", "label": "結帳確認", "sub": "Checkout", "bg": BG_BOT},
+    {"label": "選書選物", "sub": "Books & Goods", "bg": BG_TOP},
+    {"label": "活動體驗", "sub": "Events", "bg": "#4ECDC4"},
+    {"label": "觀點漫遊", "sub": "Viewpoints", "bg": BG_TOP},
+    {"label": "地方通訊", "sub": "Newsletter", "bg": BG_BOT},
+    {"label": "話題推薦", "sub": "Topics", "bg": "#4A7C59"},
+    {"label": "結帳確認", "sub": "Checkout", "bg": BG_BOT},
 ]
 
 
@@ -96,31 +96,15 @@ def main():
         cx = x0 + CELL_W // 2
         cy = y0 + CELL_H // 2
 
-        # Emoji（用文字代替，因為 emoji 字體不一定能用）
-        emoji_text = btn["emoji"]
-        # 嘗試畫 emoji
-        emoji_font = find_emoji_font(120)
-        if emoji_font:
-            try:
-                bbox = draw.textbbox((0, 0), emoji_text, font=emoji_font)
-                ew = bbox[2] - bbox[0]
-                draw.text((cx - ew // 2, cy - 200), emoji_text, font=emoji_font, fill=TEXT_COLOR)
-            except:
-                # fallback: 畫一個圓形圖示
-                draw.ellipse([cx - 60, cy - 210, cx + 60, cy - 90], fill=hex_to_rgb("#ffffff"), outline=None)
-        else:
-            # fallback: 畫圓形圖示
-            draw.ellipse([cx - 60, cy - 210, cx + 60, cy - 90], fill=hex_to_rgb("#ffffff"), outline=None)
-
-        # 中文標題
+        # 中文標題（放正中，因為沒有 emoji/icon 了）
         bbox = draw.textbbox((0, 0), btn["label"], font=label_font)
         tw = bbox[2] - bbox[0]
-        draw.text((cx - tw // 2, cy - 20), btn["label"], font=label_font, fill=TEXT_COLOR)
+        draw.text((cx - tw // 2, cy - 50), btn["label"], font=label_font, fill=TEXT_COLOR)
 
         # 英文副標題
         bbox = draw.textbbox((0, 0), btn["sub"], font=sub_font)
         tw = bbox[2] - bbox[0]
-        draw.text((cx - tw // 2, cy + 80), btn["sub"], font=sub_font, fill=hex_to_rgb(SUBTITLE_COLOR))
+        draw.text((cx - tw // 2, cy + 50), btn["sub"], font=sub_font, fill=hex_to_rgb(SUBTITLE_COLOR))
 
     # 確保輸出目錄存在
     out_dir = os.path.join(os.path.dirname(__file__), "..", "public", "images")

@@ -87,7 +87,7 @@ export async function buildNewsletterCarousel(): Promise<ImageCarouselMessage> {
       uri: buildLiffUrl(`post/${r.notion_id || r.id}`),
     },
   }));
-  return buildCarousel("📮 地方通訊", columns);
+  return buildCarousel("地方通訊", columns);
 }
 
 // ═══════════════════════════════════════════
@@ -119,58 +119,51 @@ export async function buildEventsCarousel(): Promise<ImageCarouselMessage> {
       uri: buildLiffUrl(`events/${r.notion_id || r.id}`),
     },
   }));
-  return buildCarousel("🎪 活動體驗", columns);
+  return buildCarousel("活動體驗", columns);
 }
 
 // ═══════════════════════════════════════════
-// 話題推薦 (topics / viewpoints)
+// 話題推薦 (DB05 articles where web_tag 包含「話題推薦」)
+// 每張卡片：主題名稱 + 對應庫存（取第一張商品圖）
 // ═══════════════════════════════════════════
 export async function buildTopicCarousel(): Promise<ImageCarouselMessage> {
-  const { data: topics } = await supabaseAdmin
-    .from("topics")
-    .select("id, notion_id, name, summary, related_product_ids, related_event_ids, related_article_ids")
+  const { data: articles } = await supabaseAdmin
+    .from("articles")
+    .select("id, notion_id, title, cover_url, related_product_ids")
     .eq("status", "active")
-    .eq("tag_type", "viewpoint")
-    .limit(30);
+    .contains("web_tag", ["話題推薦"])
+    .order("updated_at", { ascending: false })
+    .limit(10);
 
-  const rows = (topics || []).sort(() => Math.random() - 0.5).slice(0, 10);
+  const rows = articles || [];
   if (rows.length === 0) {
     return buildCarousel("話題推薦", [{
-      imageUrl: dynamicPlaceholder("觀點漫遊"),
-      action: { type: "uri", label: "前往觀點列表", uri: buildLiffUrl("liff/viewpoints") },
+      imageUrl: dynamicPlaceholder("話題推薦"),
+      action: { type: "uri", label: "逛逛書店", uri: buildLiffUrl("bookstore") },
     }]);
   }
 
-  // 撈所有相關商品/活動/文章的 cover 一次，再 map 到各 topic
-  const prodIds = Array.from(new Set(rows.flatMap((r: any) => r.related_product_ids || []))).slice(0, 50);
-  const eventIds = Array.from(new Set(rows.flatMap((r: any) => r.related_event_ids || []))).slice(0, 50);
-  const articleIds = Array.from(new Set(rows.flatMap((r: any) => r.related_article_ids || []))).slice(0, 50);
+  // 每個話題取 related_product_ids 第一個，一次撈所有商品圖
+  const firstProdIds = Array.from(new Set(
+    rows.map((a: any) => (a.related_product_ids || [])[0]).filter(Boolean)
+  ));
+  const { data: prods } = firstProdIds.length
+    ? await supabaseAdmin.from("products").select("id, images").in("id", firstProdIds)
+    : { data: [] as any[] };
+  const prodImageMap = new Map((prods || []).map((p: any) => [p.id, firstImage(p.images)]));
 
-  const [prods, events, articles] = await Promise.all([
-    prodIds.length ? supabaseAdmin.from("products").select("id, images").in("id", prodIds) : Promise.resolve({ data: [] } as any),
-    eventIds.length ? supabaseAdmin.from("events").select("id, cover_url").in("id", eventIds) : Promise.resolve({ data: [] } as any),
-    articleIds.length ? supabaseAdmin.from("articles").select("id, cover_url").in("id", articleIds) : Promise.resolve({ data: [] } as any),
-  ]);
-
-  const prodMap = new Map((prods.data || []).map((p: any) => [p.id, firstImage(p.images)]));
-  const eventMap = new Map((events.data || []).map((e: any) => [e.id, e.cover_url]));
-  const articleMap = new Map((articles.data || []).map((a: any) => [a.id, a.cover_url]));
-
-  const columns = rows.map((t: any) => {
-    let cover: string | null = null;
-    for (const id of t.related_product_ids || []) { cover = prodMap.get(id) || null; if (cover) break; }
-    if (!cover) for (const id of t.related_event_ids || []) { cover = eventMap.get(id) || null; if (cover) break; }
-    if (!cover) for (const id of t.related_article_ids || []) { cover = articleMap.get(id) || null; if (cover) break; }
-
+  const columns = rows.map((a: any) => {
+    const firstProdId = (a.related_product_ids || [])[0];
+    const cover = a.cover_url || (firstProdId ? prodImageMap.get(firstProdId) : null) || null;
     return {
-      imageUrl: toSquareImage(cover, t.name || "觀點"),
+      imageUrl: toSquareImage(cover, a.title || "話題"),
       action: {
         type: "uri" as const,
-        label: trimLabel(t.name || "觀點"),
-        uri: buildLiffUrl(`viewpoint/${t.notion_id || t.id}`),
+        label: trimLabel(a.title || "話題"),
+        uri: buildLiffUrl(`post/${a.notion_id || a.id}`),
       },
     };
   });
 
-  return buildCarousel("🎲 話題推薦", columns);
+  return buildCarousel("話題推薦", columns);
 }
