@@ -1,5 +1,9 @@
 "use client";
 
+// 工作台 UI 抽到 components/workbench/WorkbenchShell.tsx，跟 /telegram/workbench 共用。
+// 這個檔案只負責「官網入口」：分頁標籤、NextAuth session、寬度容器。
+// 改 UI 請改 WorkbenchShell.tsx，不要在這裡複製組件。
+
 import { useSession } from "next-auth/react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";

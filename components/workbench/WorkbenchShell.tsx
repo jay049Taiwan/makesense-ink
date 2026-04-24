@@ -1,5 +1,18 @@
 "use client";
 
+/**
+ * ⚠️ 共用組件 — 改這裡兩個工作台會同步變動
+ *
+ * 使用者：
+ *   - 官網 /dashboard/workbench（NextAuth + 工作團隊角色）
+ *   - Telegram /telegram/workbench（Telegram WebApp + member_type=staff）
+ *
+ * 鐵律：工作台 UI 修改一律改這個檔案，不要在 page.tsx 內複製/分叉組件。
+ *       新增 Tab、改 Tab 順序、調整子面板都改這裡，兩端自動同步。
+ *
+ * 五 Tab：動態 / 交接 / 庫存 / 考勤 / 費用
+ */
+
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import TasksPanel from "./TasksPanel";

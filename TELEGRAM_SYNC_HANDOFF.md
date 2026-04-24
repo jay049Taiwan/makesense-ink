@@ -1,5 +1,20 @@
 # 工作台 × Telegram Bot 同步整合 — 交接文件
 
+## 進度狀態（2026/04/24 更新）
+
+### ✅ 已完成：UI 同步（兩個入口共用同一個 React 組件）
+- **共用組件**：`components/workbench/WorkbenchShell.tsx`（檔頭已加鐵律註解）
+- **官網入口**：`app/[locale]/dashboard/workbench/page.tsx`（NextAuth + staff 角色）
+- **Telegram 入口**：`app/telegram/workbench/page.tsx`（Telegram WebApp + member_type=staff）
+- **Telegram auth API**：`app/api/telegram/auth/route.ts`（HMAC 驗 initData → 查 Supabase）
+- **LayoutShell**：`/telegram/*` 路徑自動隱藏 Header/Footer
+- **保險機制**：兩個 page.tsx 均加註解「改 UI 請改 WorkbenchShell.tsx」+ CLAUDE.md「鐵律」章節
+
+### 🚧 待做：資料層同步（Notion ↔ Telegram Bot 雙向）
+下面第二部分起的內容（Telegram Bot 指令 ↔ Notion API ↔ 官網工作台的資料流）尚未實作。
+
+---
+
 ## 目標
 讓「工作團隊」角色的會員，在 **官網工作台（/dashboard/workbench）** 和 **Telegram Bot（Tagwin）** 之間雙向同步。
 

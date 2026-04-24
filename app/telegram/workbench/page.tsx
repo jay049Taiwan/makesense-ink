@@ -1,5 +1,9 @@
 "use client";
 
+// 工作台 UI 抽到 components/workbench/WorkbenchShell.tsx，跟 /dashboard/workbench 共用。
+// 這個檔案只負責「Telegram 入口」：WebApp initData 驗證、staff 角色檢查、容器邊距。
+// 改 UI 請改 WorkbenchShell.tsx，不要在這裡複製組件。
+
 import { useState, useEffect } from "react";
 import WorkbenchShell from "@/components/workbench/WorkbenchShell";
 

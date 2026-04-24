@@ -110,7 +110,22 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 - 俱樂部「話題觀點」→ /viewpoint-stroll
 - 俱樂部「選書選物」→ /bookstore
 
-## 工作台（/dashboard/workbench）
+## 工作台（兩個入口共用同一個 UI）
+
+⚠️ **鐵律：工作台 UI 一律改 `components/workbench/WorkbenchShell.tsx`**
+- 不要在 page.tsx 內複製 / fork 組件
+- 不要為 Telegram 端另寫一份 UI
+- 新增 Tab、改順序、調子面板都改 WorkbenchShell.tsx，兩邊自動同步
+
+### 兩個入口
+| 路徑 | 角色判斷 | 認證方式 | Header/Footer |
+|------|---------|---------|--------------|
+| `/dashboard/workbench` | session.role === "staff"（NextAuth）| Google/LINE OAuth | 顯示 |
+| `/telegram/workbench` | member_type === "staff"（Supabase）| Telegram WebApp initData HMAC | 隱藏（LayoutShell） |
+
+兩邊都 `import WorkbenchShell from "@/components/workbench/WorkbenchShell"`。
+
+### 五個 Tab
 | Tab | 功能 | 資料來源 |
 |-----|------|---------|
 | 📢 動態 | 庫存異動、系統通知 | DB07 |
@@ -118,10 +133,11 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | 📦 庫存 | 商品出貨/進貨/盤點 | DB07 |
 | ⏰ 考勤 | 打卡/日誌/請假/加班/班表 | DB05 |
 | 💰 費用 | 請款 + 請購 | DB06 |
-- 組件抽到 components/workbench/WorkbenchShell.tsx，官網和 Telegram 共用
+
 - 工作台直接走 Notion API，不經 Supabase
 - Tab Bar 用 sticky 定位（不是 fixed）
-- 分頁標籤：「個人紀錄」|「工作台」
+- 官網端分頁標籤：「個人紀錄」|「工作台」（Telegram 端無此標籤）
+- Telegram auth API：`/api/telegram/auth`（HMAC 驗 initData → 查 Supabase members.telegram_uid）
 
 ## 合作後台（/dashboard/partner）
 5 個 Tab：📊 概覽 | 🏪 資訊 | 📦 項目 | 💰 金流 | ⚙️ 設定
