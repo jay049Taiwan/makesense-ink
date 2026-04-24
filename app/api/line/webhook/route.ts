@@ -5,7 +5,7 @@ import { buildWelcomeFlex, buildTopicSuggestionFlex } from "@/lib/line-flex-temp
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { checkAiReplyThrottle } from "@/lib/line-ratelimit";
 
-export const maxDuration = 10;
+export const maxDuration = 30;
 
 /**
  * POST /api/line/webhook — LINE Platform webhook 入口
@@ -145,28 +145,36 @@ async function handleEvent(event: any) {
           }],
         });
       } else if (action === "topic_suggest") {
-        // 話題推薦：隨機選一個觀點 + 相關商品
+        // 先立即用 replyToken 回一個 placeholder，避免超時丟失 replyToken
+        // 再用 push 送真正的話題卡片
+        await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_1_enter" });
         try {
-          const message = await generateTopicSuggestion();
           await lineClient.replyMessage({
             replyToken,
+            messages: [{ type: "text", text: "🎲 幫你抽一個話題…" }],
+          });
+          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_2_reply_sent" });
+
+          const message = await generateTopicSuggestion();
+          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_3_generated", payload: { altText: (message as any)?.altText || null } });
+
+          await lineClient.pushMessage({
+            to: userId,
             messages: [message as any],
           });
-          await supabase.from("line_message_log").insert({
-            user_id: userId,
-            message_type: "reply",
-            template: "topic_suggest",
-          });
+          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "reply", template: "topic_suggest" });
         } catch (err: any) {
           console.error("[topic_suggest] Error:", err.message, err.stack);
-          // Fallback 用 text 訊息
+          await supabase.from("line_message_log").insert({
+            user_id: userId,
+            message_type: "error",
+            template: "topic_suggest_error",
+            payload: { message: err?.message || String(err), stack: err?.stack?.slice(0, 500) || null, response: err?.originalError?.response?.data || err?.response?.data || null },
+          });
           try {
-            await lineClient.replyMessage({
-              replyToken,
-              messages: [{
-                type: "text",
-                text: `話題推薦載入失敗了 😅\n請稍後再試一次，或直接瀏覽 /liff/viewpoints`,
-              }],
+            await lineClient.pushMessage({
+              to: userId,
+              messages: [{ type: "text", text: `話題推薦載入失敗了 😅\n錯誤：${err?.message || "unknown"}` }],
             });
           } catch {}
         }
