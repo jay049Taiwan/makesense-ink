@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
-import { geoMercator, geoPath } from "d3-geo";
+import { geoIdentity, geoPath } from "d3-geo";
 import { supabase } from "@/lib/supabase";
 import SafeImage from "@/components/ui/SafeImage";
 
@@ -56,7 +56,7 @@ export default function ViewpointExplorer() {
 
   const projection = useMemo(() => {
     if (!geo) return null;
-    return geoMercator().fitExtent([[20, 20], [WIDTH - 20, HEIGHT - 20]], geo as any);
+    return geoIdentity().reflectY(true).fitExtent([[20, 20], [WIDTH - 20, HEIGHT - 20]], geo as any);
   }, [geo]);
   const pathGen = useMemo(() => (projection ? geoPath(projection) : null), [projection]);
 
