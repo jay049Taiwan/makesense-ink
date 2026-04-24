@@ -246,7 +246,7 @@ function InventoryPanel() {
           <div className="flex items-center h-11 px-4 rounded-lg" style={{ border: "1px solid #ddd" }}>
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
               placeholder="輸入商品名稱搜尋..."
-              className="flex-1 text-sm outline-none bg-transparent" />
+              className="flex-1 min-w-0 text-sm outline-none bg-transparent" />
             <span style={{ color: "#999" }}>🔍</span>
           </div>
           {searchResults.length > 0 && (
