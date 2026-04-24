@@ -30,50 +30,56 @@ const TOWNSHIP_ORDER = [
   "蘇澳鎮", "三星鄉", "冬山鄉", "五結鄉", "大同鄉", "南澳鄉",
 ];
 
-// 中研院 百年歷史地圖 tile endpoints
-// 參考：https://gis.sinica.edu.tw/tileserver/
+// 免費公用地圖 tile 服務
 const MAP_LAYERS: { id: string; name: string; url: string; attribution: string; minZoom: number; maxZoom: number }[] = [
   {
-    id: "JM20K_1904",
-    name: "台灣堡圖（1904）",
-    url: "https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM20K_1904-png-{z}-{x}-{y}",
-    attribution: "© 中研院台灣百年歷史地圖",
-    minZoom: 7, maxZoom: 16,
+    id: "watercolor",
+    name: "水彩畫風（Stamen Watercolor）",
+    url: "https://tiles.stadiamaps.com/tiles/stamen_watercolor/{z}/{x}/{y}.jpg",
+    attribution: "© Stadia Maps © Stamen Design © OpenStreetMap",
+    minZoom: 2, maxZoom: 16,
   },
   {
-    id: "JM25K_1921",
-    name: "日治二萬五千（1921–28）",
-    url: "https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM25K_1921-png-{z}-{x}-{y}",
-    attribution: "© 中研院台灣百年歷史地圖",
-    minZoom: 7, maxZoom: 16,
+    id: "toner-lite",
+    name: "素描黑白（Stamen Toner Lite）",
+    url: "https://tiles.stadiamaps.com/tiles/stamen_toner_lite/{z}/{x}/{y}.png",
+    attribution: "© Stadia Maps © Stamen Design © OpenStreetMap",
+    minZoom: 2, maxZoom: 18,
   },
   {
-    id: "JM50K_1924",
-    name: "日治五萬分之一（1924–40）",
-    url: "https://gis.sinica.edu.tw/tileserver/file-exists.php?img=JM50K_1924-png-{z}-{x}-{y}",
-    attribution: "© 中研院台灣百年歷史地圖",
-    minZoom: 7, maxZoom: 15,
+    id: "positron",
+    name: "極簡淡彩（Carto Positron）",
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap © Carto",
+    minZoom: 2, maxZoom: 19,
   },
   {
-    id: "USA50K_1945",
-    name: "美軍五萬分之一（1944–45）",
-    url: "https://gis.sinica.edu.tw/tileserver/file-exists.php?img=USA50K_1945-png-{z}-{x}-{y}",
-    attribution: "© 中研院 / 美國陸軍地圖服務處",
-    minZoom: 7, maxZoom: 15,
+    id: "voyager",
+    name: "現代彩色（Carto Voyager）",
+    url: "https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+    attribution: "© OpenStreetMap © Carto",
+    minZoom: 2, maxZoom: 19,
   },
   {
-    id: "EMAP",
-    name: "台灣通用電子地圖",
-    url: "https://wmts.nlsc.gov.tw/wmts/EMAP/default/EPSG:3857/{z}/{y}/{x}",
-    attribution: "© 國土測繪中心",
-    minZoom: 6, maxZoom: 18,
+    id: "topo",
+    name: "戶外地形（OpenTopoMap）",
+    url: "https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png",
+    attribution: "© OpenTopoMap © OpenStreetMap SRTM",
+    minZoom: 2, maxZoom: 17,
   },
   {
-    id: "OSM",
-    name: "OpenStreetMap",
+    id: "satellite",
+    name: "衛星影像（Esri）",
+    url: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© Esri, Maxar, Earthstar Geographics",
+    minZoom: 2, maxZoom: 19,
+  },
+  {
+    id: "osm",
+    name: "標準（OpenStreetMap）",
     url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
     attribution: "© OpenStreetMap 貢獻者",
-    minZoom: 6, maxZoom: 18,
+    minZoom: 2, maxZoom: 19,
   },
 ];
 
@@ -94,7 +100,7 @@ export default function ViewpointExplorer() {
   const [viewpoints, setViewpoints] = useState<Viewpoint[]>([]);
   const [selected, setSelected] = useState<string>("宜蘭縣");
   const [activeVp, setActiveVp] = useState<string | null>(null);
-  const [layerId, setLayerId] = useState<string>("JM20K_1904");
+  const [layerId, setLayerId] = useState<string>("watercolor");
   const [mapReady, setMapReady] = useState(false);
 
   // 載入資料
@@ -161,7 +167,8 @@ export default function ViewpointExplorer() {
         maxZoom: layer.maxZoom,
         tileSize: 256,
         crossOrigin: true,
-      });
+        subdomains: layer.url.includes("{s}") ? ["a", "b", "c", "d"] : undefined,
+      } as any);
       tl.addTo(mapRef.current);
       tileLayerRef.current = tl;
     })();
@@ -359,7 +366,7 @@ export default function ViewpointExplorer() {
       `}</style>
 
       <h2 className="text-[1.5em] font-bold mb-2" style={{ color: "#1a1612", fontFamily: "'Noto Serif TC', serif" }}>觀點漫遊</h2>
-      <p className="text-[0.9em] mb-6" style={{ color: "#999" }}>從地圖出發，探索宜蘭的每個角落 — 底圖為中研院台灣百年歷史地圖</p>
+      <p className="text-[0.9em] mb-6" style={{ color: "#999" }}>從地圖出發，探索宜蘭的每個角落（右上可切換地圖風格）</p>
 
       <div className="grid sm:grid-cols-[140px_1fr] gap-4">
         {/* 左欄：鄉鎮 */}
