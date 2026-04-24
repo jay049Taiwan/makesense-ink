@@ -143,9 +143,10 @@ export default function ViewpointExplorer() {
                     onMouseEnter={() => setHovered(name)}
                     onMouseLeave={() => setHovered(null)}>
                     <path d={d}
-                      fill={active ? "#c4a882" : dim ? "#eee5d6" : isHover ? "#d4c4a8" : "#e8e0d4"}
-                      stroke={active ? "#5a3c20" : "#c8b8a0"}
-                      strokeWidth={active ? 2 : 0.8}
+                      fill={active ? "#c4a882" : dim ? "#f3ecdc" : isHover ? "#d4c4a8" : "#e8dcc4"}
+                      stroke={active ? "#5a3c20" : "#8b7355"}
+                      strokeWidth={active ? 2.5 : 1.2}
+                      strokeLinejoin="round"
                       style={{ transition: "fill 0.15s" }} />
                   </g>
                 );
