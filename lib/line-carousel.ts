@@ -66,7 +66,7 @@ function buildCarousel(altText: string, columns: ImageCarouselColumn[]): ImageCa
 export async function buildNewsletterCarousel(): Promise<ImageCarouselMessage> {
   const { data } = await supabaseAdmin
     .from("articles")
-    .select("id, notion_id, title, cover_url")
+    .select("id, notion_id, title, cover_url, related_product_ids")
     .eq("status", "published")
     .order("updated_at", { ascending: false })
     .limit(10);
@@ -79,14 +79,27 @@ export async function buildNewsletterCarousel(): Promise<ImageCarouselMessage> {
     }]);
   }
 
-  const columns = rows.map((r: any) => ({
-    imageUrl: toSquareImage(r.cover_url, r.title || "地方通訊"),
-    action: {
-      type: "uri" as const,
-      label: trimLabel(r.title || "閱讀文章"),
-      uri: buildLiffUrl(`post/${r.notion_id || r.id}`),
-    },
-  }));
+  // cover_url 為空時，退到第一個對應商品圖（與話題推薦一致）
+  const firstProdIds = Array.from(new Set(
+    rows.map((a: any) => (a.related_product_ids || [])[0]).filter(Boolean)
+  ));
+  const { data: prods } = firstProdIds.length
+    ? await supabaseAdmin.from("products").select("id, images").in("id", firstProdIds)
+    : { data: [] as any[] };
+  const prodImageMap = new Map((prods || []).map((p: any) => [p.id, firstImage(p.images)]));
+
+  const columns = rows.map((r: any) => {
+    const firstProdId = (r.related_product_ids || [])[0];
+    const cover = r.cover_url || (firstProdId ? prodImageMap.get(firstProdId) : null) || null;
+    return {
+      imageUrl: toSquareImage(cover, r.title || "地方通訊"),
+      action: {
+        type: "uri" as const,
+        label: trimLabel(r.title || "閱讀文章"),
+        uri: buildLiffUrl(`post/${r.notion_id || r.id}`),
+      },
+    };
+  });
   return buildCarousel("地方通訊", columns);
 }
 
