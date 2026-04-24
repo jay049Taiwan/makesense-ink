@@ -251,18 +251,37 @@ async function syncTopics() {
     ],
   });
 
-  // 預先撈 Supabase 四張表的 notion_id → id 對應表，給 relation 解析用
-  const [prodMapRes, evMapRes, artMapRes, topMapRes] = await Promise.all([
-    supabase.from("products").select("id, notion_id"),
-    supabase.from("events").select("id, notion_id"),
-    supabase.from("articles").select("id, notion_id"),
-    supabase.from("topics").select("id, notion_id"),
+  // 先收集所有 DB08 page 的 4 個 relation 欄位會引用到的 notion_id
+  // 再用 .in() 做精準查詢 — 避免 Supabase 預設 1000 筆 limit 把大表（如 products）截斷
+  const needProdNids = new Set<string>();
+  const needEventNids = new Set<string>();
+  const needArticleNids = new Set<string>();
+  const needTopicNids = new Set<string>();
+  for (const page of pages) {
+    const props = p(page);
+    extractRelation(props["對應標籤庫存"]?.relation).forEach((id: string) => needProdNids.add(id.replace(/-/g, "")));
+    extractRelation(props["對應標籤協作"]?.relation).forEach((id: string) => needEventNids.add(id.replace(/-/g, "")));
+    extractRelation(props["對應標籤表單"]?.relation).forEach((id: string) => needArticleNids.add(id.replace(/-/g, "")));
+    extractRelation(props["自對標籤"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
+  }
+  const fetchMap = async (table: string, nids: Set<string>): Promise<Map<string, string>> => {
+    if (nids.size === 0) return new Map();
+    // 分批（每 500 筆）避免 .in() 太長
+    const arr = [...nids];
+    const m = new Map<string, string>();
+    for (let i = 0; i < arr.length; i += 500) {
+      const chunk = arr.slice(i, i + 500);
+      const { data } = await supabase.from(table).select("id, notion_id").in("notion_id", chunk);
+      (data || []).forEach((r: any) => m.set(r.notion_id, r.id));
+    }
+    return m;
+  };
+  const [productIdByNid, eventIdByNid, articleIdByNid, topicIdByNid] = await Promise.all([
+    fetchMap("products", needProdNids),
+    fetchMap("events", needEventNids),
+    fetchMap("articles", needArticleNids),
+    fetchMap("topics", needTopicNids),
   ]);
-  const toMap = (r: any) => new Map((r.data || []).map((x: any) => [x.notion_id, x.id]));
-  const productIdByNid = toMap(prodMapRes);
-  const eventIdByNid = toMap(evMapRes);
-  const articleIdByNid = toMap(artMapRes);
-  const topicIdByNid = toMap(topMapRes);
   const resolveRel = (prop: any, m: Map<string, string>): string[] => {
     const ids = extractRelation(prop?.relation) || [];
     return ids.map((id: string) => m.get(id.replace(/-/g, ""))).filter(Boolean) as string[];
