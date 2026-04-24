@@ -17,22 +17,22 @@ export async function POST(req: NextRequest) {
   const signature = req.headers.get("x-line-signature") || "";
 
   // 先記錄收到的 webhook（簽章驗證前，方便除錯）
-  supabase.from("line_message_log").insert({
+  await supabase.from("line_message_log").insert({
     user_id: "webhook_entry",
     message_type: "webhook_received",
     template: signature ? "with_signature" : "no_signature",
     payload: { body_length: rawBody.length, has_signature: !!signature, body_preview: rawBody.slice(0, 200) },
-  }).then(() => {}, () => {});
+  });
 
   // 2. 驗證簽名
   if (!verifyWebhookSignature(rawBody, signature)) {
     console.warn("[line/webhook] Invalid signature");
-    supabase.from("line_message_log").insert({
+    await supabase.from("line_message_log").insert({
       user_id: "webhook_entry",
       message_type: "webhook_invalid_sig",
       template: "error",
       payload: { signature, body_preview: rawBody.slice(0, 200) },
-    }).then(() => {}, () => {});
+    });
     return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
@@ -45,27 +45,27 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // 4. 處理每個事件（不阻擋回應）
-  for (const event of events) {
-    // Debug: 記錄每個進來的事件到 Supabase（方便線上除錯）
-    supabase.from("line_message_log").insert({
+  // 4. 處理每個事件（必須 await，否則 Vercel serverless 會在回應後立刻 terminate，reply 來不及送出）
+  await Promise.all(events.map(async (event) => {
+    await supabase.from("line_message_log").insert({
       user_id: event.source?.userId || "unknown",
       message_type: "webhook_debug",
       template: event.type || "unknown",
       payload: { event_type: event.type, postback_data: event.postback?.data || null, message_type: event.message?.type || null },
-    }).then(() => {}, () => {});
+    });
 
-    handleEvent(event).catch((err) => {
+    try {
+      await handleEvent(event);
+    } catch (err: any) {
       console.error(`[line/webhook] event error:`, err.message, err.stack);
-      // 記錄錯誤到 Supabase
-      supabase.from("line_message_log").insert({
+      await supabase.from("line_message_log").insert({
         user_id: event.source?.userId || "unknown",
         message_type: "error",
         template: "handle_event_error",
         payload: { error: err.message, event_type: event.type, postback_data: event.postback?.data || null },
-      }).then(() => {}, () => {});
-    });
-  }
+      });
+    }
+  }));
 
   // 5. 永遠回 200（避免 LINE 重試）
   return NextResponse.json({ ok: true });
