@@ -47,38 +47,12 @@ const SEA_INK = "#6b8da8";
 const PIN_RED = "#b83a2e";
 const PIN_PAPER = "#fffbf0";
 
-// 主要河流（近似路徑，[lng, lat]）
-const RIVERS: { name: string; coords: [number, number][] }[] = [
-  {
-    name: "蘭陽溪",
-    coords: [
-      [121.42, 24.42], [121.47, 24.48], [121.54, 24.54], [121.60, 24.60],
-      [121.66, 24.63], [121.72, 24.66], [121.78, 24.68], [121.83, 24.70],
-    ],
-  },
-  {
-    name: "冬山河",
-    coords: [[121.81, 24.60], [121.82, 24.64], [121.81, 24.68], [121.81, 24.71]],
-  },
-  {
-    name: "宜蘭河",
-    coords: [[121.68, 24.76], [121.73, 24.74], [121.78, 24.72], [121.82, 24.70]],
-  },
-  {
-    name: "得子口溪",
-    coords: [[121.78, 24.88], [121.81, 24.89], [121.85, 24.89]],
-  },
-  {
-    name: "羅東溪",
-    coords: [[121.65, 24.64], [121.70, 24.66], [121.76, 24.67]],
-  },
-];
+// 主要河流（幹流，比較粗的那幾條）— 用來分層顯示
+const MAJOR_RIVERS = new Set([
+  "蘭陽溪", "宜蘭河", "冬山河", "得子口溪", "羅東溪",
+  "南澳北溪", "南澳南溪", "大溪川", "蘇澳溪", "安農溪",
+]);
 
-// 中央山脈東側山峰點（由北往南），[lng, lat]
-const MOUNTAIN_RANGE: [number, number][] = [
-  [121.50, 24.86], [121.53, 24.80], [121.50, 24.74], [121.55, 24.68],
-  [121.52, 24.62], [121.56, 24.56], [121.52, 24.50], [121.56, 24.44],
-];
 
 // 各鄉鎮在地地景特色（放大視角時顯示）
 type FeatureKind = "rice" | "mountain" | "forest" | "sea" | "hotspring" | "harbor" | "town" | "lake" | "onion" | "cape";
@@ -289,6 +263,9 @@ export default function ViewpointExplorer() {
   const roughLayerRef = useRef<SVGGElement | null>(null);
 
   const [geo, setGeo] = useState<GeoData | null>(null);
+  const [rivers, setRivers] = useState<any | null>(null);
+  const [peaks, setPeaks] = useState<any | null>(null);
+  const [water, setWater] = useState<any | null>(null);
   const [viewpoints, setViewpoints] = useState<Viewpoint[]>([]);
   const [selected, setSelected] = useState<string>("宜蘭縣");
   const [hovered, setHovered] = useState<string | null>(null);
@@ -296,6 +273,9 @@ export default function ViewpointExplorer() {
 
   useEffect(() => {
     fetch("/geo/yilan.geo.json").then(r => r.json()).then(setGeo).catch(() => setGeo(null));
+    fetch("/geo/yilan-rivers.geo.json").then(r => r.json()).then(setRivers).catch(() => setRivers(null));
+    fetch("/geo/yilan-peaks.geo.json").then(r => r.json()).then(setPeaks).catch(() => setPeaks(null));
+    fetch("/geo/yilan-water.geo.json").then(r => r.json()).then(setWater).catch(() => setWater(null));
     (async () => {
       const { data } = await supabase
         .from("topics")
@@ -408,34 +388,59 @@ export default function ViewpointExplorer() {
     });
   }, [pathGen, visibleFeatures, selected, selectedIsCounty, hovered]);
 
-  // 把 RIVERS 投影為 SVG 路徑
+  // 河流路徑（從 OSM 資料）
   const riverPaths = useMemo(() => {
-    if (!projection) return [];
-    return RIVERS.map(r => {
-      const pts = r.coords.map(c => projection(c)).filter(Boolean) as [number, number][];
-      if (pts.length < 2) return null;
-      // 用 Catmull-Rom 轉貝茲曲線，讓河流平滑彎曲
-      let d = `M ${pts[0][0]},${pts[0][1]}`;
-      for (let i = 0; i < pts.length - 1; i++) {
-        const p0 = pts[i - 1] || pts[i];
-        const p1 = pts[i];
-        const p2 = pts[i + 1];
-        const p3 = pts[i + 2] || p2;
-        const c1x = p1[0] + (p2[0] - p0[0]) / 6;
-        const c1y = p1[1] + (p2[1] - p0[1]) / 6;
-        const c2x = p2[0] - (p3[0] - p1[0]) / 6;
-        const c2y = p2[1] - (p3[1] - p1[1]) / 6;
-        d += ` C ${c1x},${c1y} ${c2x},${c2y} ${p2[0]},${p2[1]}`;
+    if (!pathGen || !rivers) return [];
+    // 找每條有名河流最長的那段當標籤段
+    const longestByName = new Map<string, number>();
+    rivers.features.forEach((f: any) => {
+      const n = f.properties?.name;
+      if (!n) return;
+      const len = f.geometry.coordinates.length;
+      const cur = longestByName.get(n) ?? 0;
+      if (len > cur) longestByName.set(n, len);
+    });
+    const labeled = new Set<string>();
+    return rivers.features.map((f: any) => {
+      const d = pathGen(f as any);
+      const name = f.properties?.name || null;
+      const isMajor = name && MAJOR_RIVERS.has(name);
+      const coords = f.geometry.coordinates;
+      const mid = coords[Math.floor(coords.length / 2)];
+      const midProj = projection ? projection(mid) : null;
+      let shouldLabel = false;
+      if (name && isMajor && !labeled.has(name) && coords.length === longestByName.get(name)) {
+        shouldLabel = true;
+        labeled.add(name);
       }
-      return { name: r.name, d, head: pts[0], tail: pts[pts.length - 1] };
-    }).filter(Boolean) as { name: string; d: string; head: [number, number]; tail: [number, number] }[];
-  }, [projection]);
+      return { name, d, isMajor, mid: midProj, shouldLabel };
+    }).filter((r: any) => r.d);
+  }, [pathGen, projection, rivers]);
 
-  // 投影山峰
-  const mountainPoints = useMemo(() => {
-    if (!projection) return [];
-    return MOUNTAIN_RANGE.map(c => projection(c)).filter(Boolean) as [number, number][];
-  }, [projection]);
+  // 湖泊路徑（從 OSM 資料）
+  const waterPaths = useMemo(() => {
+    if (!pathGen || !water) return [];
+    return water.features.map((f: any) => {
+      const d = pathGen(f as any);
+      const name = f.properties?.name || null;
+      const cen = pathGen.centroid(f as any);
+      return { name, d, cx: cen[0], cy: cen[1] };
+    }).filter((w: any) => w.d);
+  }, [pathGen, water]);
+
+  // 山峰點（從 OSM 資料）
+  const peakPoints = useMemo(() => {
+    if (!projection || !peaks) return [];
+    return peaks.features.map((f: any) => {
+      const p = projection(f.geometry.coordinates as [number, number]);
+      if (!p) return null;
+      return {
+        name: f.properties.name,
+        ele: f.properties.ele,
+        x: p[0], y: p[1],
+      };
+    }).filter(Boolean) as { name: string; ele: number | null; x: number; y: number }[];
+  }, [projection, peaks]);
 
   // 選中鄉鎮的輪廓路徑（用於裁切河流/山脈）
   const selectedTownshipD = useMemo(() => {
@@ -552,54 +557,82 @@ export default function ViewpointExplorer() {
             {/* 手繪鄉鎮 */}
             <g ref={roughLayerRef} />
 
-            {/* 地景（河流 + 山脈 + 在地特色）— 放大視角時裁切到該鄉鎮輪廓內 */}
+            {/* 地景（河流 + 山峰 + 湖泊 + 在地特色）— 放大視角時裁切到該鄉鎮輪廓內 */}
             <g clipPath={selectedIsCounty ? undefined : "url(#townClip)"}>
-              {/* 河流 */}
-              {riverPaths.map((r, idx) => (
-                <g key={`river-${idx}`} pointerEvents="none">
-                  <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth={selectedIsCounty ? 5 : 7} strokeLinecap="round" opacity="0.35" />
-                  <path d={r.d} fill="none" stroke={RIVER_BLUE} strokeWidth={selectedIsCounty ? 2.5 : 3.5} strokeLinecap="round" opacity="0.8" />
-                  <path d={r.d} fill="none" stroke="#4a7a95" strokeWidth="0.8" strokeLinecap="round" opacity="0.6" strokeDasharray="2 3" />
-                  {selectedIsCounty && inView(r.tail[0], r.tail[1]) && (
-                    <text
-                      x={(r.head[0] + r.tail[0]) / 2}
-                      y={(r.head[1] + r.tail[1]) / 2 - 3}
+              {/* 河流（OSM 真實資料） */}
+              {riverPaths.map((r: any, idx: number) => {
+                const major = r.isMajor;
+                const showInCounty = selectedIsCounty;
+                // 全縣視角只畫主要河；鄉鎮視角畫全部（clipPath 會裁到輪廓內）
+                if (showInCounty && !major) return null;
+                return (
+                  <g key={`river-${idx}`} pointerEvents="none">
+                    <path d={r.d} fill="none" stroke={RIVER_BLUE}
+                      strokeWidth={major ? (selectedIsCounty ? 4 : 5) : 1.5}
+                      strokeLinecap="round" strokeLinejoin="round"
+                      opacity={major ? 0.4 : 0.35} />
+                    <path d={r.d} fill="none" stroke={RIVER_BLUE}
+                      strokeWidth={major ? (selectedIsCounty ? 2 : 2.8) : 0.8}
+                      strokeLinecap="round" strokeLinejoin="round"
+                      opacity={major ? 0.85 : 0.6} />
+                    {selectedIsCounty && r.shouldLabel && r.mid && inView(r.mid[0], r.mid[1]) && (
+                      <text x={r.mid[0]} y={r.mid[1] - 4}
+                        fill="#3a5f75" fontSize="9" textAnchor="middle"
+                        style={{ fontFamily: "'Noto Serif TC', serif", fontStyle: "italic" }}>
+                        {r.name}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
+
+              {/* 湖泊 */}
+              {waterPaths.map((w: any, idx: number) => (
+                <g key={`water-${idx}`} pointerEvents="none">
+                  <path d={w.d} fill="#a8c8dc" stroke="#4a7a95" strokeWidth="0.8" opacity={0.85} />
+                  {!selectedIsCounty && w.name && inView(w.cx, w.cy) && (
+                    <text x={w.cx} y={w.cy + 2}
                       fill="#3a5f75" fontSize="9" textAnchor="middle"
-                      style={{ fontFamily: "'Noto Serif TC', serif", fontStyle: "italic" }}>
-                      {r.name}
+                      style={{ fontFamily: "'Noto Serif TC', serif" }}>
+                      {w.name}
                     </text>
                   )}
                 </g>
               ))}
 
-              {/* 山脈（中央山脈東側） */}
-              {(selectedIsCounty || ["大同鄉", "南澳鄉", "員山鄉", "三星鄉"].includes(selected)) &&
-                mountainPoints.map(([mx, my], i) => {
-                  if (!inView(mx, my)) return null;
-                  const scale = selectedIsCounty ? 1 : 1.4;
-                  return (
-                    <g key={`mt-${i}`} pointerEvents="none" opacity={0.9}>
-                      {[-1, 0, 1].map((k) => {
-                        const dx = k * 14 * scale;
-                        const baseY = my + 10 * scale;
-                        const topY = baseY - (k === 0 ? 22 * scale : 16 * scale);
-                        const peakX = mx + dx;
-                        return (
-                          <g key={k}>
-                            <path
-                              d={`M ${peakX - 10 * scale} ${baseY} L ${peakX} ${topY} L ${peakX + 10 * scale} ${baseY} Z`}
-                              fill={MOUNTAIN_FILL} stroke={INK_DARK} strokeWidth={0.8} strokeLinejoin="round" />
-                            {k === 0 && (
-                              <path
-                                d={`M ${peakX - 3.5 * scale} ${topY + 5} L ${peakX} ${topY} L ${peakX + 3.5 * scale} ${topY + 5}`}
-                                fill="none" stroke="#fff8e8" strokeWidth={1.2} strokeLinecap="round" opacity={0.85} />
-                            )}
-                          </g>
-                        );
-                      })}
-                    </g>
-                  );
-                })}
+              {/* 山峰（OSM 真實資料） */}
+              {peakPoints.map((p, i) => {
+                if (!inView(p.x, p.y)) return null;
+                const ele = p.ele || 500;
+                // 全縣視角：只顯示 >= 2500m 的高山
+                // 鄉鎮視角：顯示 >= 800m
+                const minEle = selectedIsCounty ? 2500 : 800;
+                if (ele < minEle) return null;
+                // 三角形大小依海拔
+                const size = Math.max(6, Math.min(18, 4 + Math.sqrt(ele / 100)));
+                const showSnow = ele >= 3000;
+                const showLabel = selectedIsCounty ? ele >= 3000 : ele >= 1500;
+                return (
+                  <g key={`peak-${i}`} pointerEvents="none" opacity={0.92}>
+                    <path
+                      d={`M ${p.x - size} ${p.y + size * 0.6} L ${p.x} ${p.y - size} L ${p.x + size} ${p.y + size * 0.6} Z`}
+                      fill={MOUNTAIN_FILL} stroke={INK_DARK} strokeWidth={0.7} strokeLinejoin="round" />
+                    {showSnow && (
+                      <path
+                        d={`M ${p.x - size * 0.35} ${p.y - size * 0.45} L ${p.x} ${p.y - size} L ${p.x + size * 0.35} ${p.y - size * 0.45}`}
+                        fill="none" stroke="#fff8e8" strokeWidth={1.2} strokeLinecap="round" opacity={0.9} />
+                    )}
+                    {showLabel && (
+                      <text x={p.x} y={p.y + size * 0.6 + 10}
+                        fill={INK_DARK} fontSize={selectedIsCounty ? 8 : 9}
+                        textAnchor="middle"
+                        style={{ fontFamily: "'Noto Serif TC', serif", fontWeight: 600 }}>
+                        {p.name}
+                      </text>
+                    )}
+                  </g>
+                );
+              })}
 
               {/* 在地特色地景（只在放大視角） */}
               {!selectedIsCounty && townFeaturePoints.map((f, i) => {
