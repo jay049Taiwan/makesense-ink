@@ -4,6 +4,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import Header from "./Header";
 import Footer from "./Footer";
+import FloatingCart from "./FloatingCart";
 
 function LayoutShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -19,7 +20,12 @@ function LayoutShellInner({ children }: { children: React.ReactNode }) {
     (isLiffMode && !isDashboard);
 
   if (isNoChrome) {
-    return <main style={{ background: "#f8f7f4", minHeight: "100vh" }}>{children}</main>;
+    return (
+      <>
+        <main style={{ background: "#f8f7f4", minHeight: "100vh" }}>{children}</main>
+        <FloatingCart />
+      </>
+    );
   }
 
   return (
