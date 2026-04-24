@@ -375,10 +375,11 @@ export default function ViewpointExplorer() {
       const node = rc.path(d, {
         stroke: active ? INK_DARK : INK_MID,
         strokeWidth: active ? 2.2 : 1.3,
+        // 全縣視角用斜線填色保留手繪感；鄉鎮放大後改純色底，避免斜線干擾閱讀
         fill: active ? LAND_ACTIVE : hover ? "#d9c89e" : LAND_BASE,
-        fillStyle: "hachure",
+        fillStyle: selectedIsCounty ? "hachure" : "solid",
         hachureAngle: 42,
-        hachureGap: selectedIsCounty ? 6 : 9,
+        hachureGap: 6,
         roughness: 1.5,
         bowing: 1.8,
         preserveVertices: true,
