@@ -43,7 +43,7 @@ async function main() {
       },
       {
         bounds: { x: 833, y: 0, width: 834, height: 843 },
-        action: { type: "uri" as const, label: "活動體驗", uri: liffUrl("liff/events") },
+        action: { type: "postback" as const, label: "活動體驗", data: "action=events_carousel", displayText: "🎪 看看近期活動" },
       },
       {
         bounds: { x: 1667, y: 0, width: 833, height: 843 },
@@ -52,11 +52,11 @@ async function main() {
       // 第二排
       {
         bounds: { x: 0, y: 843, width: 833, height: 843 },
-        action: { type: "uri" as const, label: "地方通訊", uri: liffUrl("liff/newsletter") },
+        action: { type: "postback" as const, label: "地方通訊", data: "action=newsletter_carousel", displayText: "📮 看看地方通訊" },
       },
       {
         bounds: { x: 833, y: 843, width: 834, height: 843 },
-        action: { type: "postback" as const, label: "話題推薦", data: "action=topic_suggest", displayText: "🎲 來個話題推薦" },
+        action: { type: "postback" as const, label: "話題推薦", data: "action=topic_carousel", displayText: "🎲 來個話題推薦" },
       },
       {
         bounds: { x: 1667, y: 843, width: 833, height: 843 },

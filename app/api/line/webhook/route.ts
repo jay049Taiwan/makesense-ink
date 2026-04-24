@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { lineClient, verifyWebhookSignature } from "@/lib/line";
 import { generateChatReply } from "@/lib/line-chat";
-import { buildWelcomeFlex, buildTopicSuggestionFlex } from "@/lib/line-flex-templates";
+import { buildWelcomeFlex } from "@/lib/line-flex-templates";
+import { buildNewsletterCarousel, buildEventsCarousel, buildTopicCarousel } from "@/lib/line-carousel";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { checkAiReplyThrottle } from "@/lib/line-ratelimit";
 
@@ -144,48 +145,13 @@ async function handleEvent(event: any) {
             text: "你好！我是旅人書店的 AI 助手小旅 🙋‍♀️\n\n隨時可以用中文、英文、日文或韓文問我問題喔！\n\n例如：\n• 最近有什麼活動？\n• 書店在哪裡？\n• What events do you have?",
           }],
         });
-      } else if (action === "topic_suggest") {
-        // 先立即用 replyToken 回一個 placeholder，避免超時丟失 replyToken
-        // 再用 push 送真正的話題卡片
-        await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_1_enter" });
-        try {
-          await lineClient.replyMessage({
-            replyToken,
-            messages: [{ type: "text", text: "🎲 幫你抽一個話題…" }],
-          });
-          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_2_reply_sent" });
-
-          const message = await generateTopicSuggestion();
-          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: "topic_step_3_generated", payload: { message } });
-
-          await lineClient.pushMessage({
-            to: userId,
-            messages: [message as any],
-          });
-          await supabase.from("line_message_log").insert({ user_id: userId, message_type: "reply", template: "topic_suggest" });
-        } catch (err: any) {
-          console.error("[topic_suggest] Error:", err.message, err.stack);
-          // LINE SDK 的錯誤詳情可能藏在多個地方
-          const lineErr = err?.originalError || err;
-          const details = {
-            message: err?.message || String(err),
-            statusCode: lineErr?.statusCode || lineErr?.response?.status || null,
-            body: lineErr?.response?.data || lineErr?.body || lineErr?.response?.body || null,
-            headers: lineErr?.response?.headers || null,
-          };
-          await supabase.from("line_message_log").insert({
-            user_id: userId,
-            message_type: "error",
-            template: "topic_suggest_error",
-            payload: details,
-          });
-          try {
-            await lineClient.pushMessage({
-              to: userId,
-              messages: [{ type: "text", text: `話題推薦載入失敗了 😅\n錯誤：${err?.message || "unknown"}` }],
-            });
-          } catch {}
-        }
+      } else if (
+        action === "topic_suggest" ||
+        action === "topic_carousel" ||
+        action === "newsletter_carousel" ||
+        action === "events_carousel"
+      ) {
+        await handleCarouselPostback(action, userId, replyToken);
       } else if (action === "confirm_attend") {
         const orderId = params.get("orderId") || "";
         await lineClient.replyMessage({
@@ -218,67 +184,52 @@ async function handleEvent(event: any) {
 }
 
 /**
- * 隨機生成話題推薦訊息 — 一個觀點 + 相關商品
+ * Rich Menu 三顆按鈕共用的 carousel 處理
+ * 先 reply 一個「載入中…」占用 replyToken 避免逾時，再 push 真正的 Image Carousel
  */
-async function generateTopicSuggestion() {
-  // 1. 隨機選一個 viewpoint 類型的 topic
-  const { data: topics } = await supabase
-    .from("topics")
-    .select("id, notion_id, name, summary")
-    .eq("status", "active")
-    .eq("tag_type", "viewpoint")
-    .limit(50);
+async function handleCarouselPostback(action: string, userId: string, replyToken: string) {
+  const labelMap: Record<string, string> = {
+    newsletter_carousel: "📮 幫你翻翻最近的地方通訊…",
+    events_carousel: "🎪 幫你挑幾個近期活動…",
+    topic_carousel: "🎲 幫你抽一輪好話題…",
+    topic_suggest: "🎲 幫你抽一輪好話題…",
+  };
+  await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: `${action}_step_1` });
 
-  if (!topics || topics.length === 0) {
-    return {
-      type: "text" as const,
-      text: "目前還沒有話題可以推薦 😅 請稍後再試",
-    };
+  try {
+    await lineClient.replyMessage({
+      replyToken,
+      messages: [{ type: "text", text: labelMap[action] || "載入中…" }],
+    });
+    await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: `${action}_step_2_reply_sent` });
+
+    let message: any;
+    if (action === "newsletter_carousel") message = await buildNewsletterCarousel();
+    else if (action === "events_carousel") message = await buildEventsCarousel();
+    else message = await buildTopicCarousel();
+
+    await supabase.from("line_message_log").insert({ user_id: userId, message_type: "webhook_debug", template: `${action}_step_3_generated`, payload: { columns: message?.template?.columns?.length } });
+
+    await lineClient.pushMessage({ to: userId, messages: [message] });
+    await supabase.from("line_message_log").insert({ user_id: userId, message_type: "reply", template: action });
+  } catch (err: any) {
+    console.error(`[${action}] Error:`, err.message, err.stack);
+    const lineErr = err?.originalError || err;
+    await supabase.from("line_message_log").insert({
+      user_id: userId,
+      message_type: "error",
+      template: `${action}_error`,
+      payload: {
+        message: err?.message || String(err),
+        statusCode: lineErr?.statusCode || lineErr?.response?.status || null,
+        body: lineErr?.response?.data || lineErr?.body || lineErr?.response?.body || null,
+      },
+    });
+    try {
+      await lineClient.pushMessage({
+        to: userId,
+        messages: [{ type: "text", text: `載入失敗了 😅 錯誤：${err?.message || "unknown"}` }],
+      });
+    } catch {}
   }
-
-  const topic = topics[Math.floor(Math.random() * topics.length)];
-  const topicId = topic.notion_id || topic.id;
-
-  // 2. 查這個觀點相關的商品
-  const { data: allProducts } = await supabase
-    .from("products")
-    .select("id, notion_id, name, price, images, related_topic_ids")
-    .eq("status", "active")
-    .gt("stock", 0)
-    .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
-    .limit(100);
-
-  const relatedProducts = (allProducts || []).filter((p) => {
-    let topicIds: string[] = [];
-    const raw = p.related_topic_ids;
-    if (Array.isArray(raw)) {
-      topicIds = raw;
-    } else if (typeof raw === "string") {
-      try { topicIds = JSON.parse(raw); } catch { topicIds = []; }
-    }
-    return Array.isArray(topicIds) && topicIds.includes(topicId);
-  });
-
-  // 如果沒有相關商品，隨機取 3 個
-  const picked = relatedProducts.length > 0
-    ? relatedProducts.slice(0, 3)
-    : (allProducts || []).sort(() => Math.random() - 0.5).slice(0, 3);
-
-  const products = picked.map((p: any) => {
-    let photo: string | null = null;
-    try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
-    return {
-      name: p.name,
-      price: p.price,
-      photo,
-      slug: p.notion_id || p.id,
-    };
-  });
-
-  return buildTopicSuggestionFlex({
-    topicName: topic.name,
-    topicSummary: topic.summary,
-    topicSlug: topicId,
-    products,
-  });
 }
