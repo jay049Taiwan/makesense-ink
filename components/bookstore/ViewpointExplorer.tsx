@@ -167,6 +167,33 @@ export default function ViewpointExplorer() {
                   </text>
                 );
               })}
+
+              {/* 龜山島專屬標籤（屬頭城鎮 MultiPolygon 但地理獨立） */}
+              {projection && (() => {
+                const p = projection([121.954, 24.839]);
+                if (!p) return null;
+                const [x, y] = p;
+                return (
+                  <text x={x} y={y + 14} fill="#7a5c40" fontSize={9} textAnchor="middle"
+                    pointerEvents="none" style={{ fontFamily: "'Noto Sans TC', sans-serif" }}
+                    opacity={0.75}>龜山島</text>
+                );
+              })()}
+
+              {/* 鄉鎮觀點數量徽章（縣級 view 時顯示）*/}
+              {selectedIsCounty && geo && pathGen && geo.features.map((f) => {
+                const name = f.properties.TOWNNAME;
+                const count = byTown.get(name)?.length ?? 0;
+                if (count === 0) return null;
+                const [cx, cy] = pathGen.centroid(f as any);
+                return (
+                  <g key={`badge-${name}`} pointerEvents="none">
+                    <circle cx={cx} cy={cy + 14} r={8} fill="#e8935a" stroke="#fff" strokeWidth={1.5} />
+                    <text x={cx} y={cy + 14} fill="#fff" fontSize={10} fontWeight={700}
+                      textAnchor="middle" dominantBaseline="central">{count}</text>
+                  </g>
+                );
+              })}
             </svg>
 
             {/* 左上角區域資訊 */}
@@ -183,19 +210,29 @@ export default function ViewpointExplorer() {
             )}
           </div>
 
-          {/* 觀點列表（地圖下方）*/}
+          {/* 觀點列表（地圖下方）— 卡片樣式 */}
           <div className="p-4" style={{ background: "#fff", borderTop: "1px solid #e0d8cc" }}>
             {currentList.length === 0 ? (
               <p className="text-sm text-center py-4" style={{ color: "#999" }}>
                 {selectedIsCounty ? "目前尚無觀點" : `${selected} 尚無觀點`}
               </p>
             ) : (
-              <div className="flex flex-wrap gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {currentList.map(vp => (
                   <Link key={vp.id} href={`/viewpoint/${vp.notion_id || vp.id}`}
-                    className="px-3 py-1.5 rounded-full text-xs hover:opacity-80"
-                    style={{ background: "#f2ede6", color: "#7a5c40", textDecoration: "none" }}>
-                    {vp.name}
+                    className="block p-3 rounded-lg hover:shadow-md transition-shadow"
+                    style={{ background: "#faf8f4", border: "1px solid #e8e0d4", textDecoration: "none" }}>
+                    <div className="flex items-start gap-2">
+                      <span className="inline-block text-[0.65em] px-1.5 py-0.5 rounded-[3px] flex-shrink-0 mt-0.5"
+                        style={{ background: "#E3F2FD", color: "#1565C0" }}>觀點</span>
+                      <div className="flex-1 min-w-0">
+                        <h4 className="text-sm font-semibold line-clamp-1" style={{ color: "#1a1612" }}>{vp.name}</h4>
+                        {vp.summary && <p className="text-xs mt-1 line-clamp-2" style={{ color: "#8b7355" }}>{vp.summary}</p>}
+                        {Array.isArray(vp.region) && vp.region.length > 0 && (
+                          <p className="text-[0.7em] mt-1" style={{ color: "#b89e7a" }}>📍 {vp.region.join("、")}</p>
+                        )}
+                      </div>
+                    </div>
                   </Link>
                 ))}
               </div>
