@@ -2,6 +2,8 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
+import Link from "next/link";
 
 interface OrderItem {
   id: string;
@@ -24,6 +26,8 @@ function SuccessContent() {
   const orderId = searchParams.get("orderId") || "";
   const isReview = status === "review";
   const orderNumber = orderId ? `MS-${orderId.slice(0, 8).toUpperCase()}` : "—";
+  const { data: session, status: sessionStatus } = useSession();
+  const isGuest = sessionStatus !== "loading" && !session?.user;
 
   const [order, setOrder] = useState<OrderData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -129,6 +133,33 @@ function SuccessContent() {
             </>
           )}
         </div>
+
+        {/* 訪客結帳 CTA：建立帳號保留訂單紀錄 */}
+        {isGuest && (
+          <div className="rounded-xl p-5 mt-4" style={{
+            background: "linear-gradient(135deg, rgba(78,205,196,0.08), rgba(232,147,90,0.08))",
+            border: "1px solid rgba(78,205,196,0.3)",
+          }}>
+            <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>
+              想保留這筆訂單紀錄？
+            </p>
+            <p className="text-xs leading-relaxed mb-3" style={{ color: "var(--color-bark)" }}>
+              建立帳號後可隨時查看訂單、追蹤報名結果、收到活動通知，並享有會員專屬內容。
+            </p>
+            <div className="flex gap-2">
+              <Link href={`/login?next=${encodeURIComponent("/dashboard/orders")}`}
+                className="flex-1 text-center py-2 rounded-md text-sm font-medium transition-opacity hover:opacity-90"
+                style={{ background: "var(--color-teal)", color: "#fff" }}>
+                建立帳號
+              </Link>
+              <Link href="/"
+                className="flex-1 text-center py-2 rounded-md text-sm transition-colors"
+                style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}>
+                先逛逛
+              </Link>
+            </div>
+          </div>
+        )}
 
         <p className="text-[0.65em] mt-6 text-center" style={{ color: "var(--color-mist)" }}>
           {isReview

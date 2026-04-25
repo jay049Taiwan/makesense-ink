@@ -6,6 +6,8 @@ import { fetchSBEvents, fetchSBArticles, fetchSBTopics, fetchSBProducts } from "
 import { supabase } from "@/lib/supabase";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
+import AddToCartButton from "@/components/ui/AddToCartButton";
+import QuickBookButton from "@/components/ui/QuickBookButton";
 
 export const metadata: Metadata = {
   title: "宜蘭文化俱樂部",
@@ -95,22 +97,29 @@ export default async function CultureClubPage() {
       <section className="py-6">
         <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>近期活動</h2>
         <div className="hscroll-track">
-          {events.length > 0 ? events.map((ev) => (
-            <Link
-              key={ev.id}
-              href={`/events/${ev.slug}`}
-              className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
-              style={{ border: "1px solid #e8e0d4", background: "#fff" }}
-            >
-              <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <SafeImage src={ev.cover_url} alt={ev.title} placeholderType="event" />
+          {events.length > 0 ? events.map((ev) => {
+            const ended = ev.date ? new Date(ev.date) < new Date() : false;
+            return (
+              <div
+                key={ev.id}
+                className="flex-shrink-0 w-[280px] rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
+                style={{ border: "1px solid #e8e0d4", background: "#fff" }}
+              >
+                <Link href={`/events/${ev.slug}`} className="block">
+                  <div className="aspect-[16/9] flex items-center justify-center" style={{ background: "#f2ede6" }}>
+                    <SafeImage src={ev.cover_url} alt={ev.title} placeholderType="event" />
+                  </div>
+                  <div className="p-3 pb-1.5">
+                    <h3 className="text-[0.9em] line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{ev.title}</h3>
+                    <p className="text-[0.75em]" style={{ color: "#999" }}>{ev.date?.substring(0, 10)}</p>
+                  </div>
+                </Link>
+                <div className="px-3 pb-3 mt-auto">
+                  <QuickBookButton slug={ev.slug} ended={ended} size="sm" />
+                </div>
               </div>
-              <div className="p-3">
-                <h3 className="text-[0.9em] line-clamp-2 mb-1" style={{ color: "#1a1612" }}>{ev.title}</h3>
-                <p className="text-[0.75em]" style={{ color: "#999" }}>{ev.date?.substring(0, 10)}</p>
-              </div>
-            </Link>
-          )) : (
+            );
+          }) : (
             <p className="text-sm" style={{ color: "var(--color-mist)" }}>目前沒有近期活動</p>
           )}
         </div>
@@ -205,23 +214,27 @@ export default async function CultureClubPage() {
         </div>
         <div className="hscroll-track">
           {products.map((g) => (
-            <Link
+            <div
               key={g.id}
-              href={`/product/${g.slug}`}
-              className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+              className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
               style={{ border: "1px solid #e8e0d4", background: "#fff" }}
             >
-              <div className="aspect-square flex items-center justify-center" style={{ background: "#f2ede6" }}>
-                <SafeImage src={g.photo} alt={g.name} placeholderType="product" />
+              <Link href={`/product/${g.slug}`} className="block">
+                <div className="aspect-square flex items-center justify-center" style={{ background: "#f2ede6" }}>
+                  <SafeImage src={g.photo} alt={g.name} placeholderType="product" />
+                </div>
+                <div className="p-2.5 pb-1.5">
+                  <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{g.name}</h3>
+                  <p className="text-[0.8em] font-medium mt-0.5" style={{ color: "#b5522a" }}>NT$ {g.price}</p>
+                  {g.author && g.author !== "—" && (
+                    <p className="text-[0.7em] mt-0.5" style={{ color: "#999" }}>{g.author} / {g.publisher}</p>
+                  )}
+                </div>
+              </Link>
+              <div className="px-2.5 pb-2.5 mt-auto">
+                <AddToCartButton productId={g.id} notionId={g.slug} name={g.name} price={g.price} stock={g.stock} subCategory={g.category} size="sm" />
               </div>
-              <div className="p-2.5">
-                <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{g.name}</h3>
-                <p className="text-[0.8em] font-medium mt-0.5" style={{ color: "#b5522a" }}>NT$ {g.price}</p>
-                {g.author && g.author !== "—" && (
-                  <p className="text-[0.7em] mt-0.5" style={{ color: "#999" }}>{g.author} / {g.publisher}</p>
-                )}
-              </div>
-            </Link>
+            </div>
           ))}
         </div>
       </section>

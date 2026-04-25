@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { fetchSBOwnProducts, fetchSBPartners, fetchSBAllEvents } from "@/lib/fetch-supabase";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
+import AddToCartButton from "@/components/ui/AddToCartButton";
+import QuickBookButton from "@/components/ui/QuickBookButton";
 
 export const metadata: Metadata = {
   title: "展售合作",
@@ -79,15 +81,19 @@ export default async function MarketBookingPage() {
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-3">
           {ownProducts.map((p) => (
-            <Link key={p.id} href={`/product/${p.slug}`}
-              className="rounded-lg overflow-hidden transition-all hover:shadow-md hover:scale-[1.02]"
+            <div key={p.id} className="rounded-lg overflow-hidden transition-all hover:shadow-md hover:scale-[1.02] flex flex-col"
               style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-              <div className="aspect-square flex items-center justify-end flex-col relative" style={{ background: "var(--color-parchment)" }}>
-                <div className="absolute inset-0"><ImagePlaceholder type="market" /></div>
-                <h3 className="text-[0.75em] font-medium line-clamp-2 text-center px-2 pb-2 relative z-10"
-                  style={{ color: "var(--color-ink)" }}>{p.name}</h3>
+              <Link href={`/product/${p.slug}`} className="block">
+                <div className="aspect-square flex items-center justify-end flex-col relative" style={{ background: "var(--color-parchment)" }}>
+                  <div className="absolute inset-0"><ImagePlaceholder type="market" /></div>
+                  <h3 className="text-[0.75em] font-medium line-clamp-2 text-center px-2 pb-2 relative z-10"
+                    style={{ color: "var(--color-ink)" }}>{p.name}</h3>
+                </div>
+              </Link>
+              <div className="px-2 pb-2 pt-1.5 mt-auto">
+                <AddToCartButton productId={p.id} notionId={p.slug} name={p.name} price={p.price} stock={p.stock} subCategory={p.category} size="sm" />
               </div>
-            </Link>
+            </div>
           ))}
         </div>
       </section>
@@ -133,10 +139,12 @@ export default async function MarketBookingPage() {
           {displayEvents.map((ev) => {
             const status = getEventStatus(ev.date);
             const st = statusStyle[status] || statusStyle["報名中"];
+            const ended = status === "已結束";
             return (
-              <Link key={ev.id} href={`/events/${ev.slug}`}
-                className="flex-shrink-0 rounded-lg overflow-hidden transition-all hover:shadow-md"
+              <div key={ev.id}
+                className="flex-shrink-0 rounded-lg overflow-hidden transition-all hover:shadow-md flex flex-col"
                 style={{ width: "calc((100% - 64px) / 5)", minWidth: 200, border: "1px solid var(--color-dust)", background: "#fff" }}>
+              <Link href={`/events/${ev.slug}`} className="block">
                 <div className="aspect-[16/10] flex items-center justify-center relative"
                   style={{ background: "linear-gradient(135deg, var(--color-parchment), var(--color-dust))" }}>
                   <ImagePlaceholder type="event" />
@@ -145,7 +153,7 @@ export default async function MarketBookingPage() {
                     {status}
                   </span>
                 </div>
-                <div className="p-3">
+                <div className="p-3 pb-1.5">
                   <h3 className="text-[0.85em] font-medium line-clamp-2 mb-1" style={{ color: "var(--color-ink)" }}>
                     {ev.title}
                   </h3>
@@ -154,6 +162,10 @@ export default async function MarketBookingPage() {
                   </p>
                 </div>
               </Link>
+              <div className="px-3 pb-3 mt-auto">
+                <QuickBookButton slug={ev.slug} ended={ended} size="sm" />
+              </div>
+              </div>
             );
           })}
         </div>

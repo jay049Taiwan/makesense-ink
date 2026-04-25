@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import SafeImage from "@/components/ui/SafeImage";
+import AddToCartButton from "@/components/ui/AddToCartButton";
 
 interface GoodsItem {
   id: string;
@@ -12,6 +13,7 @@ interface GoodsItem {
   photo: string | null;
   category: string | null;
   slug: string;
+  stock: number;
 }
 
 const sortOptions = ["預設", "最新", "價格", "瀏覽數"];
@@ -56,6 +58,7 @@ export default function GoodsSelectionPage() {
           photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
           category: p.category,
           slug: p.notion_id || p.id,
+          stock: p.stock || 0,
         }));
 
         setGoods(items);
@@ -88,17 +91,22 @@ export default function GoodsSelectionPage() {
           {/* Gs-S1: Featured carousel */}
           <div className="hscroll-track mb-8">
             {filtered.slice(0, 6).map((g) => (
-              <a key={g.id} href={`/product/${g.slug}`} className="flex-shrink-0 w-[200px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+              <div key={g.id} className="flex-shrink-0 w-[200px] rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
+                <a href={`/product/${g.slug}`} className="block">
+                  <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                    <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
+                  </div>
+                  <div className="p-2 pb-1">
+                    <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{g.title}</h3>
+                    <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{g.brand}</p>
+                    <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {g.price}</p>
+                  </div>
+                </a>
+                <div className="px-2 pb-2 mt-auto">
+                  <AddToCartButton productId={g.id} notionId={g.slug} name={g.title} price={g.price} stock={g.stock} subCategory="選物" size="sm" />
                 </div>
-                <div className="p-2">
-                  <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{g.title}</h3>
-                  <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{g.brand}</p>
-                  <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {g.price}</p>
-                </div>
-              </a>
+              </div>
             ))}
           </div>
 
@@ -161,17 +169,22 @@ export default function GoodsSelectionPage() {
               {/* Gs-S6: Product grid */}
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filtered.map((g) => (
-                  <a key={g.id} href={`/product/${g.slug}`} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+                  <div key={g.id} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
                     style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                    <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                      <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
+                    <a href={`/product/${g.slug}`} className="block">
+                      <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                        <SafeImage src={g.photo} alt={g.title} placeholderType="product" />
+                      </div>
+                      <div className="p-3 pb-1.5">
+                        <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>{g.title}</h3>
+                        <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{g.brand}</p>
+                        <p className="text-[0.85em] font-medium mt-1" style={{ color: "var(--color-rust)" }}>NT$ {g.price}</p>
+                      </div>
+                    </a>
+                    <div className="px-3 pb-3 mt-auto">
+                      <AddToCartButton productId={g.id} notionId={g.slug} name={g.title} price={g.price} stock={g.stock} subCategory="選物" size="sm" />
                     </div>
-                    <div className="p-3">
-                      <h3 className="text-[0.9em] line-clamp-2" style={{ color: "var(--color-ink)" }}>{g.title}</h3>
-                      <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{g.brand}</p>
-                      <p className="text-[0.85em] font-medium mt-1" style={{ color: "var(--color-rust)" }}>NT$ {g.price}</p>
-                    </div>
-                  </a>
+                  </div>
                 ))}
               </div>
             </div>

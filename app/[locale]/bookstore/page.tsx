@@ -7,6 +7,7 @@ import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { Link } from "@/i18n/routing";
+import AddToCartButton from "@/components/ui/AddToCartButton";
 
 export async function generateMetadata({ params }: { params: Promise<{ locale: string }> }): Promise<Metadata> {
   const { locale } = await params;
@@ -16,37 +17,50 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
 
 export const revalidate = 300;
 
-function ProductCard({ id, name, price, originalPrice, photo, author, publisher }: {
-  id: string; name: string; price: number; originalPrice?: number; photo?: string | null; author?: string; publisher?: string;
+function ProductCard({ id, name, price, originalPrice, photo, author, publisher, stock, subCategory }: {
+  id: string; name: string; price: number; originalPrice?: number; photo?: string | null; author?: string; publisher?: string; stock?: number; subCategory?: string | null;
 }) {
+  const notionId = id.replace(/-/g, "");
   return (
-    <Link
-      href={`/product/${id.replace(/-/g, "")}`}
-      className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+    <div
+      className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
       style={{ border: "1px solid #e8e0d4", background: "#fff" }}
     >
-      <div className="aspect-square flex items-center justify-center overflow-hidden" style={{ background: "#f2ede6" }}>
-        <SafeImage src={photo} alt={name} placeholderType="product" />
-      </div>
-      <div className="p-2.5">
-        <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{name}</h3>
-        <div className="flex items-center gap-1.5 mt-1">
-          {originalPrice && originalPrice > price ? (
-            <>
-              <span className="text-[0.75em] line-through" style={{ color: "#aaa" }}>NT${originalPrice}</span>
-              <span className="text-[0.8em] font-bold" style={{ color: "#e53e3e" }}>NT${price}</span>
-            </>
-          ) : (
-            <span className="text-[0.8em] font-medium" style={{ color: "#b5522a" }}>NT$ {price}</span>
+      <Link href={`/product/${notionId}`} className="block">
+        <div className="aspect-square flex items-center justify-center overflow-hidden" style={{ background: "#f2ede6" }}>
+          <SafeImage src={photo} alt={name} placeholderType="product" />
+        </div>
+        <div className="p-2.5 pb-1.5">
+          <h3 className="text-[0.85em] line-clamp-1 font-medium" style={{ color: "#1a1612" }}>{name}</h3>
+          <div className="flex items-center gap-1.5 mt-1">
+            {originalPrice && originalPrice > price ? (
+              <>
+                <span className="text-[0.75em] line-through" style={{ color: "#aaa" }}>NT${originalPrice}</span>
+                <span className="text-[0.8em] font-bold" style={{ color: "#e53e3e" }}>NT${price}</span>
+              </>
+            ) : (
+              <span className="text-[0.8em] font-medium" style={{ color: "#b5522a" }}>NT$ {price}</span>
+            )}
+          </div>
+          {(author || publisher) && (
+            <p className="text-[0.7em] mt-0.5 line-clamp-1" style={{ color: "#999" }}>
+              {author && author !== "—" ? author : ""}{author && author !== "—" && publisher ? " / " : ""}{publisher || ""}
+            </p>
           )}
         </div>
-        {(author || publisher) && (
-          <p className="text-[0.7em] mt-0.5 line-clamp-1" style={{ color: "#999" }}>
-            {author && author !== "—" ? author : ""}{author && author !== "—" && publisher ? " / " : ""}{publisher || ""}
-          </p>
-        )}
+      </Link>
+      <div className="px-2.5 pb-2.5 mt-auto">
+        <AddToCartButton
+          productId={id}
+          notionId={notionId}
+          name={name}
+          price={price}
+          stock={stock}
+          subCategory={subCategory}
+          size="sm"
+        />
       </div>
-    </Link>
+    </div>
   );
 }
 
@@ -149,7 +163,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         </div>
         <div className="hscroll-track">
           {books.map((book) => (
-            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} photo={book.photo} author={book.author} publisher={book.publisher} />
+            <ProductCard key={book.id} id={book.id} name={book.name} price={book.price} photo={book.photo} author={book.author} publisher={book.publisher} stock={book.stock} subCategory={book.category} />
           ))}
           {books.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>{t("noBooksYet")}</p>}
         </div>
@@ -163,7 +177,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         </div>
         <div className="hscroll-track">
           {goods.map((good) => (
-            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} photo={good.photo} author={good.author} publisher={good.publisher} />
+            <ProductCard key={good.id} id={good.id} name={good.name} price={good.price} photo={good.photo} author={good.author} publisher={good.publisher} stock={good.stock} subCategory={good.category} />
           ))}
           {goods.length === 0 && <p className="text-sm" style={{ color: "var(--color-mist)" }}>{t("noGoodsYet")}</p>}
         </div>
@@ -180,7 +194,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
           </div>
           <div className="hscroll-track">
             {showcase.products.map((product: any) => (
-              <ProductCard key={product.id} id={product.id} name={product.name} price={product.price} photo={product.photo} author={product.author} publisher={product.publisher} />
+              <ProductCard key={product.id} id={product.id} name={product.name} price={product.price} photo={product.photo} author={product.author} publisher={product.publisher} stock={product.stock} subCategory={product.category} />
             ))}
           </div>
         </section>

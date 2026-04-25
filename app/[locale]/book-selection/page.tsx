@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import SafeImage from "@/components/ui/SafeImage";
+import AddToCartButton from "@/components/ui/AddToCartButton";
 
 interface BookItem {
   id: string;
@@ -13,6 +14,7 @@ interface BookItem {
   photo: string | null;
   category: string | null;
   slug: string;
+  stock: number;
 }
 
 const sortOptions = ["預設", "最新", "價格"];
@@ -51,6 +53,7 @@ export default function BookSelectionPage() {
           photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
           category: p.category,
           slug: p.notion_id || p.id,
+          stock: p.stock || 0,
         }));
 
         setBooks(items);
@@ -77,18 +80,23 @@ export default function BookSelectionPage() {
           {/* Featured carousel */}
           <div className="hscroll-track mb-8">
             {books.slice(0, 6).map((book) => (
-              <a key={book.id} href={`/product/${book.slug}`}
-                className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+              <div key={book.id}
+                className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  <SafeImage src={book.photo} alt={book.title} placeholderType="product" />
+                <a href={`/product/${book.slug}`} className="block">
+                  <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                    <SafeImage src={book.photo} alt={book.title} placeholderType="product" />
+                  </div>
+                  <div className="p-2 pb-1">
+                    <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
+                    <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{book.author}</p>
+                    <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
+                  </div>
+                </a>
+                <div className="px-2 pb-2 mt-auto">
+                  <AddToCartButton productId={book.id} notionId={book.slug} name={book.title} price={book.price} stock={book.stock} subCategory="選書" size="sm" />
                 </div>
-                <div className="p-2">
-                  <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
-                  <p className="text-[0.75em]" style={{ color: "var(--color-muted)" }}>{book.author}</p>
-                  <p className="text-[0.8em] font-medium" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
-                </div>
-              </a>
+              </div>
             ))}
           </div>
 
@@ -120,19 +128,24 @@ export default function BookSelectionPage() {
           {/* Book grid */}
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {books.map((book) => (
-              <a key={book.id} href={`/product/${book.slug}`} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md"
+              <div key={book.id} className="rounded-lg overflow-hidden transition-shadow hover:shadow-md flex flex-col"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
-                <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  <SafeImage src={book.photo} alt={book.title} placeholderType="product" />
+                <a href={`/product/${book.slug}`} className="block">
+                  <div className="aspect-[3/4] flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
+                    <SafeImage src={book.photo} alt={book.title} placeholderType="product" />
+                  </div>
+                  <div className="p-3 pb-1.5">
+                    <h3 className="text-[0.9em] line-clamp-2 font-medium" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
+                    {book.author !== "—" && (
+                      <p className="text-[0.75em] mt-0.5" style={{ color: "var(--color-muted)" }}>{book.author}</p>
+                    )}
+                    <p className="text-[0.85em] font-medium mt-1" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
+                  </div>
+                </a>
+                <div className="px-3 pb-3 mt-auto">
+                  <AddToCartButton productId={book.id} notionId={book.slug} name={book.title} price={book.price} stock={book.stock} subCategory="選書" size="sm" />
                 </div>
-                <div className="p-3">
-                  <h3 className="text-[0.9em] line-clamp-2 font-medium" style={{ color: "var(--color-ink)" }}>{book.title}</h3>
-                  {book.author !== "—" && (
-                    <p className="text-[0.75em] mt-0.5" style={{ color: "var(--color-muted)" }}>{book.author}</p>
-                  )}
-                  <p className="text-[0.85em] font-medium mt-1" style={{ color: "var(--color-rust)" }}>NT$ {book.price}</p>
-                </div>
-              </a>
+              </div>
             ))}
           </div>
 
