@@ -47,8 +47,16 @@ export default async function SensePage() {
           下半部：發展歷程 / 營運實績 / 核心能力
           ════════════════════════════════════════ */}
       <Timeline />
-      <Impact stats={stats} />
-      <Capabilities />
+
+      {/* 05A 營運實績 + 05B 核心能力 — 並排 */}
+      <section style={{ background: "#fff" }}>
+        <div className="mx-auto px-4 py-12" style={{ maxWidth: 1300 }}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-14">
+            <Impact stats={stats} />
+            <Capabilities />
+          </div>
+        </div>
+      </section>
     </div>
   );
 }

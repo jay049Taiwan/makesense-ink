@@ -50,69 +50,94 @@ function CapabilityRow({ item, color }: { item: { name: string; weight: number; 
 
 export default function Capabilities() {
   return (
-    <section style={{ background: "var(--color-warm-white)" }}>
-      <div className="mx-auto px-4 py-12" style={{ maxWidth: 1200 }}>
-        <div className="mb-8">
-          <p className="text-xs tracking-[0.3em] mb-2" style={{ color: "var(--color-mist)", fontFamily: "ui-monospace, SFMono-Regular, monospace" }}>
-            — 06 / CAPABILITIES —
-          </p>
-          <h2 className="text-2xl font-bold" style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
-            核心能力
-          </h2>
-          <p className="text-sm mt-1" style={{ color: "var(--color-bark)" }}>
-            十二年累積出來的三組能力，彼此串連、相互支撐
-          </p>
+    <div>
+      {/* section header */}
+      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 8 }}>
+        <div style={{
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: 10.5, letterSpacing: "0.18em",
+          color: "var(--color-mist)", textTransform: "uppercase",
+        }}>
+          § 05B　Core Capabilities
         </div>
+        <div style={{
+          fontFamily: "ui-monospace, SFMono-Regular, monospace",
+          fontSize: 10, color: "var(--color-mist)", letterSpacing: "0.1em",
+        }}>
+          DYNAMIC
+        </div>
+      </div>
+      <h2 style={{ fontFamily: "var(--font-serif)", fontSize: 28, fontWeight: 500, color: "var(--color-ink)", marginBottom: 14, letterSpacing: "0.02em" }}>
+        核心能力
+      </h2>
+      <p style={{ fontSize: 12.5, lineHeight: 1.85, color: "var(--color-bark)", marginBottom: 20, paddingBottom: 16, borderBottom: "1px solid rgba(122,92,64,0.18)" }}>
+        與其說這是我們會做什麼，不如說這是十二年來，現場把我們磨成什麼樣子。
+      </p>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {CAPABILITY_GROUPS.map((g) => {
-            const color = GROUP_COLOR[g.id] || "var(--color-bark)";
-            return (
-              <div key={g.id} style={{
-                background: "#fff",
-                border: "1px solid rgba(122,92,64,0.2)",
-                padding: "20px 22px",
-              }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 22 }}>
+        {CAPABILITY_GROUPS.map((g, idx) => {
+          const color = GROUP_COLOR[g.id] || "var(--color-bark)";
+          const avg = Math.round((g.items.reduce((s, it) => s + it.weight, 0) / g.items.length) * 100);
+          return (
+            <div key={g.id}>
+              <div style={{ display: "flex", alignItems: "flex-start", gap: 14, marginBottom: 10 }}>
+                <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, paddingTop: 2 }}>
                   <span style={{
-                    width: 14, height: 14, borderRadius: "50%",
-                    background: color, display: "inline-block", flexShrink: 0,
+                    width: 22, height: 22, borderRadius: "50%",
+                    background: color, display: "inline-block",
                   }} />
-                  <div>
-                    <div style={{
-                      fontFamily: "ui-monospace, SFMono-Regular, monospace",
-                      fontSize: 9.5, letterSpacing: "0.2em",
-                      color: "var(--color-mist)", textTransform: "uppercase",
-                    }}>
-                      {g.sub}
+                  <span style={{
+                    fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                    fontSize: 9, color: "var(--color-mist)",
+                  }}>
+                    {String(idx + 1).padStart(2, "0")}
+                  </span>
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 12, marginBottom: 2 }}>
+                    <div>
+                      <div style={{
+                        fontFamily: "ui-monospace, SFMono-Regular, monospace",
+                        fontSize: 10, letterSpacing: "0.2em",
+                        color: "var(--color-mist)", textTransform: "uppercase",
+                      }}>
+                        {g.sub}
+                      </div>
+                      <div style={{
+                        fontFamily: "var(--font-serif)", fontSize: 19, fontWeight: 500,
+                        color: "var(--color-ink)",
+                      }}>
+                        {g.label}
+                      </div>
                     </div>
-                    <div style={{
-                      fontFamily: "var(--font-serif)", fontSize: 20, fontWeight: 500,
-                      color: "var(--color-ink)",
-                    }}>
-                      {g.label}
+                    <div style={{ whiteSpace: "nowrap" }}>
+                      <span style={{
+                        fontFamily: "var(--font-serif)", fontSize: 22, fontWeight: 500,
+                        color: color, lineHeight: 1,
+                      }}>{avg}</span>
+                      <span style={{ fontSize: 10, color: "var(--color-mist)" }}>/100</span>
                     </div>
                   </div>
+                  <p style={{ fontSize: 11.5, lineHeight: 1.7, color: "var(--color-bark)", marginTop: 4, marginBottom: 6 }}>
+                    {g.desc}
+                  </p>
+                  {g.items.map((it, i) => (
+                    <CapabilityRow key={i} item={it} color={color} />
+                  ))}
                 </div>
-                <p style={{
-                  fontSize: 12, lineHeight: 1.75,
-                  color: "var(--color-bark)", marginBottom: 8,
-                  paddingBottom: 8, borderBottom: "1px solid rgba(122,92,64,0.12)",
-                }}>
-                  {g.desc}
-                </p>
-                {g.items.map((it, i) => (
-                  <CapabilityRow key={i} item={it} color={color} />
-                ))}
               </div>
-            );
-          })}
-        </div>
-
-        <p className="text-[0.7em] mt-6" style={{ color: "var(--color-mist)" }}>
-          能力指標為內部評估，hover 任一項目顯示備註
-        </p>
+            </div>
+          );
+        })}
       </div>
-    </section>
+
+      <p style={{
+        fontFamily: "ui-monospace, SFMono-Regular, monospace",
+        fontSize: 9.5, color: "var(--color-mist)",
+        marginTop: 14, letterSpacing: "0.1em",
+      }}>
+        計算方式：過去 24 個月該能力相關專案的頻次 × 規模加權　·　hover 顯示備註
+      </p>
+    </div>
   );
 }
