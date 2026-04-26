@@ -53,6 +53,34 @@ function formatDate(year: number, month: number, day: number): string {
   return `${year}-${String(month + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
+// 用 Intl 取農曆日（瀏覽器原生支援，不需任何套件）
+// 回傳 1=初一, 15=十五, 其他=0
+function getLunarMark(date: Date): "初一" | "十五" | null {
+  try {
+    const f = new Intl.DateTimeFormat("zh-TW-u-ca-chinese", { day: "numeric" });
+    const parts = f.formatToParts(date);
+    const dayPart = parts.find((p) => p.type === "day");
+    const d = dayPart ? parseInt(dayPart.value, 10) : 0;
+    if (d === 1) return "初一";
+    if (d === 15) return "十五";
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+// 寒假/暑假判斷（約略範圍，每年微調可改這）
+//   寒假：1/20 – 2/13（含農曆春節前後）
+//   暑假：7/1 – 8/31
+function getSchoolBreak(year: number, month: number, day: number): "winter" | "summer" | null {
+  // month 是 0-indexed
+  if (month === 0 && day >= 20) return "winter"; // 1/20 - 1/31
+  if (month === 1 && day <= 13) return "winter"; // 2/1 - 2/13
+  if (month === 6) return "summer"; // 7 月
+  if (month === 7) return "summer"; // 8 月
+  return null;
+}
+
 // ── 狀態標籤顏色 ──
 const statusColors: Record<string, { bg: string; text: string }> = {
   published: { bg: "rgba(78,205,196,0.15)", text: "#3aa89f" },
@@ -222,9 +250,12 @@ export default function Calendar({
           const event = eventMap.get(dateStr);
           const dayActivities = activityMap.get(dateStr) || [];
           const bookedSlots = bookedSlotMap.get(dateStr) || new Set<string>();
+          const lunarMark = getLunarMark(new Date(viewYear, viewMonth, day));
+          const schoolBreak = getSchoolBreak(viewYear, viewMonth, day);
 
-          // Background
+          // Background — 優先級：選取 > 今天 > 市集 > 國定假日 > 週末 > 寒暑假底色
           let bgClass = "bg-white";
+          let bgStyle: React.CSSProperties = {};
           if (isSelected) bgClass = "bg-brand-teal/10 ring-2 ring-brand-teal ring-inset";
           else if (isToday) bgClass = "bg-cal-today";
           else if (event?.type === "market") bgClass = "bg-cal-market";
@@ -232,6 +263,8 @@ export default function Calendar({
           else if (isHoliday) bgClass = "bg-cal-holiday-bg";
           else if (isSunday) bgClass = "bg-cal-sunday";
           else if (isSaturday) bgClass = "bg-cal-saturday";
+          else if (schoolBreak === "winter") { bgClass = ""; bgStyle = { background: "rgba(91,163,217,0.08)" }; }
+          else if (schoolBreak === "summer") { bgClass = ""; bgStyle = { background: "rgba(184,148,60,0.08)" }; }
 
           // Text color
           let textClass = "text-foreground";
@@ -245,11 +278,26 @@ export default function Calendar({
             <div
               key={dateStr}
               onClick={() => isClickable && onDateClick(dateStr)}
+              style={bgStyle}
               className={`${cellHeight} border-b border-r border-border p-1 sm:p-1.5 transition-colors ${bgClass} ${
                 isClickable ? "cursor-pointer hover:bg-brand-teal/5" : ""
-              } overflow-hidden`}
+              } overflow-hidden relative`}
             >
-              <span className={`text-xs sm:text-sm font-medium ${textClass}`}>{day}</span>
+              <div className="flex items-start justify-between">
+                <span className={`text-xs sm:text-sm font-medium ${textClass}`}>{day}</span>
+                {lunarMark && (
+                  <span
+                    className="text-[8px] sm:text-[9px] px-1 py-px rounded leading-none"
+                    style={{
+                      background: lunarMark === "初一" ? "rgba(232,147,90,0.15)" : "rgba(180,140,90,0.15)",
+                      color: lunarMark === "初一" ? "#c97540" : "#8b6a40",
+                      fontFamily: "var(--font-serif)",
+                    }}
+                  >
+                    {lunarMark}
+                  </span>
+                )}
+              </div>
 
               {/* ── mode="default": 活動列表 ── */}
               {mode === "default" && dayActivities.length > 0 && (
@@ -326,12 +374,29 @@ export default function Calendar({
       </div>
 
       {/* Legend */}
-      <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted">
+      <div className="flex flex-wrap gap-x-4 gap-y-2 mt-3 text-xs text-muted">
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-cal-today border border-border" /> 今天
         </span>
         <span className="flex items-center gap-1">
           <span className="w-3 h-3 rounded bg-cal-holiday-bg border border-border" /> 國定假日
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded border border-border" style={{ background: "rgba(91,163,217,0.08)" }} /> 寒假
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 rounded border border-border" style={{ background: "rgba(184,148,60,0.08)" }} /> 暑假
+        </span>
+        <span className="flex items-center gap-1">
+          <span
+            className="text-[9px] px-1 py-px rounded leading-none"
+            style={{ background: "rgba(232,147,90,0.15)", color: "#c97540", fontFamily: "var(--font-serif)" }}
+          >初一</span>
+          <span
+            className="text-[9px] px-1 py-px rounded leading-none ml-0.5"
+            style={{ background: "rgba(180,140,90,0.15)", color: "#8b6a40", fontFamily: "var(--font-serif)" }}
+          >十五</span>
+          <span className="ml-1">農曆</span>
         </span>
         {mode === "market" && (
           <span className="flex items-center gap-1">
