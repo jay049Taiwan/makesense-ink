@@ -2,6 +2,7 @@
 
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { getSchoolBreak } from "@/lib/school-breaks";
 
 // Day of week headers (Monday start)
 const WEEKDAYS = ["一", "二", "三", "四", "五", "六", "日"];
@@ -69,17 +70,7 @@ function getLunarMark(date: Date): "初一" | "十五" | null {
   }
 }
 
-// 寒假/暑假判斷（約略範圍，每年微調可改這）
-//   寒假：1/20 – 2/13（含農曆春節前後）
-//   暑假：7/1 – 8/31
-function getSchoolBreak(year: number, month: number, day: number): "winter" | "summer" | null {
-  // month 是 0-indexed
-  if (month === 0 && day >= 20) return "winter"; // 1/20 - 1/31
-  if (month === 1 && day <= 13) return "winter"; // 2/1 - 2/13
-  if (month === 6) return "summer"; // 7 月
-  if (month === 7) return "summer"; // 8 月
-  return null;
-}
+// 寒暑假日期表搬到 lib/school-breaks.ts，每年由 Noah 手動更新
 
 // ── 狀態標籤顏色 ──
 const statusColors: Record<string, { bg: string; text: string }> = {
