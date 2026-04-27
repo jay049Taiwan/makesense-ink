@@ -86,15 +86,13 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, author_id, publisher_id")
     .eq("status", "active")
+    .eq("page_status", "有頁面")  // 只顯示獨立商品（票券/加購等隱藏）
     .gt("stock", 0)  // 只顯示有庫存的
     .order("updated_at", { ascending: false })
     .limit(limit);
 
   if (subCategory) {
     query = query.ilike("category", `%${subCategory}%`);
-  } else {
-    // 公開頁面只顯示選書、選物、數位，隱藏票券、加購折價、獎禮品等
-    query = query.or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位");
   }
 
   const { data, error } = await query;
@@ -145,6 +143,7 @@ export async function fetchSBOwnProducts(limit = 24) {
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, publisher_id")
     .eq("status", "active")
+    .eq("page_status", "有頁面")
     .gt("stock", 0)  // 只顯示有庫存的
     .in("publisher_id", brandIds)
     .order("updated_at", { ascending: false })

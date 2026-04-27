@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, use } from "react";
+import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
@@ -23,6 +24,7 @@ interface ProductData {
 
 export default function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = use(params);
+  const router = useRouter();
   const { addItem } = useCart();
   const [product, setProduct] = useState<ProductData | null>(null);
   const [loading, setLoading] = useState(true);
@@ -34,9 +36,15 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
       try {
         const { data } = await supabase
           .from("products")
-          .select("id, notion_id, name, price, stock, category, sub_category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status")
+          .select("id, notion_id, name, price, stock, category, sub_category, description, images, author_id, publisher_id, related_topic_ids, related_article_ids, status, page_status")
           .or(`notion_id.eq.${slug},id.eq.${slug}`)
           .maybeSingle();
+
+        // 非「有頁面」的商品（票券、加購等）→ 不存在獨立頁面，導回商品總覽
+        if (!data || data.page_status !== "有頁面" || data.status !== "active") {
+          router.replace("/goods-selection");
+          return;
+        }
 
         if (data) {
           // Resolve author/publisher names

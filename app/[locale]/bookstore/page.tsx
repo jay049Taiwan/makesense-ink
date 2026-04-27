@@ -97,7 +97,8 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         .from("products")
         .select("id, notion_id, name, price, images, author_id, publisher_id, stock, status")
         .in("id", [...allPids])
-        .eq("status", "active");
+        .eq("status", "active")
+        .eq("page_status", "有頁面");
       const { data: persons } = await supabase.from("persons").select("id, name");
       const personMap = new Map((persons || []).map((p: any) => [p.id, p.name]));
       const pMap = new Map((prods || []).map((p: any) => {

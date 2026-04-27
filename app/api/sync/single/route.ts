@@ -656,6 +656,7 @@ async function syncSingleProduct(nid: string, props: any) {
     related_topic_ids: JSON.stringify(relatedTopicIds),
     related_article_ids: JSON.stringify(relatedArticleIds),
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
+    page_status: st(props["頁面狀態"]) || "無頁面",
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
   const { error } = await supabase.from("products").upsert(row, { onConflict: "notion_id" });

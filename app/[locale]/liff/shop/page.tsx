@@ -171,6 +171,7 @@ export default function LiffShopPage() {
         .from("products")
         .select("id, notion_id, name, price, images, author_id, category, description")
         .eq("status", "active")
+        .eq("page_status", "有頁面")
         .gt("stock", 0)
         .or(catOrClause);
 
@@ -236,6 +237,7 @@ export default function LiffShopPage() {
         .from("products")
         .select("id, notion_id, name, price, images, author_id")
         .eq("status", "active")
+        .eq("page_status", "有頁面")
         .gt("stock", 0)
         .or(catOrClause)
         .order("created_at", { ascending: true })

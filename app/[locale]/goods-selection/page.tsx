@@ -33,6 +33,7 @@ export default function GoodsSelectionPage() {
         .from("products")
         .select("id, notion_id, name, price, stock, category, images, status, publisher_id")
         .eq("status", "active")
+        .eq("page_status", "有頁面")
         .gt("stock", 0)
         .eq("category", "商品/選物")
         .order("updated_at", { ascending: false })

@@ -51,6 +51,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
           .from("products")
           .select("id, notion_id, name, price, images, status")
           .eq("status", "active")
+          .eq("page_status", "有頁面")
           .limit(5);
 
         setRelatedProducts((prods || []).map(p => ({

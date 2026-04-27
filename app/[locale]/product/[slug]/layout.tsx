@@ -5,11 +5,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const { data } = await supabase
     .from("products")
-    .select("name, description, images, price")
+    .select("name, description, images, price, page_status, status")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
+    .eq("page_status", "有頁面")
+    .eq("status", "active")
     .maybeSingle();
 
-  if (!data) return { title: "商品 | 旅人書店" };
+  if (!data) return { title: "商品 | 旅人書店", robots: { index: false, follow: false } };
 
   let photo: string | undefined;
   try { const imgs = JSON.parse(data.images || "[]"); photo = imgs[0]; } catch {}

@@ -31,6 +31,7 @@ export default function BookSelectionPage() {
         .from("products")
         .select("id, notion_id, name, price, stock, category, images, status, author_id, publisher_id")
         .eq("status", "active")
+        .eq("page_status", "有頁面")
         .gt("stock", 0)
         .ilike("category", "%選書%")
         .order("updated_at", { ascending: false })

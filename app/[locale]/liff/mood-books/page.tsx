@@ -115,8 +115,8 @@ export default function MoodBooksPage() {
         .from("products")
         .select("id, notion_id, name, price, images")
         .eq("status", "active")
+        .eq("page_status", "有頁面")
         .gt("stock", 0)
-        .or("category.eq.商品/選書,category.eq.商品/選物,category.eq.商品/數位")
         .limit(20);
 
       // 前端過濾包含此觀點的商品

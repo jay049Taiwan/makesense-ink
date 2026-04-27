@@ -422,6 +422,7 @@ async function syncProducts(wb = false) {
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      page_status: extractStatus(props["頁面狀態"]?.status) || "無頁面",
     };
   });
 
