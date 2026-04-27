@@ -17,6 +17,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import TasksPanel from "./TasksPanel";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
+import ProductCreateModal from "./ProductCreateModal";
 
 type StaffTab = "動態" | "交接" | "庫存" | "考勤" | "費用";
 
@@ -154,12 +155,15 @@ function InventoryPanel() {
   const [submitting, setSubmitting] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
   const [showScanner, setShowScanner] = useState(false);
+  // 「查無此商品 → 跳建檔表單」流程的狀態
+  const [pendingNewSku, setPendingNewSku] = useState<string | null>(null);
+  const [askCreate, setAskCreate] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
 
-  // 掃碼結果處理：用 sku 或 barcode 比對 products，找到就加入 items
-  // 注意：先關閉 scanner 再查詢，避免 scanner 還在卸載時做網路請求造成 WebView race condition
+  // 掃碼結果處理：用 sku 或 barcode 比對 products，找到就加入 items；找不到問是否建檔
   const handleScan = async (code: string) => {
     setShowScanner(false);
-    // 等下一個 tick，讓 scanner 卸載完成再做網路請求
+    // 等下一個 tick，讓 scanner 卸載完成再做網路請求（避免 race condition）
     await new Promise((resolve) => setTimeout(resolve, 50));
     try {
       // 先用 sku 查（DB07「商品ID」同步到此欄位，包含 ISBN-13）
@@ -181,7 +185,10 @@ function InventoryPanel() {
         product = byBarcode;
       }
       if (!product) {
-        setResultMsg(`⚠️ 查無條碼 ${code} 對應的商品`);
+        // 查無此商品 → 跳「是否建檔」對話框
+        setPendingNewSku(code);
+        setAskCreate(true);
+        setResultMsg("");
         return;
       }
       addProduct({ notion_id: product.notion_id, name: product.name, price: product.price });
@@ -189,6 +196,14 @@ function InventoryPanel() {
     } catch (err: any) {
       setResultMsg(`❌ 查詢失敗：${err?.message || "未知錯誤"}`);
     }
+  };
+
+  // 建檔成功 callback：把新商品加到當前清單
+  const handleCreated = (product: { notion_id: string; name: string; price: number; sku: string }) => {
+    addProduct({ notion_id: product.notion_id, name: product.name, price: product.price });
+    setShowCreateModal(false);
+    setPendingNewSku(null);
+    setResultMsg(`✅ 已建檔並加入：${product.name}`);
   };
 
   useEffect(() => {
@@ -266,6 +281,44 @@ function InventoryPanel() {
   return (
     <>
     {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
+
+    {/* 查無此商品 → 是否建檔 對話框 */}
+    {askCreate && pendingNewSku && (
+      <div className="fixed inset-0 z-[200] flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.5)" }}>
+        <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: "#fff" }}>
+          <p className="text-base font-bold mb-2" style={{ color: "#333" }}>查無此商品</p>
+          <p className="text-sm mb-4" style={{ color: "#666" }}>
+            條碼 <code style={{ background: "#f8f7f4", padding: "2px 6px", borderRadius: 4 }}>{pendingNewSku}</code> 在系統中找不到，要建檔嗎？
+          </p>
+          <div className="flex justify-end gap-2">
+            <button
+              onClick={() => { setAskCreate(false); setPendingNewSku(null); }}
+              className="px-4 py-2 text-sm rounded-lg"
+              style={{ background: "transparent", border: "1px solid #ddd", color: "#666", cursor: "pointer" }}
+            >
+              取消
+            </button>
+            <button
+              onClick={() => { setAskCreate(false); setShowCreateModal(true); }}
+              className="px-4 py-2 text-sm rounded-lg text-white"
+              style={{ background: "#7a5c40", border: "none", cursor: "pointer" }}
+            >
+              建檔
+            </button>
+          </div>
+        </div>
+      </div>
+    )}
+
+    {/* 建檔表單 modal */}
+    {showCreateModal && pendingNewSku && (
+      <ProductCreateModal
+        initialSku={pendingNewSku}
+        onCreated={handleCreated}
+        onClose={() => { setShowCreateModal(false); setPendingNewSku(null); }}
+      />
+    )}
+
     <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
       <div className="py-3 sm:p-4 sm:border-r" style={{ borderColor: "#f0f0f0" }}>
         <div className="space-y-2 mb-6">
