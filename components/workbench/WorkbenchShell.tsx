@@ -143,7 +143,17 @@ function ActivityFeed() {
 // ═══════════════════════════════════════════
 // 庫存 — 串接 /api/staff/inventory（DB06→DB05）
 // ═══════════════════════════════════════════
-type InvItem = { name: string; quantity: number; price: number; cost_price: number; notion_id?: string };
+type InvItem = {
+  name: string;
+  quantity: number;
+  price: number;
+  cost_price: number;
+  notion_id?: string;
+  // 背景建檔流程用：
+  tempId?: string;     // 暫時 ID，建檔完更新為 notion_id 後清空
+  pending?: boolean;   // true = 背景建檔中，不能送出
+  error?: string;      // 建檔失敗訊息
+};
 type MiscItem = { name: string; amount: number };
 
 function InventoryPanel() {
@@ -199,12 +209,70 @@ function InventoryPanel() {
     }
   };
 
-  // 建檔成功 callback：把新商品加到當前清單
-  const handleCreated = (product: { notion_id: string; name: string; price: number; sku: string }) => {
-    addProduct({ notion_id: product.notion_id, name: product.name, price: product.price });
+  // 建檔表單填齊：modal 立刻關 + 樂觀加入清單（pending 狀態）+ 背景跑上傳/建檔
+  const handleCreateSubmit = async (draft: import("./ProductCreateModal").ProductDraft) => {
     setShowCreateModal(false);
     setPendingNewSku(null);
-    setResultMsg(`✅ 已建檔並加入：${product.name}`);
+
+    const tempId = `pending-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    setItems((prev) => [
+      ...prev,
+      { name: draft.name, quantity: 1, price: draft.price, cost_price: 0, tempId, pending: true },
+    ]);
+    setResultMsg(`⏳ ${draft.name} 建檔中…`);
+
+    try {
+      // 1. 上傳照片
+      const fd = new FormData();
+      fd.append("file", draft.photoFile);
+      fd.append("folder", "makesense/products");
+      const upRes = await fetch("/api/upload-image", { method: "POST", body: fd });
+      const upJson = await upRes.json();
+      if (!upRes.ok || !upJson.url) throw new Error(upJson.error || "照片上傳失敗");
+
+      // 2. 呼叫 create API
+      const createRes = await staffFetch("/api/staff/products/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sku: draft.sku,
+          name: draft.name,
+          price: draft.price,
+          photoUrl: upJson.url,
+          authorId: draft.authorId,
+          publisherId: draft.publisherId,
+        }),
+      });
+      const createJson = await createRes.json();
+      if (!createRes.ok || !createJson.ok) throw new Error(createJson.error || "建檔失敗");
+      const product = createJson.product;
+      if (!product?.notion_id) throw new Error("API 回傳缺少 notion_id");
+
+      // 3. 更新該品項：tempId → 真實 notion_id，pending 解除
+      setItems((prev) =>
+        prev.map((it) =>
+          it.tempId === tempId
+            ? {
+                ...it,
+                notion_id: product.notion_id,
+                name: product.name || draft.name,
+                price: product.price ?? draft.price,
+                pending: false,
+                tempId: undefined,
+              }
+            : it
+        )
+      );
+      setResultMsg(`✅ ${product.name || draft.name} 建檔完成`);
+    } catch (err: any) {
+      // 失敗：標記 error，給使用者看訊息＋移除按鈕
+      setItems((prev) =>
+        prev.map((it) =>
+          it.tempId === tempId ? { ...it, pending: false, error: err?.message || "建檔失敗" } : it
+        )
+      );
+      setResultMsg(`❌ 建檔失敗：${err?.message || "未知錯誤"}`);
+    }
   };
 
   useEffect(() => {
@@ -246,6 +314,8 @@ function InventoryPanel() {
 
   const submit = async () => {
     if (items.length === 0) { setResultMsg("⚠️ 請至少加入一個品項"); return; }
+    if (items.some(i => i.pending)) { setResultMsg("⏳ 還有商品在背景建檔，請等所有 ⏳ 圖示消失再送出"); return; }
+    if (items.some(i => i.error)) { setResultMsg("❌ 有建檔失敗的品項，請先移除"); return; }
     setSubmitting(true); setResultMsg("");
     try {
       const res = await staffFetch("/api/staff/inventory", {
@@ -315,7 +385,7 @@ function InventoryPanel() {
     {showCreateModal && pendingNewSku && (
       <ProductCreateModal
         initialSku={pendingNewSku}
-        onCreated={handleCreated}
+        onSubmit={handleCreateSubmit}
         onClose={() => { setShowCreateModal(false); setPendingNewSku(null); }}
       />
     )}
@@ -379,21 +449,34 @@ function InventoryPanel() {
           <p className="text-sm py-8 text-center" style={{ color: "#aaa" }}>請從上方搜尋並加入品項</p>
         ) : (
           <div className="mb-4">
-            {items.map((item, i) => (
-              <div key={i} className="flex gap-2 items-center mb-2 p-2 rounded" style={{ border: "1px solid #e8e0d4" }}>
-                <span className="flex-1 text-sm font-medium" style={{ color: "#333" }}>{item.name}</span>
-                <input type="number" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
-                  placeholder="數量" min={1}
-                  className="w-20 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
-                {operation !== "盤點" && (
-                  <input type="number" value={(operation === "進貨" ? item.cost_price : item.price) || ""}
-                    onChange={(e) => updateItem(i, operation === "進貨" ? "cost_price" : "price", Number(e.target.value))}
-                    placeholder={operation === "進貨" ? "進價" : "售價"}
-                    className="w-24 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
-                )}
-                <button onClick={() => removeItem(i)} className="text-xs px-2 py-1" style={{ color: "#e53e3e", background: "none", border: "none", cursor: "pointer" }}>✕</button>
-              </div>
-            ))}
+            {items.map((item, i) => {
+              const itemStatusIcon = item.pending ? "⏳" : item.error ? "❌" : null;
+              const itemStatusColor = item.pending ? "#7a5c40" : item.error ? "#e53e3e" : null;
+              return (
+                <div key={i} className="mb-2 p-2 rounded" style={{ border: `1px solid ${item.error ? "#e53e3e" : "#e8e0d4"}`, background: item.pending ? "#faf8f4" : "#fff" }}>
+                  <div className="flex gap-2 items-center">
+                    {itemStatusIcon && <span style={{ color: itemStatusColor!, fontSize: 14 }}>{itemStatusIcon}</span>}
+                    <span className="flex-1 text-sm font-medium" style={{ color: item.pending ? "#888" : "#333" }}>{item.name}</span>
+                    <input type="number" value={item.quantity || ""} onChange={(e) => updateItem(i, "quantity", Number(e.target.value))}
+                      placeholder="數量" min={1} disabled={item.pending}
+                      className="w-20 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd", background: item.pending ? "#f0f0f0" : "#fff" }} />
+                    {operation !== "盤點" && (
+                      <input type="number" value={(operation === "進貨" ? item.cost_price : item.price) || ""}
+                        onChange={(e) => updateItem(i, operation === "進貨" ? "cost_price" : "price", Number(e.target.value))}
+                        placeholder={operation === "進貨" ? "進價" : "售價"} disabled={item.pending}
+                        className="w-24 px-2 py-1 rounded border text-sm outline-none" style={{ borderColor: "#ddd", background: item.pending ? "#f0f0f0" : "#fff" }} />
+                    )}
+                    <button onClick={() => removeItem(i)} className="text-xs px-2 py-1" style={{ color: "#e53e3e", background: "none", border: "none", cursor: "pointer" }}>✕</button>
+                  </div>
+                  {item.pending && (
+                    <p className="text-[11px] mt-1 ml-5" style={{ color: "#7a5c40" }}>建檔中…完成後才能送出</p>
+                  )}
+                  {item.error && (
+                    <p className="text-[11px] mt-1 ml-5" style={{ color: "#e53e3e" }}>建檔失敗：{item.error}（請點 ✕ 移除）</p>
+                  )}
+                </div>
+              );
+            })}
           </div>
         )}
 
@@ -415,16 +498,38 @@ function InventoryPanel() {
         )}
 
         {/* 送出 */}
-        <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: "1px solid #f0f0f0" }}>
-          <span className="text-sm font-bold" style={{ color: "#333" }}>
-            {operation === "盤點" ? `品項數：${items.length}` : `合計：NT$ ${total.toLocaleString()}`}
-          </span>
-          <button onClick={submit} disabled={submitting || items.length === 0}
-            className="px-6 py-2 rounded-lg text-sm font-bold text-white"
-            style={{ background: submitting ? "#aaa" : "#7a5c40", border: "none", cursor: submitting ? "not-allowed" : "pointer", opacity: items.length === 0 ? 0.5 : 1 }}>
-            {submitting ? "送出中…" : `送出${operation}`}
-          </button>
-        </div>
+        {(() => {
+          const pendingCount = items.filter(i => i.pending).length;
+          const errorCount = items.filter(i => i.error).length;
+          const blocked = pendingCount > 0 || errorCount > 0;
+          const buttonLabel = submitting
+            ? "送出中…"
+            : pendingCount > 0
+              ? `⏳ 等 ${pendingCount} 件商品建檔中…`
+              : errorCount > 0
+                ? `⚠️ 有 ${errorCount} 件失敗請移除`
+                : `送出${operation}`;
+          return (
+            <div className="flex items-center justify-between mt-6 pt-4" style={{ borderTop: "1px solid #f0f0f0" }}>
+              <span className="text-sm font-bold" style={{ color: "#333" }}>
+                {operation === "盤點" ? `品項數：${items.length}` : `合計：NT$ ${total.toLocaleString()}`}
+              </span>
+              <button
+                onClick={submit}
+                disabled={submitting || items.length === 0 || blocked}
+                className="px-6 py-2 rounded-lg text-sm font-bold text-white"
+                style={{
+                  background: submitting || blocked ? "#aaa" : "#7a5c40",
+                  border: "none",
+                  cursor: submitting || blocked ? "not-allowed" : "pointer",
+                  opacity: items.length === 0 ? 0.5 : 1,
+                }}
+              >
+                {buttonLabel}
+              </button>
+            </div>
+          );
+        })()}
         {resultMsg && <p className="text-sm mt-3" style={{ color: resultMsg.startsWith("✅") ? "#2d5016" : "#e53e3e" }}>{resultMsg}</p>}
       </div>
     </div>

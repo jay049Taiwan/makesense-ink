@@ -2,13 +2,24 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
-import { staffFetch } from "@/lib/staff-fetch";
+
+/**
+ * 建檔表單資料（modal 收齊後傳給上層）
+ */
+export interface ProductDraft {
+  sku: string;
+  name: string;
+  price: number;
+  photoFile: File;
+  authorId?: string;
+  publisherId?: string;
+}
 
 interface ProductCreateModalProps {
   /** 從掃碼器來的條碼，預填到 SKU 欄位 */
   initialSku: string;
-  /** 建檔成功後回傳新商品給上層加入清單 */
-  onCreated: (product: { notion_id: string; name: string; price: number; sku: string }) => void;
+  /** 表單填好按「建檔並加入清單」時呼叫，上層負責背景跑上傳 + 建檔 */
+  onSubmit: (draft: ProductDraft) => void;
   /** 取消或關閉 modal */
   onClose: () => void;
 }
@@ -30,7 +41,7 @@ interface PersonOption {
  *   2. POST /api/staff/products/create → 同時寫 Notion DB07（待發佈）+ Supabase products（draft）
  *   3. onCreated() 回傳新商品給上層
  */
-export default function ProductCreateModal({ initialSku, onCreated, onClose }: ProductCreateModalProps) {
+export default function ProductCreateModal({ initialSku, onSubmit, onClose }: ProductCreateModalProps) {
   const [name, setName] = useState("");
   const [price, setPrice] = useState<string>("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -39,9 +50,7 @@ export default function ProductCreateModal({ initialSku, onCreated, onClose }: P
   const [publisherId, setPublisherId] = useState<string>("");
   const [persons, setPersons] = useState<PersonOption[]>([]);
   const [loadingPersons, setLoadingPersons] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
-  const [progressMsg, setProgressMsg] = useState("");
 
   // 抓 Supabase persons 給 dropdown 用
   useEffect(() => {
@@ -66,57 +75,23 @@ export default function ProductCreateModal({ initialSku, onCreated, onClose }: P
     setPhotoPreview(URL.createObjectURL(file));
   };
 
-  const submit = async () => {
+  // 表單填齊後立刻呼叫 onSubmit 並關閉 modal，
+  // 由父層負責背景跑「上傳照片 + 建檔」，使用者不用等
+  const submit = () => {
     setError("");
-    setProgressMsg("");
-
     if (!name.trim()) return setError("請輸入商品名稱");
     const priceNum = Number(price);
     if (!price || isNaN(priceNum) || priceNum < 0) return setError("請輸入有效售價");
     if (!photoFile) return setError("請上傳商品照片");
 
-    setSubmitting(true);
-
-    try {
-      // ── Step 1: 上傳照片到 Cloudinary ──
-      setProgressMsg("上傳照片中…");
-      const fd = new FormData();
-      fd.append("file", photoFile);
-      fd.append("folder", "makesense/products");
-      const upRes = await fetch("/api/upload-image", { method: "POST", body: fd });
-      const upJson = await upRes.json();
-      if (!upRes.ok || !upJson.url) throw new Error(upJson.error || "照片上傳失敗");
-
-      // ── Step 2: 呼叫 create API（staffFetch 自動帶 X-Telegram-Init-Data）──
-      setProgressMsg("建立商品中…");
-      const createRes = await staffFetch("/api/staff/products/create", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sku: initialSku,
-          name: name.trim(),
-          price: priceNum,
-          photoUrl: upJson.url,
-          authorId: authorId || undefined,
-          publisherId: publisherId || undefined,
-        }),
-      });
-      const createJson = await createRes.json();
-      if (!createRes.ok || !createJson.ok) throw new Error(createJson.error || "建立失敗");
-
-      const product = createJson.product;
-      if (!product?.notion_id) throw new Error("API 回傳缺少 notion_id");
-
-      onCreated({
-        notion_id: product.notion_id,
-        name: product.name || name.trim(),
-        price: product.price ?? priceNum,
-        sku: product.sku || initialSku,
-      });
-    } catch (err: any) {
-      setError(err?.message || "未知錯誤");
-      setSubmitting(false);
-    }
+    onSubmit({
+      sku: initialSku,
+      name: name.trim(),
+      price: priceNum,
+      photoFile,
+      authorId: authorId || undefined,
+      publisherId: publisherId || undefined,
+    });
   };
 
   return (
@@ -131,7 +106,7 @@ export default function ProductCreateModal({ initialSku, onCreated, onClose }: P
         {/* Header */}
         <div className="sticky top-0 flex items-center justify-between px-5 py-3" style={{ background: "#fff", borderBottom: "1px solid #f0f0f0" }}>
           <h2 className="text-base font-bold" style={{ color: "#333" }}>新增商品</h2>
-          <button onClick={onClose} disabled={submitting} className="text-sm px-3 py-1 rounded-lg" style={{ color: "#666", background: "none", border: "1px solid #ddd", cursor: submitting ? "not-allowed" : "pointer", opacity: submitting ? 0.5 : 1 }}>
+          <button onClick={onClose} className="text-sm px-3 py-1 rounded-lg" style={{ color: "#666", background: "none", border: "1px solid #ddd", cursor: "pointer" }}>
             取消
           </button>
         </div>
@@ -242,18 +217,20 @@ export default function ProductCreateModal({ initialSku, onCreated, onClose }: P
           </p>
 
           {error && <p className="text-sm" style={{ color: "#e53e3e" }}>⚠️ {error}</p>}
-          {progressMsg && <p className="text-sm" style={{ color: "#7a5c40" }}>⏳ {progressMsg}</p>}
+          <p className="text-[11px]" style={{ color: "#7a5c40" }}>
+            💡 按下「建檔並加入清單」會立刻關閉此視窗、把商品標記「⏳ 建檔中」加入清單，
+            背景跑上傳跟寫 Notion，期間你可以繼續掃別的條碼。
+          </p>
         </div>
 
         {/* Footer */}
         <div className="sticky bottom-0 px-5 py-3 flex items-center justify-end gap-2" style={{ background: "#fff", borderTop: "1px solid #f0f0f0" }}>
           <button
             onClick={submit}
-            disabled={submitting}
             className="px-5 py-2 rounded-lg text-sm font-bold text-white"
-            style={{ background: submitting ? "#aaa" : "#7a5c40", border: "none", cursor: submitting ? "not-allowed" : "pointer" }}
+            style={{ background: "#7a5c40", border: "none", cursor: "pointer" }}
           >
-            {submitting ? "建檔中…" : "建檔並加入清單"}
+            建檔並加入清單
           </button>
         </div>
       </div>
