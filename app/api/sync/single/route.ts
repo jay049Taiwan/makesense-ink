@@ -202,11 +202,11 @@ async function syncSingleEvent(nid: string, props: any) {
   // 對應地點、對應對象 relation → persons name
   const locRels = rel(props["對應地點"]);
   const guideRels = rel(props["對應對象"]);
-  const publisherRels = rel(props["對應發佈單位"]);
+  const publisherRels = rel(props["對應辦理單位"]);
   const locationName = locRels[0] ? await lookupPersonName(locRels[0]) : null;
   const guideName = guideRels[0] ? await lookupPersonName(guideRels[0]) : null;
 
-  // related_partner_ids：合併「對應對象」+「對應發佈單位」的 DB08 notion_ids（32碼無dash）
+  // related_partner_ids：合併「對應對象」+「對應辦理單位」的 DB08 notion_ids（32碼無dash）
   const relatedPartnerIds = [...new Set(
     [...guideRels, ...publisherRels].map(id => id.replace(/-/g, "")).filter(Boolean)
   )];
