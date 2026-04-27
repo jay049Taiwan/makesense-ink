@@ -35,30 +35,34 @@ export default function PartnerPage() {
 
   const displayName = isDev ? devRole.displayName : ((session as any)?.displayName || "合作單位");
   const email = isDev ? devRole.email : (session?.user?.email || "—");
+  // notionId：DB08 page ID（session callback 已設定），去 dash 轉 32 碼
+  const notionId = isDev ? null : ((session as any)?.notionId?.replace(/-/g, "") || null);
 
   const [activeTab, setActiveTab] = useState<PartnerTab>("概覽");
   const [products, setProducts] = useState<VendorProduct[]>([]);
+  const [activities, setActivities] = useState<{ id: string; title: string; date: string; type: string; registered: number; capacity: number }[]>([]);
   const [stats, setStats] = useState<VendorStats>(emptyStats);
 
-  // Load products and stats from Supabase
-  useState(() => {
+  // Load products + activities + stats from Supabase
+  // 商品：DB07「對應發行」= 此廠商 DB08 notion_id → products.publisher_notion_id
+  // 活動：DB04「對應對象」或「對應發佈單位」含此廠商 → events.related_partner_ids
+  useEffect(() => {
+    if (!notionId && !isDev) return;
     (async () => {
-      // Find partner by email
-      const { data: partner } = await supabase
-        .from("partners")
-        .select("id")
-        .eq("contact->>email" as any, email)
-        .maybeSingle();
-
-      if (!partner?.id) return;
-
-      // Fetch products
-      const { data: prods } = await supabase
+      // ── 商品 ──
+      let prodsQuery = supabase
         .from("products")
-        .select("id, name, price, stock, description, images, status")
-        .eq("publisher_id", partner.id)
+        .select("id, name, price, stock, description, images, status, publisher_notion_id")
         .order("created_at", { ascending: false });
 
+      if (notionId) {
+        prodsQuery = prodsQuery.eq("publisher_notion_id", notionId);
+      } else {
+        // dev mode fallback: 顯示前 20 筆
+        prodsQuery = prodsQuery.limit(20);
+      }
+
+      const { data: prods } = await prodsQuery;
       if (prods) {
         setProducts(prods.map(p => ({
           id: p.id,
@@ -69,7 +73,6 @@ export default function PartnerPage() {
           note: p.description || "",
           active: p.status === "active",
         })));
-
         const activeProds = prods.filter(p => p.status === "active");
         setStats(prev => ({
           ...prev,
@@ -78,28 +81,58 @@ export default function PartnerPage() {
         }));
       }
 
-      // Fetch partner performance stats
-      const { data: perf } = await supabase
-        .from("partner_performance")
-        .select("revenue, attendance, rating")
-        .eq("partner_id", partner.id);
+      // ── 活動（DB04 對應對象 / 對應發佈單位 含此廠商）──
+      if (notionId) {
+        const { data: evts } = await supabase
+          .from("events")
+          .select("id, notion_id, title, event_date, theme, capacity, status")
+          .contains("related_partner_ids", [notionId])
+          .order("event_date", { ascending: false })
+          .limit(50);
 
-      if (perf && perf.length > 0) {
-        const totalRev = perf.reduce((s, r) => s + (r.revenue || 0), 0);
-        const totalAtt = perf.reduce((s, r) => s + (r.attendance || 0), 0);
-        const ratings = perf.filter(r => r.rating).map(r => r.rating!);
-        const avg = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : "—";
-        setStats(prev => ({
-          ...prev,
-          totalRevenue: totalRev,
-          totalRegistrations: totalAtt,
-          avgRating: avg,
-          totalActivities: perf.length,
-          totalSold: totalAtt,
-        }));
+        if (evts) {
+          setActivities(evts.map(e => ({
+            id: e.notion_id || e.id,
+            title: e.title,
+            date: e.event_date ? new Date(e.event_date).toLocaleDateString("zh-TW") : "日期待定",
+            type: e.theme || "活動",
+            registered: 0,
+            capacity: e.capacity || 0,
+          })));
+        }
+      }
+
+      // ── 績效數據 ──
+      // 先用 email 找 partner.id（績效表仍用 partner_id uuid）
+      const { data: partner } = await supabase
+        .from("partners")
+        .select("id")
+        .eq("contact->>email" as any, email)
+        .maybeSingle();
+
+      if (partner?.id) {
+        const { data: perf } = await supabase
+          .from("partner_performance")
+          .select("revenue, attendance, rating")
+          .eq("partner_id", partner.id);
+
+        if (perf && perf.length > 0) {
+          const totalRev = perf.reduce((s, r) => s + (r.revenue || 0), 0);
+          const totalAtt = perf.reduce((s, r) => s + (r.attendance || 0), 0);
+          const ratings = perf.filter(r => r.rating).map(r => r.rating!);
+          const avg = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : "—";
+          setStats(prev => ({
+            ...prev,
+            totalRevenue: totalRev,
+            totalRegistrations: totalAtt,
+            avgRating: avg,
+            totalActivities: perf.length,
+            totalSold: totalAtt,
+          }));
+        }
       }
     })();
-  });
+  }, [notionId, email, isDev]);
 
   const pageTabs = [
     { href: "/dashboard", label: "個人紀錄", exact: true },
@@ -133,7 +166,7 @@ export default function PartnerPage() {
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} />}
         {activeTab === "資訊" && <VendorInfo products={products} setProducts={setProducts} />}
-        {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} />}
+        {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings />}
       </div>
@@ -350,16 +383,7 @@ function isExpired(dateStr: string) {
 
 interface VendorActivity { id: string; title: string; date: string; type: string; registered: number; capacity: number }
 
-function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
-  const [activities, setActivities] = useState<VendorActivity[]>([]);
-
-  // TODO: 待 market_vendor_slots 資料表建立後，改為查詢廠商有參與的場次
-  // 目前暫不顯示活動清單，避免廠商看到不相干的活動
-  useEffect(() => {
-    // 暫時保留空陣列，等 Supabase market_vendor_slots 表建好後接入
-    setActivities([]);
-  }, []);
-
+function VendorItems({ vendorProducts, activities }: { vendorProducts: VendorProduct[]; activities: VendorActivity[] }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({}); // activityId → productIds
   const [generated, setGenerated] = useState<Record<string, boolean>>({}); // activityId → done

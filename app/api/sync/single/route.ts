@@ -202,8 +202,14 @@ async function syncSingleEvent(nid: string, props: any) {
   // 對應地點、對應對象 relation → persons name
   const locRels = rel(props["對應地點"]);
   const guideRels = rel(props["對應對象"]);
+  const publisherRels = rel(props["對應發佈單位"]);
   const locationName = locRels[0] ? await lookupPersonName(locRels[0]) : null;
   const guideName = guideRels[0] ? await lookupPersonName(guideRels[0]) : null;
+
+  // related_partner_ids：合併「對應對象」+「對應發佈單位」的 DB08 notion_ids（32碼無dash）
+  const relatedPartnerIds = [...new Set(
+    [...guideRels, ...publisherRels].map(id => id.replace(/-/g, "")).filter(Boolean)
+  )];
 
   // 對應庫存 relation → DB07 票券（每個都是一種票種）
   const ticketRels = rel(props["對應庫存"]);
@@ -240,6 +246,7 @@ async function syncSingleEvent(nid: string, props: any) {
     description: tx(props["簡介摘要"]),
     location: locationName,
     guide: guideName,
+    related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
@@ -618,6 +625,8 @@ async function syncSingleProduct(nid: string, props: any) {
     const { data } = await supabase.from("persons").select("id").eq("notion_id", clean).maybeSingle();
     publisherId = data?.id || null;
   }
+  // publisher_notion_id：直接存 DB08 notion_id（不管是 persons/partners/staff 都能查）
+  const publisherNotionId = pubRels[0] ? pubRels[0].replace(/-/g, "") : null;
 
   const cat = sel(props["庫存類型"]) || "";
   const sub = sel(props["商品選項"]) || "";
@@ -651,6 +660,7 @@ async function syncSingleProduct(nid: string, props: any) {
     images: JSON.stringify(fileUrls(props["產品照片"])),
     author_id: authorId,
     publisher_id: publisherId,
+    publisher_notion_id: publisherNotionId,
     sub_category: sub || null,
     supplier_type: sel(props["進貨屬性"]) || null,
     related_topic_ids: JSON.stringify(relatedTopicIds),
