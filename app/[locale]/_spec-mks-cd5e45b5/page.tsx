@@ -4,7 +4,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "makesense.ink 設計規格 / Design Spec",
   description: "makesense.ink 完整設計規格 — 給 AI / 設計師 / 工程師查找的單一入口。包含品牌、設計 tokens、頁面清單、元件、技術棧、修改提案格式。",
-  robots: { index: true, follow: false },
+  robots: { index: false, follow: false, noarchive: true, nosnippet: true, googleBot: { index: false, follow: false } },
 };
 
 export const dynamic = "force-static";
@@ -89,7 +89,7 @@ export default function DesignSpecPage() {
         <div className="mt-4 flex flex-wrap gap-3 text-xs" style={{ color: "var(--color-mist)" }}>
           <a href="https://makesense.ink" className="hover:underline">🌐 makesense.ink</a>
           <a href="https://github.com/jay049Taiwan/makesense-ink" className="hover:underline">📦 GitHub</a>
-          <a href="/api/design-spec" className="hover:underline">📄 純文字版（Markdown）</a>
+          <a href="/api/_spec-mks-cd5e45b5" className="hover:underline">📄 純文字版（Markdown）</a>
         </div>
       </header>
 
@@ -97,8 +97,8 @@ export default function DesignSpecPage() {
         <p className="text-sm mb-3" style={{ color: "var(--color-bark)" }}>把下面這段直接複製貼上給 Claude Design / GPT / 任何 AI：</p>
         <pre className="text-[12px] p-4 rounded overflow-x-auto" style={{ background: "var(--color-parchment)", color: "var(--color-ink)", lineHeight: 1.6 }}>
 {`我官網是 makesense.ink — 宜蘭在地的文化品牌（旅人書店 + 宜蘭文化俱樂部）。
-完整設計規格在這頁可以查：https://makesense.ink/design-spec
-（或純文字版 https://makesense.ink/api/design-spec）
+完整設計規格在這頁可以查：https://makesense.ink/_spec-mks-cd5e45b5
+（或純文字版 https://makesense.ink/api/_spec-mks-cd5e45b5）
 
 請先讀過上面那頁，了解品牌調性、設計 tokens、頁面結構，
 然後針對 [我要改的部分] 給 [文字建議 / 視覺草圖 / code]。
@@ -236,7 +236,7 @@ export default function DesignSpecPage() {
 【限制】 例：保留行事曆、不要動 Footer
 【交付物】 例：給我 3 個視覺方向草圖 / 給我可貼回 makesense.ink 的 React JSX
 
-請先讀過 https://makesense.ink/design-spec 再動手。`}
+請先讀過 https://makesense.ink/_spec-mks-cd5e45b5 再動手。`}
         </pre>
       </Section>
 
@@ -247,7 +247,7 @@ export default function DesignSpecPage() {
         </p>
         <p className="mt-2">
           想看 markdown 純文字版（適合餵給 GPT 等不擅長解析 HTML 的 AI）：
-          {" "}<a href="/api/design-spec" className="underline">/api/design-spec</a>
+          {" "}<a href="/api/_spec-mks-cd5e45b5" className="underline">/api/_spec-mks-cd5e45b5</a>
         </p>
         <p className="mt-3">
           <Link href="/" style={{ color: "var(--color-teal)" }}>← 回 makesense.ink 首頁</Link>

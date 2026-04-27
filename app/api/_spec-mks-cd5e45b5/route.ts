@@ -6,7 +6,7 @@ export const revalidate = 3600;
 const SPEC = `# makesense.ink Design Spec
 
 > 給 AI / 設計師 / 工程師查找用的單一規格入口。
-> 完整 HTML 版：https://makesense.ink/design-spec
+> 完整 HTML 版：https://makesense.ink/_spec-mks-cd5e45b5
 > Live site：https://makesense.ink
 > GitHub：https://github.com/jay049Taiwan/makesense-ink
 
@@ -14,7 +14,7 @@ const SPEC = `# makesense.ink Design Spec
 
 \`\`\`
 我官網是 makesense.ink — 宜蘭在地的文化品牌（旅人書店 + 宜蘭文化俱樂部）。
-完整設計規格在 https://makesense.ink/design-spec
+完整設計規格在 https://makesense.ink/_spec-mks-cd5e45b5
 請先讀過上面那頁，了解品牌調性、設計 tokens、頁面結構，
 然後針對 [我要改的部分] 給 [文字建議 / 視覺草圖 / code]。
 
@@ -151,7 +151,7 @@ CSS 變數定義在 \`app/globals.css\`。引用：\`var(--color-name)\`
 【限制】 例：保留行事曆、不要動 Footer
 【交付物】 例：給我 3 個視覺方向草圖 / 給我可貼回 makesense.ink 的 React JSX
 
-請先讀過 https://makesense.ink/design-spec 再動手。
+請先讀過 https://makesense.ink/_spec-mks-cd5e45b5 再動手。
 \`\`\`
 
 ## 10. Notion 資料庫對應

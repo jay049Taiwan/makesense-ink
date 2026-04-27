@@ -12,6 +12,7 @@ export default function robots(): MetadataRoute.Robots {
         "/checkout",
         "/buy/",
         "/login",
+        "/_spec-",
       ],
     },
     sitemap: "https://makesense.ink/sitemap.xml",
