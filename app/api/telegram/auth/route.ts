@@ -60,8 +60,12 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // 4. 確認角色是否為 staff
-    const role = member.member_type === "staff" ? "staff" : "member";
+    // 4. 確認角色
+    // 注意：member_type 由 DB08「關係選項」同步而來，值是中文（工作團隊/合作夥伴/個人）
+    // 同時相容舊英文值（staff/vendor/member），避免歷史資料卡住
+    const isStaff = member.member_type === "工作團隊" || member.member_type === "staff";
+    const isVendor = member.member_type === "合作夥伴" || member.member_type === "vendor";
+    const role = isStaff ? "staff" : isVendor ? "vendor" : "member";
 
     return NextResponse.json({
       authorized: true,
