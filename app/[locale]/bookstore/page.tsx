@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { fetchSBProducts, fetchSBArticles, fetchSBTopics, fetchSBEvents, applyTranslations } from "@/lib/fetch-supabase";
 import { supabase } from "@/lib/supabase";
-import ViewpointExplorer from "@/components/bookstore/ViewpointExplorer";
+import YilanMap, { type MapViewpoint } from "@/components/viewpoint/YilanMap";
+import { TOWNSHIPS, townshipSlugFromRegion, seedXY } from "@/lib/yilan-townships";
+import { cleanTitle } from "@/lib/clean-title";
 import HeroCarousel from "@/components/ui/HeroCarousel";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import SafeImage from "@/components/ui/SafeImage";
@@ -70,7 +72,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
   const t = await getTranslations("bookstore");
   const te = await getTranslations("events");
 
-  const [booksRaw, goodsRaw, articlesRaw, eventsRaw, topicShowcasesRaw] = await Promise.all([
+  const [booksRaw, goodsRaw, articlesRaw, eventsRaw, topicShowcasesRaw, viewpointsRaw] = await Promise.all([
     fetchSBProducts("選書", 12),
     fetchSBProducts("選物", 12),
     fetchSBArticles(5),
@@ -124,6 +126,40 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
           products: ids.map((id: string) => pMap.get(id)).filter(Boolean),
         };
       }).filter((s: any) => s.products.length > 0);
+    })(),
+    // 觀點漫遊地圖資料：tag_type=viewpoint + region 對應到鄉鎮
+    (async () => {
+      const { data } = await supabase
+        .from("topics")
+        .select("id, notion_id, name, summary, region")
+        .eq("status", "active")
+        .eq("tag_type", "viewpoint")
+        .order("updated_at", { ascending: false })
+        .limit(200);
+      const byTownship: Record<string, { id: string; name: string; summary: string | null }[]> = {};
+      for (const t of data || []) {
+        const slug = townshipSlugFromRegion(t.region);
+        if (!slug) continue;
+        (byTownship[slug] ||= []).push({
+          id: t.notion_id || t.id,
+          name: cleanTitle(t.name),
+          summary: t.summary,
+        });
+      }
+      const markers: MapViewpoint[] = [];
+      for (const t of TOWNSHIPS) {
+        const list = byTownship[t.id] || [];
+        list.forEach((tp, i) => {
+          markers.push({
+            id: tp.id,
+            name: tp.name,
+            township: t.id,
+            xy: seedXY(t, i, list.length),
+            summary: tp.summary,
+          });
+        });
+      }
+      return markers;
     })(),
   ]);
 
@@ -227,8 +263,14 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
         </div>
       </section>
 
-      {/* ── 觀點漫遊地圖 ── */}
-      <ViewpointExplorer />
+      {/* ── 觀點漫遊地圖（編輯風 SVG，接 Supabase topics）── */}
+      <section className="py-6 pb-16">
+        <h2 className="text-[1.5em] font-bold mb-1" style={{ color: "#1a1612" }}>觀點漫遊</h2>
+        <p className="text-sm mb-4" style={{ color: "var(--color-mist)" }}>
+          十二個鄉鎮，{viewpointsRaw.length} 個觀點，從在地視角延伸的散步路徑
+        </p>
+        <YilanMap viewpoints={viewpointsRaw} height={620} />
+      </section>
     </div>
   );
 }
