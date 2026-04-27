@@ -14,7 +14,6 @@ interface TopicItem {
 }
 
 export default function ViewpointStrollPage() {
-  const [activeType, setActiveType] = useState("全部");
   const [topics, setTopics] = useState<TopicItem[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -24,6 +23,7 @@ export default function ViewpointStrollPage() {
         .from("topics")
         .select("id, notion_id, name, tag_type, summary, status")
         .eq("status", "active")
+        .eq("tag_type", "viewpoint")
         .order("updated_at", { ascending: false })
         .limit(100);
 
@@ -31,7 +31,7 @@ export default function ViewpointStrollPage() {
         setTopics(data.map(t => ({
           id: t.notion_id || t.id,
           name: t.name,
-          tag_type: t.tag_type || "tag",
+          tag_type: t.tag_type || "viewpoint",
           summary: t.summary,
           slug: t.notion_id || t.id,
         })));
@@ -41,9 +41,7 @@ export default function ViewpointStrollPage() {
     load();
   }, []);
 
-  const types = ["全部", "viewpoint", "tag"];
-  const typeLabels: Record<string, string> = { "全部": "全部", "viewpoint": "觀點", "tag": "標籤" };
-  const filtered = activeType === "全部" ? topics : topics.filter(t => t.tag_type === activeType);
+  const filtered = topics;
 
   // Extract unique keywords from topic names for the keyword carousel
   const keywords = topics.slice(0, 12).map(t => t.name);
@@ -72,21 +70,6 @@ export default function ViewpointStrollPage() {
             ))}
           </div>
 
-          {/* Type tabs */}
-          <div className="flex gap-2 mb-6 overflow-x-auto">
-            {types.map((t) => (
-              <button key={t} onClick={() => setActiveType(t)}
-                className="px-3 py-1.5 rounded-full text-sm font-medium whitespace-nowrap transition-colors"
-                style={{
-                  background: activeType === t ? "var(--color-teal)" : "var(--color-warm-white)",
-                  color: activeType === t ? "#fff" : "var(--color-muted)",
-                  border: `1px solid ${activeType === t ? "var(--color-teal)" : "var(--color-dust)"}`,
-                }}>
-                {typeLabels[t] || t}
-              </button>
-            ))}
-          </div>
-
           {/* Count + grid */}
           <p className="text-sm mb-4" style={{ color: "var(--color-muted)" }}>共 {filtered.length} 筆</p>
 
@@ -99,15 +82,6 @@ export default function ViewpointStrollPage() {
                   <ImagePlaceholder type="topic" />
                 </div>
                 <div className="p-3">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <span className="flex-shrink-0 text-[0.7em] px-1.5 py-0.5 rounded-[3px]"
-                      style={{
-                        background: topic.tag_type === "viewpoint" ? "#E3F2FD" : "#E8F5E9",
-                        color: topic.tag_type === "viewpoint" ? "#1565C0" : "#2E7D32",
-                      }}>
-                      {topic.tag_type === "viewpoint" ? "觀點" : "標籤"}
-                    </span>
-                  </div>
                   <h3 className="text-[0.9em] line-clamp-2 font-medium" style={{ color: "var(--color-ink)" }}>
                     {topic.name}
                   </h3>
