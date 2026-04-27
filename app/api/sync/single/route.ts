@@ -660,6 +660,7 @@ async function syncSingleProduct(nid: string, props: any) {
   const row = {
     notion_id: nid,
     sku: tx(props["商品ID"]),
+    barcode: tx(props["條碼"]),
     name: t(props["庫存名稱"]) || "未命名",
     category: sub ? `${cat}/${sub}` : cat,
     price: num(props["庫存售價"]) || 0,

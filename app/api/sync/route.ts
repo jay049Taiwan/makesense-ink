@@ -411,6 +411,7 @@ async function syncProducts(wb = false) {
     return {
       notion_id: nid(page),
       sku: extractText(props["商品ID"]?.rich_text) || null,
+      barcode: extractText(props["條碼"]?.rich_text) || null,
       name: extractTitle(props["庫存名稱"]?.title) || "未命名",
       category: sub ? `${cat}/${sub}` : cat,
       price: extractNumber(props["庫存售價"]?.number) || 0,
