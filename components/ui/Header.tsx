@@ -86,6 +86,21 @@ export default function Header() {
     debounceRef.current = setTimeout(() => doSearch(value), 300);
   };
 
+  // Enter 送出 → 跳到 /search?q=keyword 完整頁面
+  const submitSearch = (q?: string) => {
+    const target = (q ?? query).trim();
+    if (!target) return;
+    setShowDropdown(false);
+    setMenuOpen(false);
+    router.push(`/search?q=${encodeURIComponent(target)}`);
+  };
+  const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      submitSearch();
+    }
+  };
+
   useEffect(() => {
     const handler = (e: MouseEvent) => {
       if (searchRef.current && !(searchRef.current as any).contains(e.target)) setShowDropdown(false);
@@ -133,6 +148,7 @@ export default function Header() {
                   type="text"
                   value={query}
                   onChange={(e) => handleInput(e.target.value)}
+                  onKeyDown={onSearchKey}
                   onFocus={() => query.length >= 2 && setShowDropdown(true)}
                   placeholder={t("searchPlaceholder")}
                   aria-label={tc("search")}
@@ -203,6 +219,7 @@ export default function Header() {
                   type="text"
                   value={query}
                   onChange={(e) => handleInput(e.target.value)}
+                  onKeyDown={onSearchKey}
                   placeholder={tc("search") + "..."}
                   aria-label={tc("search")}
                   className="flex-1 ml-2 text-sm outline-none bg-transparent"

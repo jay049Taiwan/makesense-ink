@@ -286,39 +286,6 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
           )))}
         </g>
 
-        {/* 主要河川（位置粗略，視覺示意） */}
-        <g pointerEvents="none">
-          {/* 蘭陽溪 — 從大同山區流向五結出海，最寬最長 */}
-          <path d="M 460 480 Q 510 450 555 425 Q 600 405 640 388 Q 675 375 700 360 L 712 357"
-            fill="none" stroke="#7ea4b0" strokeWidth={2.6} strokeLinecap="round" opacity={0.75} />
-          {/* 宜蘭河 — 員山→宜蘭市→壯圍，匯入蘭陽溪 */}
-          <path d="M 485 318 Q 540 312 585 305 Q 625 308 655 325 Q 685 345 700 358"
-            fill="none" stroke="#7ea4b0" strokeWidth={1.8} strokeLinecap="round" opacity={0.7} />
-          {/* 冬山河 — 冬山→五結出海 */}
-          <path d="M 605 430 Q 625 410 645 392 Q 670 378 690 365"
-            fill="none" stroke="#7ea4b0" strokeWidth={1.7} strokeLinecap="round" opacity={0.7} />
-          {/* 得子口溪 — 礁溪山區→頭城/壯圍海岸 */}
-          <path d="M 595 220 Q 635 232 665 248 Q 685 256 700 252"
-            fill="none" stroke="#7ea4b0" strokeWidth={1.4} strokeLinecap="round" opacity={0.65} />
-          {/* 新城溪 — 蘇澳/南澳邊界 */}
-          <path d="M 640 590 Q 670 595 700 593 Q 720 590 730 583"
-            fill="none" stroke="#7ea4b0" strokeWidth={1.4} strokeLinecap="round" opacity={0.65} />
-
-          {/* 河川標籤 */}
-          <g opacity={0.6}>
-            <text x={555} y={420} fontFamily={SERIF} fontStyle="italic" fontSize={9}
-              fill="#4a6b75" letterSpacing="0.08em">蘭陽溪</text>
-            <text x={540} y={300} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
-              fill="#4a6b75" letterSpacing="0.08em">宜蘭河</text>
-            <text x={618} y={388} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
-              fill="#4a6b75" letterSpacing="0.08em">冬山河</text>
-            <text x={616} y={216} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
-              fill="#4a6b75" letterSpacing="0.08em">得子口溪</text>
-            <text x={655} y={585} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
-              fill="#4a6b75" letterSpacing="0.08em">新城溪</text>
-          </g>
-        </g>
-
         {/* 鄉鎮標籤 */}
         <g>
           {TOWNSHIPS.map((t) => {
