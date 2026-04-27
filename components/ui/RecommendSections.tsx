@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/routing";
 
 import { supabase } from "@/lib/supabase";
+import { cleanTitle } from "@/lib/clean-title";
 import SafeImage from "./SafeImage";
 import BottomSheet, { type BottomSheetItem } from "./BottomSheet";
 
@@ -71,7 +72,7 @@ export function AlsoWantToKnow() {
 
       setItems((data || []).map(a => ({
         id: a.notion_id || a.id,
-        title: a.title,
+        title: cleanTitle(a.title),
         photo: a.cover_url,
         href: `/post/${a.notion_id || a.id}`,
         price: 0,
@@ -123,7 +124,7 @@ export function MightAlsoLike() {
         try { const imgs = JSON.parse(p.images || "[]"); photo = imgs[0] || null; } catch {}
         return {
           id: p.notion_id || p.id,
-          title: p.name,
+          title: cleanTitle(p.name),
           subtitle: `NT$ ${p.price.toLocaleString()}`,
           photo,
           href: `/product/${p.notion_id || p.id}`,

@@ -8,6 +8,7 @@ import WishlistButton from "@/components/ui/WishlistButton";
 import PaywallButton from "@/components/ui/PaywallButton";
 import { auth } from "@/lib/auth";
 import { normalizeEmail } from "@/lib/email";
+import { cleanTitle } from "@/lib/clean-title";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -16,7 +17,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
     .select("title")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .maybeSingle();
-  return { title: data?.title || "文章" };
+  return { title: cleanTitle(data?.title) || "文章" };
 }
 
 export default async function PostPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -109,9 +110,11 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       .eq("id", article.related_event_id)
       .maybeSingle();
     if (ev) {
-      relatedEvent = { title: ev.title, slug: ev.notion_id || ev.id, date: ev.event_date };
+      relatedEvent = { title: cleanTitle(ev.title), slug: ev.notion_id || ev.id, date: ev.event_date };
     }
   }
+
+  const articleTitle = cleanTitle(article.title);
 
   const publishDate = article.published_at
     ? new Date(article.published_at).toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric" })
@@ -126,7 +129,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             className="text-3xl font-semibold leading-tight"
             style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
           >
-            {article.title}
+            {articleTitle}
           </h1>
           <WishlistButton itemType="article" itemId={article.id} />
         </div>
@@ -140,7 +143,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
       {/* Cover image — 只在有圖片時顯示 */}
       {article.cover_url && (
         <div className="aspect-[16/9] rounded-lg mb-8 overflow-hidden" style={{ background: "var(--color-parchment)" }}>
-          <SafeImage src={article.cover_url} alt={article.title} placeholderType="article" />
+          <SafeImage src={article.cover_url} alt={articleTitle} placeholderType="article" />
         </div>
       )}
 
@@ -159,7 +162,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
             </div>
           )}
           {/* 付費解鎖 */}
-          <PaywallButton product={paywallProduct} articleTitle={article.title} />
+          <PaywallButton product={paywallProduct} articleTitle={articleTitle} />
         </>
       ) : contentHtml ? (
         <div

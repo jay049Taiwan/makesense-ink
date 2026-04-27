@@ -1,4 +1,5 @@
 import { supabase } from "./supabase";
+import { cleanTitle } from "./clean-title";
 
 // ═══════════════════════════════════════════
 // 多語言翻譯覆蓋工具
@@ -114,7 +115,7 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
 
   return (data || []).map(p => ({
     id: p.notion_id || p.id,
-    name: p.name,
+    name: cleanTitle(p.name),
     price: p.price,
     stock: p.stock,
     category: p.category,
@@ -156,7 +157,7 @@ export async function fetchSBOwnProducts(limit = 24) {
 
   return (data || []).map(p => ({
     id: p.notion_id || p.id,
-    name: p.name,
+    name: cleanTitle(p.name),
     price: p.price,
     stock: p.stock,
     category: p.category,
@@ -199,7 +200,7 @@ export async function fetchSBEvents(limit = 10) {
   if (error) { console.error("fetchSBEvents err:", error); return []; }
   return (data || []).map(e => ({
     id: e.notion_id || e.id,
-    title: e.title,
+    title: cleanTitle(e.title),
     theme: e.theme,
     date: e.event_date,
     price: e.price,
@@ -221,7 +222,7 @@ export async function fetchSBAllEvents(limit = 100) {
   if (error) { console.error("fetchSBAllEvents err:", error); return []; }
   return (data || []).map(e => ({
     id: e.notion_id || e.id,
-    title: e.title,
+    title: cleanTitle(e.title),
     theme: e.theme,
     date: e.event_date,
     price: e.price,
@@ -257,7 +258,7 @@ export async function fetchSBArticles(limit = 10, webTag?: string | null) {
   if (error) { console.error("fetchSBArticles err:", error); return []; }
   return (data || []).map(a => ({
     id: a.notion_id || a.id,
-    title: a.title,
+    title: cleanTitle(a.title),
     cover_url: a.cover_url,
     date: a.published_at,
     slug: a.notion_id || a.id,
@@ -303,7 +304,7 @@ export async function fetchSBPartners(limit = 20) {
   if (error) { console.error("fetchSBPartners err:", error); return []; }
   return (data || []).map(p => ({
     id: p.notion_id || p.id,
-    name: p.name,
+    name: cleanTitle(p.name),
     type: p.type,
     contact: p.contact,
     slug: p.notion_id || p.id,
@@ -327,7 +328,7 @@ export async function fetchSBPersons(type?: string, limit = 20) {
   if (error) { console.error("fetchSBPersons err:", error); return []; }
   return (data || []).map(p => ({
     id: p.notion_id || p.id,
-    name: p.name,
+    name: cleanTitle(p.name),
     type: p.type,
     bio: p.bio,
     links: p.links,

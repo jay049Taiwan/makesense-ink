@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
+import { cleanTitle } from "@/lib/clean-title";
 
 export const dynamic = "force-dynamic";
 
@@ -54,16 +55,16 @@ export async function GET(req: NextRequest) {
     products: (products.data || []).map(p => {
       let photo: string | null = null;
       try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
-      return { name: p.name, price: p.price, photo, slug: p.notion_id, category: p.category };
+      return { name: cleanTitle(p.name), price: p.price, photo, slug: p.notion_id, category: p.category };
     }),
     events: (events.data || []).map(e => ({
-      name: e.title, date: e.event_date, type: e.event_type, slug: e.notion_id,
+      name: cleanTitle(e.title), date: e.event_date, type: e.event_type, slug: e.notion_id,
     })),
     articles: (articles.data || []).map(a => ({
-      name: a.title, date: a.published_at, slug: a.notion_id,
+      name: cleanTitle(a.title), date: a.published_at, slug: a.notion_id,
     })),
     topics: (topics.data || []).map(t => ({
-      name: t.name, type: t.tag_type, slug: t.notion_id,
+      name: cleanTitle(t.name), type: t.tag_type, slug: t.notion_id,
     })),
   };
 
