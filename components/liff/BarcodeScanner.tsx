@@ -28,15 +28,14 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         await scanner.start(
           { facingMode: "environment" },
           {
-            fps: 10,
-            // 動態計算：qrbox 設成容器較短邊的 70%，保證 ROI 遮罩貼合容器
-            // 且在手機直立畫面也可以容納 EAN-13 條碼的完整寬度
+            fps: 24, // 提高每秒解碼次數
+            // qrbox：寬一點、矮一點，給 EAN-13 條碼留橫向空間
             qrbox: (viewW: number, viewH: number) => {
-              const side = Math.floor(Math.min(viewW, viewH) * 0.7);
-              // 橫長條更好掃 EAN-13：寬 = side，高 = side * 0.5
-              return { width: side, height: Math.floor(side * 0.5) };
+              const w = Math.min(Math.floor(viewW * 0.9), 360);
+              const h = Math.floor(w * 0.5);
+              return { width: w, height: h };
             },
-            aspectRatio: 1.0,
+            // 移除 aspectRatio: 1.0 — 強制 1:1 會裁掉 EAN-13 條碼長度
             formatsToSupport: [
               0,  // QR_CODE
               3,  // CODE_39
@@ -47,12 +46,20 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
               14, // UPC_A
               15, // UPC_E
             ],
+            // 啟用 iOS / Chrome 原生 BarcodeDetector，
+            // 比 JS-based ZXing 快很多、EAN-13 辨識準
+            experimentalFeatures: {
+              useBarCodeDetectorIfSupported: true,
+            },
           },
           (decodedText: string) => {
             scanner.stop().catch(() => {});
             onScan(decodedText);
           },
-          () => {} // ignore scan failures
+          (errMsg: string) => {
+            // 開發 debug：每幀解碼失敗也記下來，看是否真的有在嘗試解碼
+            if (process.env.NODE_ENV === "development") console.debug("[Scan]", errMsg);
+          }
         );
       } catch (err: any) {
         setError("無法開啟相機，請手動輸入條碼");
