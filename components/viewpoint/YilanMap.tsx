@@ -88,7 +88,77 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
       border: `1px solid ${C.rule}`,
       boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(80,60,40,0.08), 0 24px 60px rgba(80,60,40,0.06)",
       position: "relative", overflow: "hidden",
+      display: "flex",
     }}>
+      {/* Sidebar：宜蘭縣 + 12 鄉鎮 */}
+      <aside style={{
+        width: 140, flexShrink: 0,
+        borderRight: `1px solid ${C.rule}`,
+        padding: "16px 12px",
+        overflowY: "auto",
+        display: "flex", flexDirection: "column", gap: 4,
+      }}>
+        <button
+          onClick={() => setActiveId(null)}
+          style={{
+            textAlign: "left",
+            padding: "10px 12px",
+            border: "none",
+            borderRadius: 4,
+            cursor: "pointer",
+            fontFamily: SERIF,
+            fontSize: 14,
+            fontWeight: 600,
+            background: !activeId ? C.brown : "transparent",
+            color: !activeId ? "#fff" : C.ink,
+            display: "flex", justifyContent: "space-between", alignItems: "center",
+            transition: "background .2s",
+          }}
+        >
+          <span>宜蘭縣</span>
+          <span style={{
+            fontFamily: MONO, fontSize: 11,
+            opacity: 0.85,
+          }}>{viewpoints.length}</span>
+        </button>
+        {TOWNSHIPS.map((t) => {
+          const isActive = activeId === t.id;
+          const count = counts[t.id] || 0;
+          return (
+            <button
+              key={t.id}
+              onClick={() => setActiveId(isActive ? null : t.id)}
+              onMouseEnter={() => setHoverId(t.id)}
+              onMouseLeave={() => setHoverId(null)}
+              style={{
+                textAlign: "left",
+                padding: "9px 12px",
+                border: "none",
+                borderRadius: 4,
+                cursor: "pointer",
+                fontFamily: SERIF,
+                fontSize: 13,
+                background: isActive ? C.cream : (hoverId === t.id ? "rgba(122,92,64,0.05)" : "transparent"),
+                color: isActive ? C.brown : C.ink,
+                fontWeight: isActive ? 500 : 400,
+                display: "flex", justifyContent: "space-between", alignItems: "center",
+                transition: "background .2s",
+              }}
+            >
+              <span>{t.name}</span>
+              {count > 0 && (
+                <span style={{
+                  fontFamily: MONO, fontSize: 10,
+                  color: isActive ? C.brown : C.tan,
+                }}>{count}</span>
+              )}
+            </button>
+          );
+        })}
+      </aside>
+
+      {/* 地圖區 */}
+      <div style={{ flex: 1, position: "relative", minWidth: 0 }}>
       {activeId && (
         <button
           onClick={() => setActiveId(null)}
@@ -124,8 +194,42 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
           </linearGradient>
         </defs>
 
+        {/* 海水底色（淡青藍） */}
+        <rect x={0} y={0} width={1000} height={800} fill="#dee9eb" />
+
+        {/* 鄰縣陸地示意 — 西/北/南方向用淡米色塊代表台灣本島其他部分 */}
+        {/* 西邊：桃園/新竹/台中（覆蓋大同鄉以西） */}
+        <path d="M 0 0 L 350 0 L 360 100 L 290 200 L 250 320 L 175 420 L 130 530 L 0 600 Z"
+          fill="#e8dcc4" opacity={0.55} />
+        {/* 北邊：新北市貢寮（頭城以北） */}
+        <path d="M 350 0 L 1000 0 L 1000 60 L 840 50 L 720 90 L 660 130 L 600 180 L 480 200 L 360 100 Z"
+          fill="#e8dcc4" opacity={0.55} />
+        {/* 南邊：花蓮縣秀林/和平（南澳以南） */}
+        <path d="M 130 530 L 175 620 L 280 700 L 450 760 L 640 760 L 760 720 L 700 800 L 0 800 L 0 600 Z"
+          fill="#e8dcc4" opacity={0.55} />
+        {/* 西南台中和平延伸 */}
+        <path d="M 0 600 L 130 530 L 175 620 L 0 700 Z"
+          fill="#e8dcc4" opacity={0.55} />
+
+        {/* 海岸漸層 — 東邊外海更深一點 */}
         <rect x={780} y={40} width={200} height={700} fill="url(#seaWash)" />
-        <rect x={0} y={0} width={1000} height={800} fill={C.paper} filter="url(#grain)" opacity={0.6} />
+
+        {/* 紙質紋理 — 蓋一層，但透明度降低讓海跟陸地分得出來 */}
+        <rect x={0} y={0} width={1000} height={800} fill={C.paper} filter="url(#grain)" opacity={0.18} />
+
+        {/* 鄰縣 italic 標籤 */}
+        <g pointerEvents="none" opacity={0.45}>
+          <text x={70} y={50} fontFamily={SERIF} fontStyle="italic" fontSize={12}
+            fill={C.tan} letterSpacing="0.2em">新　北</text>
+          <text x={120} y={300} fontFamily={SERIF} fontStyle="italic" fontSize={12}
+            fill={C.tan} letterSpacing="0.2em">桃　園</text>
+          <text x={70} y={460} fontFamily={SERIF} fontStyle="italic" fontSize={12}
+            fill={C.tan} letterSpacing="0.2em">新　竹</text>
+          <text x={50} y={580} fontFamily={SERIF} fontStyle="italic" fontSize={12}
+            fill={C.tan} letterSpacing="0.2em">台　中</text>
+          <text x={420} y={770} fontFamily={SERIF} fontStyle="italic" fontSize={12}
+            fill={C.tan} letterSpacing="0.2em">花　蓮</text>
+        </g>
 
         {/* 編輯感的角落小記號 */}
         <g stroke={C.tan} strokeWidth={0.4} opacity={0.5}>
@@ -273,11 +377,12 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
               transform="rotate(90 870 380)">太　平　洋</text>
           </g>
           <g opacity={0.55}>
-            <text x={80} y={180} fontFamily={SERIF} fontStyle="italic"
+            <text x={300} y={180} fontFamily={SERIF} fontStyle="italic"
               fontSize={12} fill={C.tan} letterSpacing="0.3em">雪　山　山　脈</text>
           </g>
         </g>
       </svg>
+      </div>
     </div>
   );
 }
