@@ -353,24 +353,11 @@ interface VendorActivity { id: string; title: string; date: string; type: string
 function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
   const [activities, setActivities] = useState<VendorActivity[]>([]);
 
+  // TODO: 待 market_vendor_slots 資料表建立後，改為查詢廠商有參與的場次
+  // 目前暫不顯示活動清單，避免廠商看到不相干的活動
   useEffect(() => {
-    (async () => {
-      const { data } = await supabase
-        .from("events")
-        .select("id, notion_id, title, event_date, theme, capacity, status")
-        .order("event_date", { ascending: false })
-        .limit(20);
-      if (data) {
-        setActivities(data.map(e => ({
-          id: e.notion_id || e.id,
-          title: e.title,
-          date: e.event_date ? new Date(e.event_date).toLocaleDateString("zh-TW") : "日期待定",
-          type: e.theme || "活動",
-          registered: 0,
-          capacity: e.capacity || 0,
-        })));
-      }
-    })();
+    // 暫時保留空陣列，等 Supabase market_vendor_slots 表建好後接入
+    setActivities([]);
   }, []);
 
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -401,15 +388,22 @@ function VendorItems({ vendorProducts }: { vendorProducts: VendorProduct[] }) {
       <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
         <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
           <h3 className="text-sm font-semibold" style={{ color: "#333" }}>🎪 合作活動</h3>
-          <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>未過期的活動可設定預購商品，產生民眾可直接報名/預購的連結</p>
+          <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>由主辦單位指定加入的活動才會在此顯示，未加入的活動請聯繫管理員</p>
         </div>
         <div>
+          {activities.length === 0 && (
+            <div className="py-10 text-center" style={{ color: "#aaa" }}>
+              <p className="text-2xl mb-2">🎪</p>
+              <p className="text-sm">尚未加入任何活動</p>
+              <p className="text-xs mt-1">由管理員指定活動後，即可在此設定預購商品</p>
+            </div>
+          )}
           {activities.map(a => {
             const expired = isExpired(a.date);
             const isOpen = expanded === a.id;
             const isGenerated = generated[a.id];
             const selectedIds = selected[a.id] || [];
-            const pct = Math.round((a.registered / a.capacity) * 100);
+            const pct = a.capacity > 0 ? Math.round((a.registered / a.capacity) * 100) : 0;
             const buyUrl = `${baseUrl}/buy/${a.id}`;
 
             return (
