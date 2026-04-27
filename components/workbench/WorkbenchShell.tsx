@@ -16,6 +16,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
 import TasksPanel from "./TasksPanel";
+import BarcodeScanner from "@/components/liff/BarcodeScanner";
 
 type StaffTab = "動態" | "交接" | "庫存" | "考勤" | "費用";
 
@@ -152,6 +153,24 @@ function InventoryPanel() {
   const [miscItems, setMiscItems] = useState<MiscItem[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [resultMsg, setResultMsg] = useState("");
+  const [showScanner, setShowScanner] = useState(false);
+
+  // 掃碼結果處理：用 barcode 或 sku 比對 products，找到就加入 items
+  const handleScan = async (code: string) => {
+    setShowScanner(false);
+    const { data, error } = await supabase
+      .from("products")
+      .select("id, notion_id, name, price, stock, barcode, sku")
+      .or(`barcode.eq.${code},sku.eq.${code}`)
+      .limit(1)
+      .maybeSingle();
+    if (error || !data) {
+      setResultMsg(`⚠️ 查無條碼 ${code} 對應的商品`);
+      return;
+    }
+    addProduct({ notion_id: data.notion_id, name: data.name, price: data.price });
+    setResultMsg(`✅ 已加入：${data.name}`);
+  };
 
   useEffect(() => {
     (async () => {
@@ -226,6 +245,8 @@ function InventoryPanel() {
               + miscItems.reduce((s, m) => s + m.amount, 0);
 
   return (
+    <>
+    {showScanner && <BarcodeScanner onScan={handleScan} onClose={() => setShowScanner(false)} />}
     <div className="grid grid-cols-1 sm:grid-cols-[280px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
       <div className="py-3 sm:p-4 sm:border-r" style={{ borderColor: "#f0f0f0" }}>
         <div className="space-y-2 mb-6">
@@ -255,7 +276,15 @@ function InventoryPanel() {
               }}
               placeholder="輸入商品名稱搜尋..."
               className="flex-1 min-w-0 text-sm outline-none bg-transparent" />
-            <span style={{ color: "#999" }}>🔍</span>
+            <button
+              type="button"
+              onClick={() => setShowScanner(true)}
+              aria-label="掃描條碼"
+              className="ml-2 p-1 rounded transition-colors"
+              style={{ background: "none", border: "none", cursor: "pointer", fontSize: 20, lineHeight: 1 }}
+            >
+              📷
+            </button>
           </div>
           {searchResults.length > 0 && (
             <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-10"
@@ -326,6 +355,7 @@ function InventoryPanel() {
         {resultMsg && <p className="text-sm mt-3" style={{ color: resultMsg.startsWith("✅") ? "#2d5016" : "#e53e3e" }}>{resultMsg}</p>}
       </div>
     </div>
+    </>
   );
 }
 
