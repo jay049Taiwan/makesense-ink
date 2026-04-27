@@ -46,7 +46,7 @@ export default function PartnerPage() {
 
   // Load products + activities + newsletters + stats from Supabase
   // 商品：DB07「對應發行」含此廠商 + 庫存類型=商品 → products.publisher_notion_id + category like '商品%'
-  // 活動：DB04「對應對象/對應發佈單位」含此廠商 + 交接類型=專案協作 + 協作選項=活動辦理
+  // 活動：DB04「對應對象/對應辦理單位」含此廠商 + 交接類型=專案協作 + 協作選項=活動辦理
   // 地方通訊：DB05「對應對象」含此廠商 + 官網備項=地方通訊 → articles.related_partner_ids + web_tag
   useEffect(() => {
     if (!notionId && !isDev) return;
