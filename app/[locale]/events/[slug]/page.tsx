@@ -6,7 +6,6 @@ import RegistrationModal from "@/components/booking/RegistrationModal";
 import { useCart } from "@/components/providers/CartProvider";
 import { supabase } from "@/lib/supabase";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
-import WishlistButton from "@/components/ui/WishlistButton";
 
 interface EventData {
   title: string;
@@ -186,7 +185,6 @@ export default function EventPage({
             >
               {event.title}
             </h1>
-            <WishlistButton itemType="event" itemId={slug} />
           </div>
           <div className="flex flex-wrap gap-x-6 gap-y-1 text-sm text-white/70 mt-1">
             <span>{event.date}</span>

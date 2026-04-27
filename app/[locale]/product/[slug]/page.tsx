@@ -6,7 +6,6 @@ import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import SafeImage from "@/components/ui/SafeImage";
-import WishlistButton from "@/components/ui/WishlistButton";
 
 interface ProductData {
   name: string;
@@ -180,7 +179,6 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
               {product.name}
             </h1>
-            <WishlistButton itemType="product" itemId={slug} />
           </div>
 
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm mb-6">

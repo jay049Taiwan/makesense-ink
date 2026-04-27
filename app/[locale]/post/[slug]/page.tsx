@@ -4,7 +4,6 @@ import { getPageContent } from "@/lib/notion";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
-import WishlistButton from "@/components/ui/WishlistButton";
 import PaywallButton from "@/components/ui/PaywallButton";
 import { auth } from "@/lib/auth";
 import { normalizeEmail } from "@/lib/email";
@@ -131,7 +130,6 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
           >
             {articleTitle}
           </h1>
-          <WishlistButton itemType="article" itemId={article.id} />
         </div>
         {publishDate && (
           <div className="flex items-center gap-3 text-sm" style={{ color: "var(--color-mist)" }}>
