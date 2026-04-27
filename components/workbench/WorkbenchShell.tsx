@@ -245,6 +245,14 @@ function InventoryPanel() {
         <div className="relative mb-4" style={{ maxWidth: 500 }}>
           <div className="flex items-center h-11 px-4 rounded-lg" style={{ border: "1px solid #ddd" }}>
             <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+              onFocus={(e) => {
+                // iOS Telegram WebApp：鍵盤升起時搜尋欄會被蓋住，
+                // 等鍵盤動畫完成後主動 scroll input 到可見中央
+                const target = e.target;
+                setTimeout(() => {
+                  target.scrollIntoView({ block: "center", behavior: "smooth" });
+                }, 350);
+              }}
               placeholder="輸入商品名稱搜尋..."
               className="flex-1 min-w-0 text-sm outline-none bg-transparent" />
             <span style={{ color: "#999" }}>🔍</span>
