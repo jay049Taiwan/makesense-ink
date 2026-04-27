@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
+import { requireStaff } from "../_guard";
 import { createPage, DB } from "@/lib/notion";
 import { getNotionUserId } from "@/lib/notion-users";
 
@@ -14,13 +14,8 @@ import { getNotionUserId } from "@/lib/notion-users";
 //   misc_items     : [{ name, amount }]（選填，運費/稅）
 //   counterpart_id : DB08 page ID（選填）
 export async function POST(req: Request) {
-  const session = await auth();
-  if (!session?.user?.email) {
-    return NextResponse.json({ error: "未登入" }, { status: 401 });
-  }
-  if ((session as any).role !== "staff") {
-    return NextResponse.json({ error: "非工作人員" }, { status: 403 });
-  }
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
 
   let body: any;
   try { body = await req.json(); }
@@ -32,7 +27,8 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: `無效的 operation：${operation}` }, { status: 400 });
   }
 
-  const operatorNotionId = await getNotionUserId(session.user.email);
+  // Notion 內部 user 對應（用 email 反查）。Telegram 沒 email 的話 operatorNotionId = null
+  const operatorNotionId = guard.email ? await getNotionUserId(guard.email) : null;
   const today = new Date().toISOString().split("T")[0];
   const eventTitle = `${operation} ${today}`;
 

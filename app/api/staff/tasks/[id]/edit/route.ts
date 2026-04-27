@@ -3,8 +3,8 @@ import { requireStaff } from "../../../_guard";
 import { updatePageProperties } from "@/lib/staff-tasks";
 
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireStaff();
-  if (guard.error) return guard.error;
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
   const { id } = await params;
   const { topicName, executionTime, handoverNote } = await req.json();
   const properties: Record<string, any> = {};

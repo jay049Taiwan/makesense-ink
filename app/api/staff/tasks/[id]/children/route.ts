@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { requireStaff } from "../../../_guard";
 import { fetchDB05Children } from "@/lib/staff-tasks";
 
-export async function GET(_req: Request, { params }: { params: Promise<{ id: string }> }) {
-  const guard = await requireStaff();
-  if (guard.error) return guard.error;
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
   const { id } = await params;
   try {
     const children = await fetchDB05Children(id);

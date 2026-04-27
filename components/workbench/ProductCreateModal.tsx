@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { staffFetch } from "@/lib/staff-fetch";
 
 interface ProductCreateModalProps {
   /** 從掃碼器來的條碼，預填到 SKU 欄位 */
@@ -86,16 +87,11 @@ export default function ProductCreateModal({ initialSku, onCreated, onClose }: P
       const upJson = await upRes.json();
       if (!upRes.ok || !upJson.url) throw new Error(upJson.error || "照片上傳失敗");
 
-      // ── Step 2: 呼叫 create API ──
+      // ── Step 2: 呼叫 create API（staffFetch 自動帶 X-Telegram-Init-Data）──
       setProgressMsg("建立商品中…");
-      const tg = (window as any).Telegram?.WebApp;
-      const headers: Record<string, string> = { "Content-Type": "application/json" };
-      // 在 Telegram mini-app 內必須帶這個 header 才能通過 staff 驗證
-      if (tg?.initData) headers["X-Telegram-Init-Data"] = tg.initData;
-
-      const createRes = await fetch("/api/staff/products/create", {
+      const createRes = await staffFetch("/api/staff/products/create", {
         method: "POST",
-        headers,
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           sku: initialSku,
           name: name.trim(),

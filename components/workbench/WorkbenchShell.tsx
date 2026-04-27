@@ -15,6 +15,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { staffFetch } from "@/lib/staff-fetch";
 import TasksPanel from "./TasksPanel";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
 import ProductCreateModal from "./ProductCreateModal";
@@ -247,7 +248,7 @@ function InventoryPanel() {
     if (items.length === 0) { setResultMsg("⚠️ 請至少加入一個品項"); return; }
     setSubmitting(true); setResultMsg("");
     try {
-      const res = await fetch("/api/staff/inventory", {
+      const res = await staffFetch("/api/staff/inventory", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

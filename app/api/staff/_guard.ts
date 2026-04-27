@@ -11,7 +11,7 @@ import { supabase } from "@/lib/supabase";
  *
  * 兩種都不過就回 401/403。
  */
-export async function requireStaff(req?: NextRequest) {
+export async function requireStaff(req?: Request | NextRequest) {
   // 路徑 A：NextAuth session（官網）
   const session = await auth();
   if (session?.user?.email && (session as any).role === "staff") {

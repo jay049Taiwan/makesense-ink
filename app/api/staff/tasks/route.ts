@@ -7,9 +7,9 @@ const cache: Record<string, { data: any; time: number }> = {};
 const CACHE_TTL = 30_000;
 
 export async function GET(req: Request) {
-  const guard = await requireStaff();
-  if (guard.error) return guard.error;
-  const email = guard.email!;
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
+  const email = guard.email || "";
   const url = new URL(req.url);
   const force = url.searchParams.get("refresh") === "1";
 

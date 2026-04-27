@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
+import { staffFetch } from "@/lib/staff-fetch";
 
 // 色票（取代 staff-portal 的 CSS variables）
 const C = {
@@ -41,14 +42,15 @@ function useIsWide() {
 }
 
 // ── API helpers ─────────────────────────────────────────────────────────
+// 用 staffFetch 自動帶 Telegram WebApp initData header（mini-app 必須）
 async function apiGet(url: string) {
-  const r = await fetch(url, { credentials: "include" });
+  const r = await staffFetch(url, { credentials: "include" });
   const j = await r.json();
   if (!r.ok) throw new Error(j.error || "查詢失敗");
   return j;
 }
 async function apiPut(url: string, body: any) {
-  const r = await fetch(url, {
+  const r = await staffFetch(url, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     credentials: "include",
