@@ -162,8 +162,15 @@ export default async function MarketBookingPage() {
                   </p>
                 </div>
               </Link>
-              <div className="px-3 pb-3 mt-auto">
+              <div className="px-3 pb-3 mt-auto flex flex-col gap-1.5">
                 <QuickBookButton slug={ev.slug} ended={ended} size="sm" />
+                {!ended && (
+                  <Link href={`/market-apply/${ev.slug}`}
+                    className="text-center py-1.5 rounded-md text-xs font-medium transition-colors hover:opacity-90"
+                    style={{ background: "#fff", color: "var(--color-bark)", border: "1px solid var(--color-dust)" }}>
+                    我要擺攤 →
+                  </Link>
+                )}
               </div>
               </div>
             );
