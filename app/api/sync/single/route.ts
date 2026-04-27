@@ -247,6 +247,8 @@ async function syncSingleEvent(nid: string, props: any) {
     location: locationName,
     guide: guideName,
     related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
+    event_category: sel(props["交接類型"]) || null,   // 專案協作 / 常規活動 etc
+    collab_type:    sel(props["協作選項"]) || null,   // 活動辦理 / 空間借用 etc
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
@@ -482,6 +484,11 @@ async function syncStockBatch(nid: string, props: any) {
 // ── DB05 → articles ──
 async function syncSingleArticle(nid: string, props: any) {
   const dateInfo = dt(props["執行時間"]);
+
+  // 對應對象 relation → DB08 notion_ids（用於廠商後台「地方通訊」配對）
+  const partnerRels = rel(props["對應對象"]);
+  const relatedPartnerIds = partnerRels.map((id: string) => id.replace(/-/g, "")).filter(Boolean);
+
   // 對應協作 relation → events
   const eRels = rel(props["對應協作"]);
   let relatedEventId: string | null = null;
@@ -526,6 +533,7 @@ async function syncSingleArticle(nid: string, props: any) {
     related_event_id: relatedEventId,
     related_product_id: relatedProductId,
     related_product_ids: relatedProductIds,
+    related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
     // 2026/04/22：官網備項是 select（單值），包成 text[] 以便未來擴展
     web_tag: (() => {
       const v = extractSelect(props["官網備項"]?.select);

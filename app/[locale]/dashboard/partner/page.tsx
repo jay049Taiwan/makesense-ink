@@ -41,25 +41,27 @@ export default function PartnerPage() {
   const [activeTab, setActiveTab] = useState<PartnerTab>("概覽");
   const [products, setProducts] = useState<VendorProduct[]>([]);
   const [activities, setActivities] = useState<{ id: string; title: string; date: string; type: string; registered: number; capacity: number }[]>([]);
+  const [newsletters, setNewsletters] = useState<{ id: string; title: string; date: string; summary: string }[]>([]);
   const [stats, setStats] = useState<VendorStats>(emptyStats);
 
-  // Load products + activities + stats from Supabase
-  // 商品：DB07「對應發行」= 此廠商 DB08 notion_id → products.publisher_notion_id
-  // 活動：DB04「對應對象」或「對應發佈單位」含此廠商 → events.related_partner_ids
+  // Load products + activities + newsletters + stats from Supabase
+  // 商品：DB07「對應發行」含此廠商 + 庫存類型=商品 → products.publisher_notion_id + category like '商品%'
+  // 活動：DB04「對應對象/對應發佈單位」含此廠商 + 交接類型=專案協作 + 協作選項=活動辦理
+  // 地方通訊：DB05「對應對象」含此廠商 + 官網備項=地方通訊 → articles.related_partner_ids + web_tag
   useEffect(() => {
     if (!notionId && !isDev) return;
     (async () => {
-      // ── 商品 ──
+      // ── 商品（庫存類型=商品 + 對應發行=此廠商）──
       let prodsQuery = supabase
         .from("products")
         .select("id, name, price, stock, description, images, status, publisher_notion_id")
+        .like("category", "商品%")   // 庫存類型=商品
         .order("created_at", { ascending: false });
 
       if (notionId) {
         prodsQuery = prodsQuery.eq("publisher_notion_id", notionId);
       } else {
-        // dev mode fallback: 顯示前 20 筆
-        prodsQuery = prodsQuery.limit(20);
+        prodsQuery = prodsQuery.limit(20); // dev mode fallback
       }
 
       const { data: prods } = await prodsQuery;
@@ -81,12 +83,14 @@ export default function PartnerPage() {
         }));
       }
 
-      // ── 活動（DB04 對應對象 / 對應發佈單位 含此廠商）──
       if (notionId) {
+        // ── 活動（交接類型=專案協作 + 協作選項=活動辦理 + 含此廠商）──
         const { data: evts } = await supabase
           .from("events")
           .select("id, notion_id, title, event_date, theme, capacity, status")
           .contains("related_partner_ids", [notionId])
+          .eq("event_category", "專案協作")
+          .eq("collab_type", "活動辦理")
           .order("event_date", { ascending: false })
           .limit(50);
 
@@ -98,6 +102,25 @@ export default function PartnerPage() {
             type: e.theme || "活動",
             registered: 0,
             capacity: e.capacity || 0,
+          })));
+        }
+
+        // ── 地方通訊文章（官網備項=地方通訊 + 對應對象=此廠商）──
+        const { data: arts } = await supabase
+          .from("articles")
+          .select("id, notion_id, title, published_at, summary")
+          .contains("related_partner_ids", [notionId])
+          .contains("web_tag", ["地方通訊"])
+          .eq("status", "published")
+          .order("published_at", { ascending: false })
+          .limit(30);
+
+        if (arts) {
+          setNewsletters(arts.map(a => ({
+            id: a.notion_id || a.id,
+            title: a.title,
+            date: a.published_at ? new Date(a.published_at).toLocaleDateString("zh-TW") : "—",
+            summary: a.summary || "",
           })));
         }
       }
@@ -166,7 +189,7 @@ export default function PartnerPage() {
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} />}
         {activeTab === "資訊" && <VendorInfo products={products} setProducts={setProducts} />}
-        {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} />}
+        {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings />}
       </div>
@@ -383,7 +406,11 @@ function isExpired(dateStr: string) {
 
 interface VendorActivity { id: string; title: string; date: string; type: string; registered: number; capacity: number }
 
-function VendorItems({ vendorProducts, activities }: { vendorProducts: VendorProduct[]; activities: VendorActivity[] }) {
+function VendorItems({ vendorProducts, activities, newsletters }: {
+  vendorProducts: VendorProduct[];
+  activities: VendorActivity[];
+  newsletters: { id: string; title: string; date: string; summary: string }[];
+}) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [selected, setSelected] = useState<Record<string, string[]>>({}); // activityId → productIds
   const [generated, setGenerated] = useState<Record<string, boolean>>({}); // activityId → done
@@ -531,6 +558,33 @@ function VendorItems({ vendorProducts, activities }: { vendorProducts: VendorPro
             );
           })}
         </div>
+      </div>
+
+      {/* 地方通訊文章 */}
+      <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
+        <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
+          <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📰 地方通訊文章</h3>
+          <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>DB05「對應對象」為此帳號 + 官網備項=地方通訊 的已發佈文章</p>
+        </div>
+        {newsletters.length === 0 ? (
+          <div className="py-10 text-center" style={{ color: "#aaa" }}>
+            <p className="text-2xl mb-2">📰</p>
+            <p className="text-sm">尚無關聯的地方通訊文章</p>
+            <p className="text-xs mt-1">在 Notion DB05 的「對應對象」填入此廠商即可自動出現</p>
+          </div>
+        ) : (
+          <div>
+            {newsletters.map(a => (
+              <div key={a.id} className="flex items-start gap-3 px-5 py-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium" style={{ color: "#333" }}>{a.title}</p>
+                  {a.summary && <p className="text-xs mt-0.5" style={{ color: "#888" }}>{a.summary}</p>}
+                </div>
+                <span className="text-xs flex-shrink-0" style={{ color: "#bbb" }}>{a.date}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       {/* 上架商品（Supabase 版，目前用 mock） */}
