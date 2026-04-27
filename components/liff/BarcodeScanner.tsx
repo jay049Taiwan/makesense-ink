@@ -13,8 +13,21 @@ interface BarcodeScannerProps {
  */
 export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps) {
   const scannerRef = useRef<any>(null);
+  const stoppedRef = useRef(false); // 防止 scanner.stop() 被呼叫兩次造成 WebView 崩潰
   const [error, setError] = useState("");
   const [manualCode, setManualCode] = useState("");
+
+  const safeStop = async () => {
+    if (stoppedRef.current) return;
+    stoppedRef.current = true;
+    if (scannerRef.current) {
+      try {
+        await scannerRef.current.stop();
+      } catch {
+        /* ignore */
+      }
+    }
+  };
 
   useEffect(() => {
     let scanner: any = null;
@@ -46,19 +59,15 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
               14, // UPC_A
               15, // UPC_E
             ],
-            // 啟用 iOS / Chrome 原生 BarcodeDetector，
-            // 比 JS-based ZXing 快很多、EAN-13 辨識準
-            experimentalFeatures: {
-              useBarCodeDetectorIfSupported: true,
-            },
+            // 注意：先不啟用 useBarCodeDetectorIfSupported，
+            // iOS Telegram WebView 對該 API 支援不一致，曾造成 WebView 崩潰
           },
-          (decodedText: string) => {
-            scanner.stop().catch(() => {});
+          async (decodedText: string) => {
+            await safeStop();
             onScan(decodedText);
           },
-          (errMsg: string) => {
-            // 開發 debug：每幀解碼失敗也記下來，看是否真的有在嘗試解碼
-            if (process.env.NODE_ENV === "development") console.debug("[Scan]", errMsg);
+          () => {
+            // 解碼失敗每幀都會觸發，刻意忽略避免 console 洪水
           }
         );
       } catch (err: any) {
@@ -67,15 +76,17 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
     })();
 
     return () => {
-      if (scanner) {
-        scanner.stop().catch(() => {});
+      // 元件卸載時，只在還沒 stop 過時才 stop
+      if (!stoppedRef.current) {
+        stoppedRef.current = true;
+        if (scanner) scanner.stop().catch(() => {});
       }
     };
   }, [onScan]);
 
-  const handleManualSubmit = () => {
+  const handleManualSubmit = async () => {
     if (manualCode.trim()) {
-      if (scannerRef.current) scannerRef.current.stop().catch(() => {});
+      await safeStop();
       onScan(manualCode.trim());
     }
   };

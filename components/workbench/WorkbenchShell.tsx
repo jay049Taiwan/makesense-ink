@@ -155,21 +155,40 @@ function InventoryPanel() {
   const [resultMsg, setResultMsg] = useState("");
   const [showScanner, setShowScanner] = useState(false);
 
-  // 掃碼結果處理：用 barcode 或 sku 比對 products，找到就加入 items
+  // 掃碼結果處理：用 sku 或 barcode 比對 products，找到就加入 items
+  // 注意：先關閉 scanner 再查詢，避免 scanner 還在卸載時做網路請求造成 WebView race condition
   const handleScan = async (code: string) => {
     setShowScanner(false);
-    const { data, error } = await supabase
-      .from("products")
-      .select("id, notion_id, name, price, stock, barcode, sku")
-      .or(`barcode.eq.${code},sku.eq.${code}`)
-      .limit(1)
-      .maybeSingle();
-    if (error || !data) {
-      setResultMsg(`⚠️ 查無條碼 ${code} 對應的商品`);
-      return;
+    // 等下一個 tick，讓 scanner 卸載完成再做網路請求
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    try {
+      // 先用 sku 查（DB07「商品ID」同步到此欄位，包含 ISBN-13）
+      const { data: bySku } = await supabase
+        .from("products")
+        .select("id, notion_id, name, price, stock")
+        .eq("sku", code)
+        .limit(1)
+        .maybeSingle();
+      let product = bySku;
+      // 找不到再試 barcode 欄位
+      if (!product) {
+        const { data: byBarcode } = await supabase
+          .from("products")
+          .select("id, notion_id, name, price, stock")
+          .eq("barcode", code)
+          .limit(1)
+          .maybeSingle();
+        product = byBarcode;
+      }
+      if (!product) {
+        setResultMsg(`⚠️ 查無條碼 ${code} 對應的商品`);
+        return;
+      }
+      addProduct({ notion_id: product.notion_id, name: product.name, price: product.price });
+      setResultMsg(`✅ 已加入：${product.name}`);
+    } catch (err: any) {
+      setResultMsg(`❌ 查詢失敗：${err?.message || "未知錯誤"}`);
     }
-    addProduct({ notion_id: data.notion_id, name: data.name, price: data.price });
-    setResultMsg(`✅ 已加入：${data.name}`);
   };
 
   useEffect(() => {
