@@ -194,22 +194,19 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
           </linearGradient>
         </defs>
 
-        {/* 海水底色（淡青藍） */}
+        {/* 海水底色（太平洋） */}
         <rect x={0} y={0} width={1000} height={800} fill="#dee9eb" />
 
-        {/* 鄰縣陸地示意 — 西/北/南方向用淡米色塊代表台灣本島其他部分 */}
-        {/* 西邊：桃園/新竹/台中（覆蓋大同鄉以西） */}
-        <path d="M 0 0 L 350 0 L 360 100 L 290 200 L 250 320 L 175 420 L 130 530 L 0 600 Z"
-          fill="#e8dcc4" opacity={0.55} />
-        {/* 北邊：新北市貢寮（頭城以北） */}
-        <path d="M 350 0 L 1000 0 L 1000 60 L 840 50 L 720 90 L 660 130 L 600 180 L 480 200 L 360 100 Z"
-          fill="#e8dcc4" opacity={0.55} />
-        {/* 南邊：花蓮縣秀林/和平（南澳以南） */}
-        <path d="M 130 530 L 175 620 L 280 700 L 450 760 L 640 760 L 760 720 L 700 800 L 0 800 L 0 600 Z"
-          fill="#e8dcc4" opacity={0.55} />
-        {/* 西南台中和平延伸 */}
-        <path d="M 0 600 L 130 530 L 175 620 L 0 700 Z"
-          fill="#e8dcc4" opacity={0.55} />
+        {/* 台灣本島陸地 — 沿宜蘭東海岸切開，西/北/南都是連續陸地（含鄰縣） */}
+        <path d="M 0 0
+                 L 837 55 L 828 55 L 796 69 L 785 87 L 762 99 L 754 109 L 753 122
+                 L 710 162 L 696 192 L 686 237 L 683 270 L 686 298 L 701 332
+                 L 704 376 L 712 407 L 724 434 L 737 484 L 741 519 L 737 527
+                 L 708 536 L 706 559 L 718 563 L 718 574 L 687 602 L 664 628
+                 L 657 645 L 651 688 L 634 728 L 637 750
+                 L 637 800
+                 L 0 800 Z"
+          fill="#e8dcc4" opacity={0.7} />
 
         {/* 海岸漸層 — 東邊外海更深一點 */}
         <rect x={780} y={40} width={200} height={700} fill="url(#seaWash)" />
@@ -287,6 +284,39 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
               )}
             </g>
           )))}
+        </g>
+
+        {/* 主要河川（位置粗略，視覺示意） */}
+        <g pointerEvents="none">
+          {/* 蘭陽溪 — 從大同山區流向五結出海，最寬最長 */}
+          <path d="M 460 480 Q 510 450 555 425 Q 600 405 640 388 Q 675 375 700 360 L 712 357"
+            fill="none" stroke="#7ea4b0" strokeWidth={2.6} strokeLinecap="round" opacity={0.75} />
+          {/* 宜蘭河 — 員山→宜蘭市→壯圍，匯入蘭陽溪 */}
+          <path d="M 485 318 Q 540 312 585 305 Q 625 308 655 325 Q 685 345 700 358"
+            fill="none" stroke="#7ea4b0" strokeWidth={1.8} strokeLinecap="round" opacity={0.7} />
+          {/* 冬山河 — 冬山→五結出海 */}
+          <path d="M 605 430 Q 625 410 645 392 Q 670 378 690 365"
+            fill="none" stroke="#7ea4b0" strokeWidth={1.7} strokeLinecap="round" opacity={0.7} />
+          {/* 得子口溪 — 礁溪山區→頭城/壯圍海岸 */}
+          <path d="M 595 220 Q 635 232 665 248 Q 685 256 700 252"
+            fill="none" stroke="#7ea4b0" strokeWidth={1.4} strokeLinecap="round" opacity={0.65} />
+          {/* 新城溪 — 蘇澳/南澳邊界 */}
+          <path d="M 640 590 Q 670 595 700 593 Q 720 590 730 583"
+            fill="none" stroke="#7ea4b0" strokeWidth={1.4} strokeLinecap="round" opacity={0.65} />
+
+          {/* 河川標籤 */}
+          <g opacity={0.6}>
+            <text x={555} y={420} fontFamily={SERIF} fontStyle="italic" fontSize={9}
+              fill="#4a6b75" letterSpacing="0.08em">蘭陽溪</text>
+            <text x={540} y={300} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
+              fill="#4a6b75" letterSpacing="0.08em">宜蘭河</text>
+            <text x={618} y={388} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
+              fill="#4a6b75" letterSpacing="0.08em">冬山河</text>
+            <text x={616} y={216} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
+              fill="#4a6b75" letterSpacing="0.08em">得子口溪</text>
+            <text x={655} y={585} fontFamily={SERIF} fontStyle="italic" fontSize={8.5}
+              fill="#4a6b75" letterSpacing="0.08em">新城溪</text>
+          </g>
         </g>
 
         {/* 鄉鎮標籤 */}
