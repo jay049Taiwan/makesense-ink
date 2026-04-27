@@ -94,11 +94,24 @@ export default function Header() {
     setMenuOpen(false);
     router.push(`/search?q=${encodeURIComponent(target)}`);
   };
+  /**
+   * Enter 行為（兩段式，避免太快跳走來不及看下拉）：
+   *   1. 第一次 Enter：如果下拉還沒展開 → 立即展開 + 即時搜尋（不等 300ms debounce）
+   *   2. 第二次 Enter（下拉已展開）：才跳到 /search 全頁結果
+   */
   const onSearchKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === "Enter") {
-      e.preventDefault();
-      submitSearch();
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const target = query.trim();
+    if (!target) return;
+    if (!showDropdown || !results) {
+      // 強制顯示下拉並立即查（跳過 debounce）
+      setShowDropdown(true);
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      doSearch(target);
+      return;
     }
+    submitSearch();
   };
 
   useEffect(() => {
