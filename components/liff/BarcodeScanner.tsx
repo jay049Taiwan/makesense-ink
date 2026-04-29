@@ -38,16 +38,11 @@ export default function BarcodeScanner({ onScan, onClose }: BarcodeScannerProps)
         scanner = new Html5Qrcode("barcode-reader");
         scannerRef.current = scanner;
 
-        // 強制高解析度相機 stream — 預設可能 640×480，條碼線會糊成一團
-        // 1920×1080 在現代手機都支援，鏡頭硬體會自動 fallback 到能達到的最高
-        const videoConstraints: MediaTrackConstraints = {
-          facingMode: "environment",
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        };
-
+        // 注意：之前嘗試加 width/height ideal 1920×1080 在 iOS Telegram
+        // WebView 會直接讓相機開不起來，所以仍維持最簡單的 facingMode 約束。
+        // 解析度由 html5-qrcode 跟瀏覽器協商。
         await scanner.start(
-          videoConstraints,
+          { facingMode: "environment" },
           {
             fps: 30, // 進一步提高每秒解碼次數
             // qrbox：寬一點、矮一點，給 EAN-13 條碼留橫向空間
