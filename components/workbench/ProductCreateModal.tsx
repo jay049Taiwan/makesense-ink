@@ -5,6 +5,10 @@ import { supabase } from "@/lib/supabase";
 
 /**
  * 建檔表單資料（modal 收齊後傳給上層）
+ *
+ * 作者/出版發行有兩種傳法：
+ *  - 從 autocomplete 選了既有 person → 用 authorId / publisherId（DB08 notion_id）
+ *  - 打了文字但沒對應 → 用 authorName / publisherName，後端會自動在 DB08 建一筆
  */
 export interface ProductDraft {
   sku: string;
@@ -13,6 +17,8 @@ export interface ProductDraft {
   photoFile: File;
   authorId?: string;
   publisherId?: string;
+  authorName?: string;     // 自動建檔用
+  publisherName?: string;  // 自動建檔用
 }
 
 interface ProductCreateModalProps {
@@ -105,6 +111,9 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
     if (!price || isNaN(priceNum) || priceNum < 0) return setError("請輸入有效售價");
     if (!photoFile) return setError("請上傳商品照片");
 
+    // 作者/出版發行：選了既有 → 帶 id；只打字沒選 → 帶 name 給後端自動建 DB08
+    const authorTrim = authorQuery.trim();
+    const publisherTrim = publisherQuery.trim();
     onSubmit({
       sku: initialSku,
       name: name.trim(),
@@ -112,6 +121,8 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
       photoFile,
       authorId: authorId || undefined,
       publisherId: publisherId || undefined,
+      authorName: !authorId && authorTrim ? authorTrim : undefined,
+      publisherName: !publisherId && publisherTrim ? publisherTrim : undefined,
     });
   };
 
@@ -212,7 +223,7 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
               <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>✓ 已連結到 DB08</p>
             )}
             {!authorId && authorQuery && authorSuggestions.length === 0 && (
-              <p className="text-[11px] mt-1" style={{ color: "#999" }}>找不到「{authorQuery}」，這次不帶入此欄位，建檔後請到 Notion DB07 手動補關聯</p>
+              <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>＋ 建檔時會自動在 DB08 新增「{authorQuery}」（之後到 Notion 補欄位歸檔）</p>
             )}
             {authorSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-20" style={{ background: "#fff", border: "1px solid #ddd", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
@@ -246,7 +257,7 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
               <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>✓ 已連結到 DB08</p>
             )}
             {!publisherId && publisherQuery && publisherSuggestions.length === 0 && (
-              <p className="text-[11px] mt-1" style={{ color: "#999" }}>找不到「{publisherQuery}」，這次不帶入此欄位，建檔後請到 Notion DB07 手動補關聯</p>
+              <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>＋ 建檔時會自動在 DB08 新增「{publisherQuery}」（之後到 Notion 補欄位歸檔）</p>
             )}
             {publisherSuggestions.length > 0 && (
               <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-20" style={{ background: "#fff", border: "1px solid #ddd", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
@@ -269,7 +280,7 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
           <p className="text-[11px]" style={{ color: "#888", lineHeight: 1.5 }}>
             建檔後 <strong>「發佈狀態 = 待發佈」</strong>，不會出現在官網。
             未來可在 Notion DB07 修改完整資訊（簡介、相關觀點、相關文章等）後，把發佈狀態改為「待發佈→已發佈」。
-            <br />作者／出版發行若 DB08 沒對應，這次不帶入；建檔後可到 Notion DB07 手動補關聯。
+            <br />作者／出版發行若 DB08 沒對應，會自動在 DB08 建一筆（只有名稱），之後可到 Notion 補欄位歸檔。
           </p>
 
           {error && <p className="text-sm" style={{ color: "#e53e3e" }}>⚠️ {error}</p>}

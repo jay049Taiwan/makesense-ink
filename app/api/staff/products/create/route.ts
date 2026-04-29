@@ -31,7 +31,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { sku, name, price, photoUrl, authorId, publisherId } = body || {};
+  const { sku, name, price, photoUrl, authorId, publisherId, authorName, publisherName } = body || {};
   let { subCategory } = body || {};
 
   // ── 驗證必填 ──
@@ -73,6 +73,33 @@ export async function POST(req: NextRequest) {
     // 查不到就繼續往下建
   }
 
+  // ── 作者／出版發行：找不到就自動在 DB08 建一筆最簡 page（只填名稱，其他欄位 Noah 之後歸檔）──
+  let resolvedAuthorId: string | undefined = authorId || undefined;
+  let resolvedPublisherId: string | undefined = publisherId || undefined;
+
+  if (!resolvedAuthorId && typeof authorName === "string" && authorName.trim()) {
+    try {
+      const newAuthor = await createPage(DB.DB08_RELATIONSHIP, {
+        "經營名稱": { title: [{ text: { content: authorName.trim() } }] },
+      });
+      resolvedAuthorId = newAuthor.id;
+    } catch (err: any) {
+      console.error("[products/create] auto-create author failed:", err?.message);
+      // 失敗就不帶 author，繼續建 DB07 主商品
+    }
+  }
+
+  if (!resolvedPublisherId && typeof publisherName === "string" && publisherName.trim()) {
+    try {
+      const newPub = await createPage(DB.DB08_RELATIONSHIP, {
+        "經營名稱": { title: [{ text: { content: publisherName.trim() } }] },
+      });
+      resolvedPublisherId = newPub.id;
+    } catch (err: any) {
+      console.error("[products/create] auto-create publisher failed:", err?.message);
+    }
+  }
+
   // ── 1. 寫 Notion DB07 ──
   const notionProps: Record<string, any> = {
     "庫存名稱": { title: [{ text: { content: name } }] },
@@ -92,11 +119,11 @@ export async function POST(req: NextRequest) {
     },
   };
 
-  if (authorId) {
-    notionProps["對應作者"] = { relation: [{ id: authorId }] };
+  if (resolvedAuthorId) {
+    notionProps["對應作者"] = { relation: [{ id: resolvedAuthorId }] };
   }
-  if (publisherId) {
-    notionProps["對應發行"] = { relation: [{ id: publisherId }] };
+  if (resolvedPublisherId) {
+    notionProps["對應發行"] = { relation: [{ id: resolvedPublisherId }] };
   }
 
   let notionPage: any;
@@ -112,10 +139,13 @@ export async function POST(req: NextRequest) {
   const notionId = notionPage.id.replace(/-/g, "");
 
   // ── 2. 反查 author/publisher 在 Supabase persons 表的 UUID ──
+  // 注意：自動建檔的 DB08 page 沒設「會員狀態=會員 + 關係選項=個人」，
+  // 不會被 sync 到 Supabase persons 表。所以新建的 author/publisher 在這裡會是 null，
+  // 等 Noah 在 Notion 補齊欄位、下次 sync 後才會在 Supabase 出現。
   let supaAuthorId: string | null = null;
   let supaPublisherId: string | null = null;
-  if (authorId) {
-    const cleanAuthor = authorId.replace(/-/g, "");
+  if (resolvedAuthorId) {
+    const cleanAuthor = resolvedAuthorId.replace(/-/g, "");
     const { data } = await supabaseAdmin
       .from("persons")
       .select("id")
@@ -123,8 +153,8 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
     supaAuthorId = data?.id || null;
   }
-  if (publisherId) {
-    const cleanPub = publisherId.replace(/-/g, "");
+  if (resolvedPublisherId) {
+    const cleanPub = resolvedPublisherId.replace(/-/g, "");
     const { data } = await supabaseAdmin
       .from("persons")
       .select("id")

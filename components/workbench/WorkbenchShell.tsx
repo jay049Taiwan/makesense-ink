@@ -334,6 +334,8 @@ function InventoryPanel() {
           photoUrl: upJson.url,
           authorId: draft.authorId,
           publisherId: draft.publisherId,
+          authorName: draft.authorName,
+          publisherName: draft.publisherName,
         }),
       });
       const createJson = await createRes.json();
