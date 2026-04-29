@@ -48,6 +48,9 @@ interface PersonOption {
  *   3. onCreated() 回傳新商品給上層
  */
 export default function ProductCreateModal({ initialSku, onSubmit, onClose }: ProductCreateModalProps) {
+  // SKU 預設帶入掃碼結果，但 user 可手動改、或用「自動產生」按鈕
+  const [sku, setSku] = useState(initialSku);
+  const [showAutoSku, setShowAutoSku] = useState(false);
   const [name, setName] = useState("");
   const [price, setPrice] = useState<string>("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
@@ -106,6 +109,7 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
   // 由父層負責背景跑「上傳照片 + 建檔」，使用者不用等
   const submit = () => {
     setError("");
+    if (!sku.trim()) return setError("請輸入商品 ID（或按自動產生）");
     if (!name.trim()) return setError("請輸入商品名稱");
     const priceNum = Number(price);
     if (!price || isNaN(priceNum) || priceNum < 0) return setError("請輸入有效售價");
@@ -115,7 +119,7 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
     const authorTrim = authorQuery.trim();
     const publisherTrim = publisherQuery.trim();
     onSubmit({
-      sku: initialSku,
+      sku: sku.trim(),
       name: name.trim(),
       price: priceNum,
       photoFile,
@@ -127,6 +131,13 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
   };
 
   return (
+    <>
+    {showAutoSku && (
+      <AutoSkuOverlay
+        onClose={() => setShowAutoSku(false)}
+        onApply={(generated) => { setSku(generated); setShowAutoSku(false); }}
+      />
+    )}
     <div
       className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center"
       style={{ background: "rgba(0,0,0,0.5)" }}
@@ -145,18 +156,35 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
 
         {/* Form */}
         <div className="px-5 py-4 space-y-4">
-          {/* SKU（自動帶入，不可編輯）*/}
+          {/* SKU（可編輯，掃條碼自動帶入；自製商品按「自動產生」依規範編 10 碼）*/}
           <div>
-            <label className="text-xs block mb-1" style={{ color: "#888" }}>商品 ID（已自動帶入）</label>
-            <input
-              type="text"
-              value={initialSku}
-              readOnly
-              className="w-full px-3 py-2 rounded text-sm outline-none"
-              style={{ background: "#f8f7f4", border: "1px solid #ddd", color: "#666" }}
-            />
+            <label className="text-xs block mb-1" style={{ color: "#888" }}>
+              商品 ID <span style={{ color: "#e53e3e" }}>*</span>
+            </label>
+            <div className="flex gap-2">
+              <input
+                type="text"
+                value={sku}
+                onChange={(e) => setSku(e.target.value)}
+                placeholder="掃條碼自動帶入，或按右側「自動產生」"
+                className="flex-1 px-3 py-2 rounded text-sm outline-none"
+                style={{ border: "1px solid #ddd" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowAutoSku(true)}
+                className="px-3 py-2 rounded text-xs whitespace-nowrap"
+                style={{ background: "transparent", border: "1px solid #7a5c40", color: "#7a5c40", cursor: "pointer" }}
+              >
+                自動產生
+              </button>
+            </div>
             <p className="text-[10px] mt-1" style={{ color: "#aaa" }}>
-              {/^97[89]\d{10}$/.test(initialSku) ? "ISBN-13 格式 → 商品分類自動為「選書」" : "非 ISBN 格式 → 商品分類預設為「選物」"}
+              {/^97[89]\d{10}$/.test(sku)
+                ? "ISBN-13 格式 → 商品分類自動為「選書」"
+                : sku.length === 10 && /^\d{10}$/.test(sku)
+                  ? `自編 10 碼（類型 ${sku[0]}・製作 ${sku[1]}・年 ${sku.slice(2, 6)}・第 ${parseInt(sku.slice(6), 10)} 筆）`
+                  : "非 ISBN 格式 → 商品分類預設為「選物」"}
             </p>
           </div>
 
@@ -298,6 +326,170 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
             style={{ background: "#7a5c40", border: "none", cursor: "pointer" }}
           >
             建檔並加入清單
+          </button>
+        </div>
+      </div>
+    </div>
+    </>
+  );
+}
+
+// ─────────────────────────────────────────────
+// 自動產生商品 ID 小框（10 位數規範）
+// 規則參考 Notion DB07 維護指南：
+//   [類型 1 碼] + [製作 1 碼] + [年號 4 碼] + [流水 4 碼]
+//   類型：1=商品 2=設備 3=耗材 4=其他
+//   製作 (商品)：1=自己開發 2=第三方合作 3=他人製作
+//   製作 (設備)：4=3C家電 5=佈置收藏 6=餐飲設備
+//   製作 (耗材)：7=清潔用品 8=文具用品 9=包裝配件 0=其他
+// 流水：去 Supabase products.sku 查同 prefix 最大號 +1（避免衝突）
+// ─────────────────────────────────────────────
+type CategoryType = "1" | "2" | "3" | "4";  // 商品/設備/耗材/其他
+const TYPE_LABELS: Record<CategoryType, string> = {
+  "1": "商品",
+  "2": "設備",
+  "3": "耗材",
+  "4": "其他",
+};
+const MAKE_OPTIONS: Record<CategoryType, { code: string; label: string }[]> = {
+  "1": [
+    { code: "1", label: "自己開發" },
+    { code: "2", label: "第三方合作" },
+    { code: "3", label: "他人製作" },
+  ],
+  "2": [
+    { code: "4", label: "3C 家電" },
+    { code: "5", label: "佈置收藏" },
+    { code: "6", label: "餐飲設備" },
+  ],
+  "3": [
+    { code: "7", label: "清潔用品" },
+    { code: "8", label: "文具用品" },
+    { code: "9", label: "包裝配件" },
+    { code: "0", label: "其他" },
+  ],
+  "4": [
+    { code: "0", label: "其他" },
+  ],
+};
+
+function AutoSkuOverlay({
+  onClose,
+  onApply,
+}: {
+  onClose: () => void;
+  onApply: (sku: string) => void;
+}) {
+  const [type, setType] = useState<CategoryType>("1");
+  const [make, setMake] = useState<string>("1");
+  const [generating, setGenerating] = useState(false);
+  const [error, setError] = useState("");
+
+  // type 改變時重置 make 為該類型第一個選項
+  useEffect(() => {
+    setMake(MAKE_OPTIONS[type][0].code);
+  }, [type]);
+
+  const year = new Date().getFullYear();
+  const previewPrefix = `${type}${make}${year}`;
+
+  const generate = async () => {
+    setError("");
+    setGenerating(true);
+    try {
+      // 查 Supabase 同 prefix 最大號（純數字 sku、開頭符合此 prefix）
+      const { data, error: qErr } = await supabase
+        .from("products")
+        .select("sku")
+        .like("sku", `${previewPrefix}%`)
+        .order("sku", { ascending: false })
+        .limit(1);
+      if (qErr) throw qErr;
+      let nextNum = 1;
+      if (data && data[0]?.sku && /^\d{10}$/.test(data[0].sku)) {
+        const seq = parseInt(data[0].sku.slice(6, 10), 10);
+        if (!isNaN(seq)) nextNum = seq + 1;
+      }
+      const newSku = `${previewPrefix}${String(nextNum).padStart(4, "0")}`;
+      onApply(newSku);
+    } catch (e: any) {
+      setError("查詢失敗：" + (e?.message || "未知錯誤"));
+      setGenerating(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-[220] flex items-center justify-center px-4" style={{ background: "rgba(0,0,0,0.6)" }} onClick={onClose}>
+      <div className="w-full max-w-sm rounded-2xl p-5" style={{ background: "#fff" }} onClick={(e) => e.stopPropagation()}>
+        <p className="text-base font-bold mb-3" style={{ color: "#333" }}>自動產生商品 ID</p>
+        <p className="text-[11px] mb-4" style={{ color: "#888" }}>
+          依 Notion DB07 規範產 10 位數編碼：<br />
+          [類型] + [製作] + [年號] + [流水號]，流水號自動從 Supabase 查最大號 +1，不會撞號。
+        </p>
+
+        {/* 庫存類型 */}
+        <div className="mb-3">
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>庫存類型</label>
+          <div className="grid grid-cols-4 gap-2">
+            {(Object.keys(TYPE_LABELS) as CategoryType[]).map(t => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setType(t)}
+                className="px-2 py-2 rounded text-sm"
+                style={{
+                  background: type === t ? "#7a5c40" : "#fff",
+                  color: type === t ? "#fff" : "#666",
+                  border: type === t ? "none" : "1px solid #ddd",
+                  cursor: "pointer",
+                  fontWeight: type === t ? 600 : 400,
+                }}
+              >
+                {t} {TYPE_LABELS[t]}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 製作方式 */}
+        <div className="mb-4">
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>製作方式</label>
+          <div className="space-y-1">
+            {MAKE_OPTIONS[type].map(opt => (
+              <button
+                key={opt.code}
+                type="button"
+                onClick={() => setMake(opt.code)}
+                className="w-full text-left px-3 py-2 rounded text-sm"
+                style={{
+                  background: make === opt.code ? "#fff8e1" : "#fff",
+                  border: make === opt.code ? "2px solid #7a5c40" : "1px solid #ddd",
+                  color: make === opt.code ? "#7a5c40" : "#666",
+                  cursor: "pointer",
+                  fontWeight: make === opt.code ? 600 : 400,
+                }}
+              >
+                ({opt.code}) {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* 預覽 */}
+        <div className="mb-4 p-3 rounded" style={{ background: "#f8f7f4", border: "1px dashed #7a5c40" }}>
+          <p className="text-[11px] mb-1" style={{ color: "#888" }}>預覽（流水號將即時查詢）</p>
+          <p className="text-lg font-mono font-bold" style={{ color: "#7a5c40" }}>
+            {previewPrefix}<span style={{ color: "#aaa" }}>○○○○</span>
+          </p>
+        </div>
+
+        {error && <p className="text-sm mb-3" style={{ color: "#e53e3e" }}>⚠️ {error}</p>}
+
+        {/* 按鈕 */}
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} disabled={generating} className="px-4 py-2 text-sm rounded-lg" style={{ background: "transparent", border: "1px solid #ddd", color: "#666", cursor: generating ? "not-allowed" : "pointer" }}>取消</button>
+          <button onClick={generate} disabled={generating} className="px-4 py-2 text-sm rounded-lg text-white" style={{ background: generating ? "#aaa" : "#7a5c40", border: "none", cursor: generating ? "not-allowed" : "pointer" }}>
+            {generating ? "查詢中…" : "✓ 產生並帶入"}
           </button>
         </div>
       </div>
