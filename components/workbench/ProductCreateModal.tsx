@@ -46,27 +46,48 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
   const [price, setPrice] = useState<string>("");
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string>("");
+  // 作者：用 autocomplete 輸入。authorId = 連結到 DB08 的 notion_id（沒選就空字串）
+  const [authorQuery, setAuthorQuery] = useState("");
   const [authorId, setAuthorId] = useState<string>("");
+  const [authorSuggestions, setAuthorSuggestions] = useState<PersonOption[]>([]);
+  // 出版發行：同上
+  const [publisherQuery, setPublisherQuery] = useState("");
   const [publisherId, setPublisherId] = useState<string>("");
-  const [persons, setPersons] = useState<PersonOption[]>([]);
-  const [loadingPersons, setLoadingPersons] = useState(true);
+  const [publisherSuggestions, setPublisherSuggestions] = useState<PersonOption[]>([]);
   const [error, setError] = useState("");
 
-  // 抓 Supabase persons 給 dropdown 用
+  // 作者 autocomplete（debounce 200ms）
   useEffect(() => {
-    (async () => {
-      const { data, error } = await supabase
+    const q = authorQuery.trim();
+    if (!q) { setAuthorSuggestions([]); return; }
+    // 已選中（query 等於 selected name）就不再查
+    if (authorId) return;
+    const t = setTimeout(async () => {
+      const { data } = await supabase
         .from("persons")
         .select("notion_id, name")
-        .order("name");
-      if (error) {
-        console.error("[create modal] persons fetch:", error);
-      } else {
-        setPersons((data || []).filter((p): p is PersonOption => Boolean(p.notion_id && p.name)));
-      }
-      setLoadingPersons(false);
-    })();
-  }, []);
+        .ilike("name", `%${q}%`)
+        .limit(8);
+      setAuthorSuggestions(((data || []).filter(p => p.notion_id && p.name)) as PersonOption[]);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [authorQuery, authorId]);
+
+  // 出版發行 autocomplete（debounce 200ms）
+  useEffect(() => {
+    const q = publisherQuery.trim();
+    if (!q) { setPublisherSuggestions([]); return; }
+    if (publisherId) return;
+    const t = setTimeout(async () => {
+      const { data } = await supabase
+        .from("persons")
+        .select("notion_id, name")
+        .ilike("name", `%${q}%`)
+        .limit(8);
+      setPublisherSuggestions(((data || []).filter(p => p.notion_id && p.name)) as PersonOption[]);
+    }, 200);
+    return () => clearTimeout(t);
+  }, [publisherQuery, publisherId]);
 
   const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -176,44 +197,79 @@ export default function ProductCreateModal({ initialSku, onSubmit, onClose }: Pr
             )}
           </div>
 
-          {/* 作者（選填）*/}
-          <div>
+          {/* 作者（選填，autocomplete）*/}
+          <div className="relative">
             <label className="text-xs block mb-1" style={{ color: "#888" }}>作者（選填）</label>
-            <select
-              value={authorId}
-              onChange={(e) => setAuthorId(e.target.value)}
-              disabled={loadingPersons}
+            <input
+              type="text"
+              value={authorQuery}
+              onChange={(e) => { setAuthorQuery(e.target.value); setAuthorId(""); }}
+              placeholder="輸入作者名字…"
               className="w-full px-3 py-2 rounded text-sm outline-none"
-              style={{ border: "1px solid #ddd", background: "#fff" }}
-            >
-              <option value="">{loadingPersons ? "載入中…" : "（不指定）"}</option>
-              {persons.map((p) => (
-                <option key={p.notion_id} value={p.notion_id}>{p.name}</option>
-              ))}
-            </select>
+              style={{ border: "1px solid #ddd" }}
+            />
+            {authorId && (
+              <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>✓ 已連結到 DB08</p>
+            )}
+            {!authorId && authorQuery && authorSuggestions.length === 0 && (
+              <p className="text-[11px] mt-1" style={{ color: "#999" }}>找不到「{authorQuery}」，這次不帶入此欄位，建檔後請到 Notion DB07 手動補關聯</p>
+            )}
+            {authorSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-20" style={{ background: "#fff", border: "1px solid #ddd", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                {authorSuggestions.map((p) => (
+                  <button
+                    key={p.notion_id}
+                    type="button"
+                    onClick={() => { setAuthorId(p.notion_id); setAuthorQuery(p.name); setAuthorSuggestions([]); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    style={{ background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
-          {/* 出版發行（選填）*/}
-          <div>
+          {/* 出版發行（選填，autocomplete）*/}
+          <div className="relative">
             <label className="text-xs block mb-1" style={{ color: "#888" }}>出版發行（選填）</label>
-            <select
-              value={publisherId}
-              onChange={(e) => setPublisherId(e.target.value)}
-              disabled={loadingPersons}
+            <input
+              type="text"
+              value={publisherQuery}
+              onChange={(e) => { setPublisherQuery(e.target.value); setPublisherId(""); }}
+              placeholder="輸入出版社名字…"
               className="w-full px-3 py-2 rounded text-sm outline-none"
-              style={{ border: "1px solid #ddd", background: "#fff" }}
-            >
-              <option value="">{loadingPersons ? "載入中…" : "（不指定）"}</option>
-              {persons.map((p) => (
-                <option key={p.notion_id} value={p.notion_id}>{p.name}</option>
-              ))}
-            </select>
+              style={{ border: "1px solid #ddd" }}
+            />
+            {publisherId && (
+              <p className="text-[11px] mt-1" style={{ color: "#7a5c40" }}>✓ 已連結到 DB08</p>
+            )}
+            {!publisherId && publisherQuery && publisherSuggestions.length === 0 && (
+              <p className="text-[11px] mt-1" style={{ color: "#999" }}>找不到「{publisherQuery}」，這次不帶入此欄位，建檔後請到 Notion DB07 手動補關聯</p>
+            )}
+            {publisherSuggestions.length > 0 && (
+              <div className="absolute left-0 right-0 mt-1 rounded-lg overflow-hidden z-20" style={{ background: "#fff", border: "1px solid #ddd", boxShadow: "0 4px 12px rgba(0,0,0,0.08)" }}>
+                {publisherSuggestions.map((p) => (
+                  <button
+                    key={p.notion_id}
+                    type="button"
+                    onClick={() => { setPublisherId(p.notion_id); setPublisherQuery(p.name); setPublisherSuggestions([]); }}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50"
+                    style={{ background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}
+                  >
+                    {p.name}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* 提示 */}
           <p className="text-[11px]" style={{ color: "#888", lineHeight: 1.5 }}>
             建檔後 <strong>「發佈狀態 = 待發佈」</strong>，不會出現在官網。
             未來可在 Notion DB07 修改完整資訊（簡介、相關觀點、相關文章等）後，把發佈狀態改為「待發佈→已發佈」。
+            <br />作者／出版發行若 DB08 沒對應，這次不帶入；建檔後可到 Notion DB07 手動補關聯。
           </p>
 
           {error && <p className="text-sm" style={{ color: "#e53e3e" }}>⚠️ {error}</p>}
