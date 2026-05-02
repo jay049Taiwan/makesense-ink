@@ -109,16 +109,19 @@ function ActivityFeed() {
   const [items, setItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [warnings, setWarnings] = useState<string[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
   const load = async () => {
     setLoading(true);
     setError("");
+    setWarnings([]);
     try {
       const res = await staffFetch("/api/staff/workbench/notifications");
       const json = await res.json();
       if (!res.ok || !json.ok) throw new Error(json.error || "載入失敗");
       setItems((json.items || []) as NotifItem[]);
+      setWarnings((json.warnings || []) as string[]);
     } catch (err: any) {
       setError(err?.message || "未知錯誤");
     } finally {
@@ -151,6 +154,15 @@ function ActivityFeed() {
 
       {error && (
         <p className="text-sm p-4" style={{ color: "#e53e3e" }}>⚠️ 載入失敗：{error}</p>
+      )}
+
+      {warnings.length > 0 && (
+        <div className="px-4 py-3 mx-3 my-2 rounded text-xs" style={{ background: "#fff5f5", border: "1px solid #fcc", color: "#c33" }}>
+          <p className="font-bold mb-1">⚠️ 部分掃描失敗（其他通知仍正常顯示）：</p>
+          {warnings.map((w, i) => (
+            <p key={i} className="break-all" style={{ marginTop: 4 }}>• {w}</p>
+          ))}
+        </div>
       )}
 
       {!loading && items.length === 0 && !error && (

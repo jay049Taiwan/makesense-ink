@@ -25,17 +25,35 @@ export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
 
-  // 個別 try/catch，讓某個 scan fail 不影響另一個 + 把詳細 error 帶回 client
+  // 全 catch — 不管哪個 step 失敗都收集到 warnings，回 200 + items + warnings
+  // 讓前端能完整看到「實際是哪個 step 失敗 + Notion 給的詳細 error」
   const errors: string[] = [];
-  try { await scanDb04(); } catch (e: any) { errors.push(`DB04 掃描失敗：${e?.message || e}`); console.error("[workbench/notifications] scanDb04:", e); }
-  try { await scanDb07(); } catch (e: any) { errors.push(`DB07 掃描失敗：${e?.message || e}`); console.error("[workbench/notifications] scanDb07:", e); }
-
-  try {
-    const items = await fetchNotifications();
-    return NextResponse.json({ ok: true, items, ...(errors.length > 0 ? { warnings: errors } : {}) });
-  } catch (e: any) {
-    return NextResponse.json({ error: `讀通知失敗：${e?.message}`, warnings: errors }, { status: 500 });
+  try { await scanDb04(); } catch (e: any) {
+    errors.push(`scanDb04 失敗：${formatErr(e)}`);
+    console.error("[workbench/notifications] scanDb04:", e);
   }
+  try { await scanDb07(); } catch (e: any) {
+    errors.push(`scanDb07 失敗：${formatErr(e)}`);
+    console.error("[workbench/notifications] scanDb07:", e);
+  }
+  let items: any[] = [];
+  try { items = await fetchNotifications(); } catch (e: any) {
+    errors.push(`fetchNotifications 失敗：${formatErr(e)}`);
+    console.error("[workbench/notifications] fetch:", e);
+  }
+  return NextResponse.json({ ok: true, items, warnings: errors });
+}
+
+/** 把任意 error 物件展開成可讀字串（含 Notion 的 code 跟 body） */
+function formatErr(e: any): string {
+  if (!e) return "(empty error)";
+  const msg = e?.message || String(e);
+  const code = e?.code ? ` code=${e.code}` : "";
+  let body = "";
+  if (e?.body) {
+    body = typeof e.body === "string" ? ` body=${e.body.slice(0, 300)}` : ` body=${JSON.stringify(e.body).slice(0, 300)}`;
+  }
+  return `${msg}${code}${body}`;
 }
 
 // ── DB04 掃描 ────────────────────────────────────────
