@@ -30,21 +30,36 @@ export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
 
-  // 全 catch — 不管哪個 step 失敗都收集到 warnings，回 200 + items + warnings
-  // 讓前端能完整看到「實際是哪個 step 失敗 + Notion 給的詳細 error」
+  // 全 catch + 時間競賽 — 任一 scan 超時就 abandon，先回既有 events 不卡 user
+  // （Vercel hobby tier max 60s，留 5s buffer 給 fetchNotifications + JSON serialize）
   const errors: string[] = [];
-  try { await scanDb04(); } catch (e: any) {
-    errors.push(`scanDb04 失敗：${formatErr(e)}`);
-    console.error("[workbench/notifications] scanDb04:", e);
-  }
-  try { await scanDb07(); } catch (e: any) {
-    errors.push(`scanDb07 失敗：${formatErr(e)}`);
-    console.error("[workbench/notifications] scanDb07:", e);
-  }
+  const SCAN_TIMEOUT_MS = 50000;
+
+  const timed = async (label: string, fn: () => Promise<any>): Promise<void> => {
+    const start = Date.now();
+    try {
+      await fn();
+      console.log(`[workbench/notif] ${label} ok in ${Date.now() - start}ms`);
+    } catch (e: any) {
+      const elapsed = Date.now() - start;
+      errors.push(`${label} 失敗 (${elapsed}ms)：${formatErr(e)}`);
+      console.error(`[workbench/notif] ${label} fail in ${elapsed}ms:`, e);
+    }
+  };
+
+  const scanAll = Promise.all([
+    timed("scanDb04", scanDb04),
+    timed("scanDb07", scanDb07),
+  ]);
+  const scanTimeout = new Promise<void>((resolve) =>
+    setTimeout(() => { errors.push(`掃描超時 ${SCAN_TIMEOUT_MS / 1000}s — 先顯示既有通知`); resolve(); }, SCAN_TIMEOUT_MS)
+  );
+  await Promise.race([scanAll, scanTimeout]);
+
   let items: any[] = [];
   try { items = await fetchNotifications(); } catch (e: any) {
     errors.push(`fetchNotifications 失敗：${formatErr(e)}`);
-    console.error("[workbench/notifications] fetch:", e);
+    console.error("[workbench/notif] fetch:", e);
   }
   return NextResponse.json({ ok: true, items, warnings: errors });
 }
