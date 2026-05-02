@@ -251,12 +251,23 @@ export async function fetchSBArticles(limit = 10, webTag?: string | null) {
     query = query.contains("web_tag", [webTag]);
   }
 
+  // 多撈一些，待會 client 端過濾掉話題推薦時還夠數
+  const fetchLimit = webTag === "話題推薦" ? limit : Math.max(limit * 2, 20);
+
   const { data, error } = await query
     .order("published_at", { ascending: false })
-    .limit(limit);
+    .limit(fetchLimit);
 
   if (error) { console.error("fetchSBArticles err:", error); return []; }
-  return (data || []).map(a => ({
+
+  // 預設排除「話題推薦」文章（這類僅供 /bookstore B4 嵌入用，不該出現在地方通訊等列表）
+  // 例外：明確指定 webTag="話題推薦" 時才回傳
+  const filtered = (data || []).filter((a: any) => {
+    if (webTag === "話題推薦") return true;
+    return !Array.isArray(a.web_tag) || !a.web_tag.includes("話題推薦");
+  }).slice(0, limit);
+
+  return filtered.map(a => ({
     id: a.notion_id || a.id,
     title: cleanTitle(a.title),
     cover_url: a.cover_url,

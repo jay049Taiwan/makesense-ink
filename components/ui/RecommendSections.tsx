@@ -65,12 +65,17 @@ export function AlsoWantToKnow() {
     (async () => {
       const { data } = await supabase
         .from("articles")
-        .select("id, notion_id, title, cover_url")
+        .select("id, notion_id, title, cover_url, web_tag")
         .eq("status", "published")
         .order("published_at", { ascending: false })
-        .limit(4);
+        .limit(12);
 
-      setItems((data || []).map(a => ({
+      // 排除話題推薦（沒獨立頁面）
+      const filtered = (data || []).filter((a: any) =>
+        !Array.isArray(a.web_tag) || !a.web_tag.includes("話題推薦")
+      ).slice(0, 4);
+
+      setItems(filtered.map(a => ({
         id: a.notion_id || a.id,
         title: cleanTitle(a.title),
         photo: a.cover_url,

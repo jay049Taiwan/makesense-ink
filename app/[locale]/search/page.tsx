@@ -48,11 +48,11 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       .limit(60),
     supabase
       .from("articles")
-      .select("id, notion_id, title, summary, cover_url, published_at")
+      .select("id, notion_id, title, summary, cover_url, published_at, web_tag")
       .eq("status", "published")
       .or(`title.ilike.${like},summary.ilike.${like}`)
       .order("published_at", { ascending: false })
-      .limit(60),
+      .limit(120),
     supabase
       .from("topics")
       .select("id, notion_id, name, summary, tag_type, region")
@@ -81,13 +81,17 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     type: e.event_type,
     location: e.location,
   }));
-  const articles = (articlesRes.data || []).map((a: any) => ({
-    id: a.notion_id || a.id,
-    title: cleanTitle(a.title),
-    summary: a.summary,
-    photo: a.cover_url,
-    date: a.published_at,
-  }));
+  // 排除話題推薦（沒獨立頁面，不該出現在搜尋結果）
+  const articles = (articlesRes.data || [])
+    .filter((a: any) => !Array.isArray(a.web_tag) || !a.web_tag.includes("話題推薦"))
+    .slice(0, 60)
+    .map((a: any) => ({
+      id: a.notion_id || a.id,
+      title: cleanTitle(a.title),
+      summary: a.summary,
+      photo: a.cover_url,
+      date: a.published_at,
+    }));
   const topics = (topicsRes.data || []).map((t: any) => ({
     id: t.notion_id || t.id,
     name: cleanTitle(t.name),
