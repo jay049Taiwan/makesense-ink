@@ -19,6 +19,7 @@ import { staffFetch } from "@/lib/staff-fetch";
 import TasksPanel from "./TasksPanel";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
 import ProductCreateModal, { type ProductDraft } from "./ProductCreateModal";
+import PagePreviewModal from "./PagePreviewModal";
 
 type StaffTab = "動態" | "交接" | "庫存" | "考勤" | "費用";
 
@@ -81,61 +82,125 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
 }
 
 // ═══════════════════════════════════════════
-// 動態 — 從 Supabase 讀取真實庫存異動
+// 動態 — 從 workbench_notifications 讀已掃出的事件
+// 規則：
+//   - 開 Tab 時即時呼叫 /api/staff/workbench/notifications 觸發後端掃描 + 取列表
+//   - DB04: 「執行狀態 = 執行中」+ last_edited_time 變化
+//   - DB07: 「發佈狀態 = 已發佈」, stock 0/non-0 transition
+//   - 點選 → PagePreviewModal 顯示 Notion page 唯讀內容
 // ═══════════════════════════════════════════
+type NotifItem = {
+  id: string;
+  source_db: "DB04" | "DB07";
+  notion_id: string;
+  event_type: "db04_updated" | "stock_zero" | "stock_restocked";
+  event_at: string;
+  title: string | null;
+  metadata: any;
+};
+
+const EVENT_LABELS: Record<NotifItem["event_type"], { text: string; color: string; icon: string }> = {
+  db04_updated:    { text: "更新",   color: "#7a5c40", icon: "📋" },
+  stock_zero:      { text: "缺貨",   color: "#e53e3e", icon: "⚠️" },
+  stock_restocked: { text: "補貨",   color: "#2d5016", icon: "✅" },
+};
+
 function ActivityFeed() {
-  const [notifications, setNotifications] = useState<{ id: string; type: string; text: string; color: string }[]>([]);
+  const [items, setItems] = useState<NotifItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [previewId, setPreviewId] = useState<string | null>(null);
 
-  useEffect(() => {
-    (async () => {
-      const { data: outOfStock } = await supabase
-        .from("products")
-        .select("id, name, stock")
-        .eq("status", "active")
-        .lte("stock", 0)
-        .order("updated_at", { ascending: false })
-        .limit(20);
-
-      const { data: lowStock } = await supabase
-        .from("products")
-        .select("id, name, stock")
-        .eq("status", "active")
-        .gt("stock", 0)
-        .lte("stock", 3)
-        .order("updated_at", { ascending: false })
-        .limit(10);
-
-      const items: { id: string; type: string; text: string; color: string }[] = [];
-      for (const p of outOfStock || []) {
-        items.push({ id: p.id, type: "缺貨", text: `商品「${p.name}」已缺貨`, color: "#e53e3e" });
-      }
-      for (const p of lowStock || []) {
-        items.push({ id: p.id, type: "低庫存", text: `商品「${p.name}」庫存僅剩 ${p.stock}`, color: "#e8935a" });
-      }
-
-      setNotifications(items);
+  const load = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await staffFetch("/api/staff/workbench/notifications");
+      const json = await res.json();
+      if (!res.ok || !json.ok) throw new Error(json.error || "載入失敗");
+      setItems((json.items || []) as NotifItem[]);
+    } catch (err: any) {
+      setError(err?.message || "未知錯誤");
+    } finally {
       setLoading(false);
-    })();
-  }, []);
+    }
+  };
 
-  if (loading) return <p className="text-sm p-4" style={{ color: "#999" }}>載入中…</p>;
-  if (notifications.length === 0) return <p className="text-sm p-8 text-center" style={{ color: "#999" }}>目前沒有異動通知</p>;
+  useEffect(() => { load(); }, []);
 
   return (
-    <div>
-      {notifications.map((n) => (
-        <div key={n.id} className="flex items-start gap-3 p-4" style={{ borderBottom: "1px solid #f0f0f0" }}>
-          <div className="flex-shrink-0 mt-0.5">
-            <span className="text-[10px] px-2 py-0.5 rounded font-bold text-white" style={{ background: n.color }}>{n.type}</span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm" style={{ color: "#333" }}>{n.text}</p>
-          </div>
-        </div>
-      ))}
-    </div>
+    <>
+      {previewId && <PagePreviewModal notionId={previewId} onClose={() => setPreviewId(null)} />}
+
+      {/* Header：標題 + 重新整理 */}
+      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+        <p className="text-sm font-bold" style={{ color: "#333" }}>動態 ({items.length})</p>
+        <button
+          onClick={load}
+          disabled={loading}
+          className="text-xs px-2 py-1 rounded"
+          style={{ color: "#7a5c40", background: "transparent", border: "1px solid #ddd", cursor: loading ? "wait" : "pointer" }}
+        >
+          {loading ? "掃描中…" : "🔄 重新掃描"}
+        </button>
+      </div>
+
+      {loading && items.length === 0 && (
+        <p className="text-sm p-8 text-center" style={{ color: "#999" }}>掃描 DB04 / DB07 中…</p>
+      )}
+
+      {error && (
+        <p className="text-sm p-4" style={{ color: "#e53e3e" }}>⚠️ 載入失敗：{error}</p>
+      )}
+
+      {!loading && items.length === 0 && !error && (
+        <p className="text-sm p-8 text-center" style={{ color: "#999" }}>目前沒有動態通知</p>
+      )}
+
+      <div>
+        {items.map((n) => {
+          const label = EVENT_LABELS[n.event_type] || { text: "通知", color: "#888", icon: "•" };
+          const timeStr = formatRelativeTime(n.event_at);
+          return (
+            <button
+              key={n.id}
+              onClick={() => setPreviewId(n.notion_id)}
+              className="w-full text-left flex items-start gap-3 p-4 hover:bg-gray-50"
+              style={{ background: "none", border: "none", borderBottom: "1px solid #f0f0f0", cursor: "pointer" }}
+            >
+              <div className="flex-shrink-0 mt-0.5 flex flex-col items-center gap-1">
+                <span className="text-[10px] px-2 py-0.5 rounded font-bold text-white whitespace-nowrap" style={{ background: label.color }}>
+                  {label.icon} {label.text}
+                </span>
+                <span className="text-[9px]" style={{ color: "#aaa" }}>{n.source_db}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium" style={{ color: "#333" }}>{n.title || "（未命名）"}</p>
+                <p className="text-[11px] mt-0.5" style={{ color: "#888" }}>{timeStr}</p>
+              </div>
+              <span className="text-xs self-center" style={{ color: "#aaa" }}>›</span>
+            </button>
+          );
+        })}
+      </div>
+    </>
   );
+}
+
+// 相對時間：「剛剛」「3 分鐘前」「2 小時前」「3 天前」「2026-04-20」
+function formatRelativeTime(iso: string): string {
+  if (!iso) return "";
+  const t = new Date(iso).getTime();
+  if (isNaN(t)) return "";
+  const diff = Date.now() - t;
+  const min = Math.floor(diff / 60000);
+  if (min < 1) return "剛剛";
+  if (min < 60) return `${min} 分鐘前`;
+  const hr = Math.floor(min / 60);
+  if (hr < 24) return `${hr} 小時前`;
+  const day = Math.floor(hr / 24);
+  if (day < 7) return `${day} 天前`;
+  return iso.slice(0, 10);
 }
 
 // ═══════════════════════════════════════════
