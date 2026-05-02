@@ -678,9 +678,6 @@ function InventoryPanel() {
               >
                 <span className="text-xl">{OP_ICON[op]}</span>
                 <span>{op}</span>
-                <span className="text-[10px]" style={{ color: selected ? "#7a5c40" : "#aaa" }}>
-                  Shift+{idx + 1}
-                </span>
               </button>
             );
           })}
