@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server";
-import { Client } from "@notionhq/client";
 import { requireStaff } from "../../_guard";
 import { supabaseAdmin } from "@/lib/supabase";
-import { DB } from "@/lib/notion";
+import { DB, queryDatabase } from "@/lib/notion";
 
 export const runtime = "nodejs";
 export const maxDuration = 30;
-
-const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
 /**
  * GET /api/staff/workbench/notifications
@@ -40,20 +37,14 @@ export async function GET(req: Request) {
 
 // ── DB04 掃描 ────────────────────────────────────────
 async function scanDb04() {
-  // 1. 拉所有「執行狀態 = 執行中」的 page
-  const pages: any[] = [];
-  let cursor: string | undefined = undefined;
-  do {
-    const res: any = await notion.databases.query({
-      database_id: DB.DB04_COLLABORATION,
-      filter: { property: "執行狀態", status: { equals: "執行中" } },
-      sorts: [{ timestamp: "last_edited_time", direction: "descending" }],
-      page_size: 100,
-      ...(cursor ? { start_cursor: cursor } : {}),
-    });
-    pages.push(...res.results);
-    cursor = res.has_more ? res.next_cursor : undefined;
-  } while (cursor && pages.length < 500);
+  // 1. 拉所有「執行狀態 = 執行中」的 page（用 lib/notion 的 queryDatabase，
+  //    內含 dataSources.query + 502/504 重試 + auto-pagination）
+  const pages: any[] = await queryDatabase(
+    DB.DB04_COLLABORATION,
+    { property: "執行狀態", status: { equals: "執行中" } },
+    [{ timestamp: "last_edited_time", direction: "descending" }],
+    100,
+  );
 
   const activeIds = new Set<string>(pages.map((p: any) => p.id.replace(/-/g, "")));
 
