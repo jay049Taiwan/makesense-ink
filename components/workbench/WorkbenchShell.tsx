@@ -105,18 +105,31 @@ const EVENT_LABELS: Record<NotifItem["event_type"], { text: string; color: strin
   stock_restocked: { text: "補貨",   color: "#2d5016", icon: "✅" },
 };
 
+// Module-level cache（跨 ActivityFeed mount/unmount 保留）
+// 切換 tab 來回時不會閃「載入中」+ 重新 fetch 一次，
+// user 看到的是上次的 items，背景 silent revalidate 後才更新。
+let _cachedItems: NotifItem[] | null = null;
+let _cachedWarnings: string[] = [];
+let _cachedAt = 0;
+const REVALIDATE_TTL_MS = 60_000; // 60 秒內 mount 不重打 API（n8n cron 5 分鐘跑一次，60s revalidate 夠新鮮）
+
 function ActivityFeed() {
-  const [items, setItems] = useState<NotifItem[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [items, setItems] = useState<NotifItem[]>(_cachedItems || []);
+  const [loading, setLoading] = useState(_cachedItems === null);
   const [error, setError] = useState("");
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<string[]>(_cachedWarnings);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
-  // scan=true → 強制觸發後端掃描 DB04/DB07（慢），預設只取 cached events（秒回）
+  // scan=true → 強制觸發後端掃描 DB04/DB07（慢，user 主動點）
+  // scan=false → 只取 cached events（秒回，背景 silent revalidate）
   const load = async (scan = false) => {
-    setLoading(true);
+    // 非強制掃描 + cache 還新鮮 → skip，連 fetch 都不打
+    if (!scan && _cachedItems !== null && Date.now() - _cachedAt < REVALIDATE_TTL_MS) {
+      return;
+    }
+    // 第一次（cache 空）才擋 UI 顯示「載入中」；revalidate 不擋
+    if (_cachedItems === null) setLoading(true);
     setError("");
-    setWarnings([]);
     try {
       const url = scan ? "/api/staff/workbench/notifications?scan=1" : "/api/staff/workbench/notifications";
       const res = await staffFetch(url);
@@ -124,8 +137,13 @@ function ActivityFeed() {
       let json: any;
       try { json = JSON.parse(text); } catch { throw new Error(`回應非 JSON：${text.slice(0, 100)}`); }
       if (!res.ok || !json.ok) throw new Error(json.error || "載入失敗");
-      setItems((json.items || []) as NotifItem[]);
-      setWarnings((json.warnings || []) as string[]);
+      const fresh = (json.items || []) as NotifItem[];
+      const wa = (json.warnings || []) as string[];
+      setItems(fresh);
+      setWarnings(wa);
+      _cachedItems = fresh;
+      _cachedWarnings = wa;
+      _cachedAt = Date.now();
     } catch (err: any) {
       setError(err?.message || "未知錯誤");
     } finally {
