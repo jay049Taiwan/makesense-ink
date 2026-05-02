@@ -56,119 +56,106 @@ function formatErr(e: any): string {
   return `${msg}${code}${body}`;
 }
 
-// ── DB04 掃描 ────────────────────────────────────────
+// ── DB04 掃描（in-memory diff，避免 N 次 supabase query 撞 timeout）──
 async function scanDb04() {
-  // server-side filter「執行狀態 = 執行中」，避免拉全量 DB04 太慢
-  // 不傳 sorts（v5 sorts 格式可能跟 v4 不同，且排序對掃描本身不重要）
+  // 1. 拉 Notion DB04「執行中」
   const pages: any[] = await queryDatabase(
     DB.DB04_COLLABORATION,
     { property: "執行狀態", status: { equals: "執行中" } },
   );
-
   const activeIds = new Set<string>(pages.map((p: any) => p.id.replace(/-/g, "")));
 
-  // 2. 對每筆 page，比對 last_edited_time vs 已存在的 db04_updated event
+  // 2. 一次拉所有現有的 DB04 events，建 map: notion_id → 最新 event_at
+  const { data: existingEvents } = await supabaseAdmin
+    .from("workbench_notifications")
+    .select("id, notion_id, event_at")
+    .eq("source_db", "DB04")
+    .eq("event_type", "db04_updated");
+  const lastEventMap = new Map<string, { id: string; event_at: string }>();
+  for (const ev of existingEvents || []) {
+    const cur = lastEventMap.get(ev.notion_id);
+    if (!cur || new Date(ev.event_at) > new Date(cur.event_at)) {
+      lastEventMap.set(ev.notion_id, { id: ev.id, event_at: ev.event_at });
+    }
+  }
+
+  // 3. In-memory diff：找出需要新增的 events
+  const toInsert: any[] = [];
   for (const page of pages) {
     const notion_id = page.id.replace(/-/g, "");
     const lastEdited = page.last_edited_time as string;
-    const title =
-      readTitle(page.properties?.["主題名稱"]) ||
-      readTitle(page.properties?.["交接名稱"]) ||
-      "（未命名）";
-
-    const { data: lastEvent } = await supabaseAdmin
-      .from("workbench_notifications")
-      .select("event_at")
-      .eq("source_db", "DB04")
-      .eq("notion_id", notion_id)
-      .eq("event_type", "db04_updated")
-      .order("event_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    if (!lastEvent || new Date(lastEdited) > new Date(lastEvent.event_at)) {
-      await supabaseAdmin.from("workbench_notifications").insert({
-        source_db: "DB04",
-        notion_id,
-        event_type: "db04_updated",
-        event_at: lastEdited,
-        title,
-      });
+    const last = lastEventMap.get(notion_id);
+    if (!last || new Date(lastEdited) > new Date(last.event_at)) {
+      const title =
+        readTitle(page.properties?.["主題名稱"]) ||
+        readTitle(page.properties?.["交接名稱"]) ||
+        "（未命名）";
+      toInsert.push({ source_db: "DB04", notion_id, event_type: "db04_updated", event_at: lastEdited, title });
     }
   }
+  if (toInsert.length > 0) {
+    await supabaseAdmin.from("workbench_notifications").insert(toInsert);
+  }
 
-  // 3. Cleanup：刪除「不再執行中」的 events
-  const { data: oldDb04 } = await supabaseAdmin
-    .from("workbench_notifications")
-    .select("id, notion_id")
-    .eq("source_db", "DB04");
-  for (const ev of oldDb04 || []) {
-    if (!activeIds.has(ev.notion_id)) {
-      await supabaseAdmin.from("workbench_notifications").delete().eq("id", ev.id);
-    }
+  // 4. Cleanup：批次刪除「不再執行中」的 DB04 events
+  const idsToDelete = (existingEvents || []).filter(ev => !activeIds.has(ev.notion_id)).map(ev => ev.id);
+  if (idsToDelete.length > 0) {
+    await supabaseAdmin.from("workbench_notifications").delete().in("id", idsToDelete);
   }
 }
 
-// ── DB07 掃描 ────────────────────────────────────────
+// ── DB07 掃描（in-memory diff）────────────────────────
 async function scanDb07() {
-  // 1. 拉 Supabase 中所有 status='active' 的 product（已發佈）
+  // 1. 拉 Supabase 所有 active product
   const { data: products } = await supabaseAdmin
     .from("products")
     .select("notion_id, name, stock")
     .eq("status", "active")
     .not("notion_id", "is", null);
-
   const activeIds = new Set<string>((products || []).map(p => p.notion_id));
 
-  // 2. 對每個 product，比對狀態 transition
-  for (const p of products || []) {
-    if (!p.notion_id) continue;
-    const notion_id = p.notion_id;
-    const isOOS = (p.stock ?? 0) <= 0;
-
-    const { data: lastEvent } = await supabaseAdmin
-      .from("workbench_notifications")
-      .select("event_type")
-      .eq("source_db", "DB07")
-      .eq("notion_id", notion_id)
-      .in("event_type", ["stock_zero", "stock_restocked"])
-      .order("event_at", { ascending: false })
-      .limit(1)
-      .maybeSingle();
-
-    const lastType = lastEvent?.event_type;
-
-    if (isOOS && lastType !== "stock_zero") {
-      // 上次不是缺貨（沒事件 / 上次補貨）→ 現在缺貨 → 推
-      await supabaseAdmin.from("workbench_notifications").insert({
-        source_db: "DB07",
-        notion_id,
-        event_type: "stock_zero",
-        title: p.name || "（未命名商品）",
-        metadata: { stock: p.stock },
-      });
-    } else if (!isOOS && lastType === "stock_zero") {
-      // 上次缺貨 → 現在補貨 → 推
-      await supabaseAdmin.from("workbench_notifications").insert({
-        source_db: "DB07",
-        notion_id,
-        event_type: "stock_restocked",
-        title: p.name || "（未命名商品）",
-        metadata: { stock: p.stock },
-      });
+  // 2. 一次拉所有 DB07 events，建 map: notion_id → 最近一筆 event
+  const { data: existingEvents } = await supabaseAdmin
+    .from("workbench_notifications")
+    .select("id, notion_id, event_type, event_at")
+    .eq("source_db", "DB07")
+    .in("event_type", ["stock_zero", "stock_restocked"]);
+  const lastEventMap = new Map<string, { id: string; event_type: string; event_at: string }>();
+  for (const ev of existingEvents || []) {
+    const cur = lastEventMap.get(ev.notion_id);
+    if (!cur || new Date(ev.event_at) > new Date(cur.event_at)) {
+      lastEventMap.set(ev.notion_id, { id: ev.id, event_type: ev.event_type, event_at: ev.event_at });
     }
-    // 其他狀況：不建（重複事件）
   }
 
-  // 3. Cleanup：刪除「不再 status='active'」的 events
-  const { data: oldDb07 } = await supabaseAdmin
-    .from("workbench_notifications")
-    .select("id, notion_id")
-    .eq("source_db", "DB07");
-  for (const ev of oldDb07 || []) {
-    if (!activeIds.has(ev.notion_id)) {
-      await supabaseAdmin.from("workbench_notifications").delete().eq("id", ev.id);
+  // 3. In-memory diff
+  const toInsert: any[] = [];
+  for (const p of products || []) {
+    if (!p.notion_id) continue;
+    const isOOS = (p.stock ?? 0) <= 0;
+    const last = lastEventMap.get(p.notion_id);
+    const lastType = last?.event_type;
+
+    if (isOOS && lastType !== "stock_zero") {
+      toInsert.push({
+        source_db: "DB07", notion_id: p.notion_id, event_type: "stock_zero",
+        title: p.name || "（未命名商品）", metadata: { stock: p.stock },
+      });
+    } else if (!isOOS && lastType === "stock_zero") {
+      toInsert.push({
+        source_db: "DB07", notion_id: p.notion_id, event_type: "stock_restocked",
+        title: p.name || "（未命名商品）", metadata: { stock: p.stock },
+      });
     }
+  }
+  if (toInsert.length > 0) {
+    await supabaseAdmin.from("workbench_notifications").insert(toInsert);
+  }
+
+  // 4. Cleanup：批次刪除「不再 active」的 DB07 events
+  const idsToDelete = (existingEvents || []).filter(ev => !activeIds.has(ev.notion_id)).map(ev => ev.id);
+  if (idsToDelete.length > 0) {
+    await supabaseAdmin.from("workbench_notifications").delete().in("id", idsToDelete);
   }
 }
 
