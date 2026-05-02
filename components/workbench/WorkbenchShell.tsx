@@ -10,7 +10,7 @@
  * 鐵律：工作台 UI 修改一律改這個檔案，不要在 page.tsx 內複製/分叉組件。
  *       新增 Tab、改 Tab 順序、調整子面板都改這裡，兩端自動同步。
  *
- * 五 Tab：動態 / 交接 / 庫存 / 考勤 / 費用
+ * 五 Tab：動態 / 交接 / 庫存 / 紀錄 / 費用
  */
 
 import React, { useState, useEffect, useRef } from "react";
@@ -21,13 +21,13 @@ import BarcodeScanner from "@/components/liff/BarcodeScanner";
 import ProductCreateModal, { type ProductDraft } from "./ProductCreateModal";
 import PagePreviewModal from "./PagePreviewModal";
 
-type StaffTab = "動態" | "交接" | "庫存" | "考勤" | "費用";
+type StaffTab = "動態" | "交接" | "庫存" | "紀錄" | "費用";
 
 const tabIcons: Record<StaffTab, string> = {
   "動態": "📢",
   "交接": "📋",
   "庫存": "📦",
-  "考勤": "⏰",
+  "紀錄": "📓",
   "費用": "💰",
 };
 
@@ -54,7 +54,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
         {activeTab === "動態" && <ActivityFeed />}
         {activeTab === "交接" && <TasksPanel userEmail={email} />}
         {activeTab === "庫存" && <InventoryPanel />}
-        {activeTab === "考勤" && <AttendancePanel />}
+        {activeTab === "紀錄" && <AttendancePanel />}
         {activeTab === "費用" && <ExpensePanel />}
       </div>
 
@@ -279,6 +279,24 @@ function InventoryPanel() {
     }, 300);
     return () => clearTimeout(timer);
   }, [search]);
+
+  // 鍵盤快捷鍵：Shift+1/2/3 切換 出貨/進貨/盤點
+  // 用 e.code 而非 e.key（避免不同鍵盤布局下 Shift+1 = "!" 的問題）
+  // 在 input/textarea/contentEditable 裡時不觸發，避免使用者打字時誤切
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (!e.shiftKey) return;
+      const target = e.target as HTMLElement;
+      if (!target) return;
+      const tag = target.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || target.isContentEditable) return;
+      if (e.code === "Digit1") { e.preventDefault(); setOperation("出貨"); }
+      else if (e.code === "Digit2") { e.preventDefault(); setOperation("進貨"); }
+      else if (e.code === "Digit3") { e.preventDefault(); setOperation("盤點"); }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, []);
 
   // 掃碼結果處理：sku/barcode 比對 products
   const handleScan = async (code: string) => {
@@ -628,14 +646,15 @@ function InventoryPanel() {
 
       {/* === Main UI === */}
       <div className="px-1 sm:px-0">
-        {/* 1. 三等分頂部按鈕 */}
+        {/* 1. 三等分頂部按鈕（含 Shift+1/2/3 快捷鍵）*/}
         <div className="grid grid-cols-3 gap-2 mb-4">
-          {(["出貨", "進貨", "盤點"] as const).map(op => {
+          {(["出貨", "進貨", "盤點"] as const).map((op, idx) => {
             const selected = operation === op;
             return (
               <button
                 key={op}
                 onClick={() => setOperation(op)}
+                title={`${op}（Shift+${idx + 1}）`}
                 className="py-3 rounded-lg text-sm transition-colors flex flex-col items-center gap-1"
                 style={{
                   background: selected ? "#fff" : "transparent",
@@ -646,7 +665,10 @@ function InventoryPanel() {
                 }}
               >
                 <span className="text-xl">{OP_ICON[op]}</span>
-                <span>{op === "盤點" ? "盤點" : `商品${op}`}</span>
+                <span>{op}</span>
+                <span className="text-[10px]" style={{ color: selected ? "#7a5c40" : "#aaa" }}>
+                  Shift+{idx + 1}
+                </span>
               </button>
             );
           })}
@@ -1028,7 +1050,7 @@ function NoteEditorOverlay({
 }
 
 // ═══════════════════════════════════════════
-// 考勤 — 保留打卡 UI，移除假紀錄
+// 紀錄 — 打卡/日誌/請假/加班/班表 UI
 // ═══════════════════════════════════════════
 function AttendancePanel() {
   const [subTab, setSubTab] = useState<"打卡" | "日誌" | "請假" | "加班" | "班表">("打卡");
