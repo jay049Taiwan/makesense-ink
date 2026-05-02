@@ -37,6 +37,7 @@ interface CalendarProps {
   selectedDate?: string | null;
   mode?: "default" | "market" | "space";
   fetchUrl?: string;
+  maxWidth?: number; // 預設 1000，可自訂（例：俱樂部行事曆用 1200）
 }
 
 // ── 工具函式 ──
@@ -91,6 +92,7 @@ export default function Calendar({
   selectedDate,
   mode = "default",
   fetchUrl,
+  maxWidth = 1000,
 }: CalendarProps) {
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -200,7 +202,7 @@ export default function Calendar({
       : "h-[60px] sm:h-[90px]";
 
   return (
-    <div className="w-full max-w-[1000px] mx-auto">
+    <div className="w-full mx-auto" style={{ maxWidth }}>
       {/* Navigation */}
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-foreground">

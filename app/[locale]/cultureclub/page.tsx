@@ -242,7 +242,7 @@ export default async function CultureClubPage() {
       {/* ── 活動行事曆 ── */}
       <section className="py-6 pb-16">
         <h2 className="text-[1.5em] font-bold mb-4" style={{ color: "#1a1612" }}>活動行事曆</h2>
-        <Calendar mode="default" fetchUrl="/api/calendar/events" />
+        <Calendar mode="default" fetchUrl="/api/calendar/events" maxWidth={1200} />
       </section>
     </div>
   );
