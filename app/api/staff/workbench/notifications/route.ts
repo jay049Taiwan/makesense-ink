@@ -25,25 +25,26 @@ export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
 
+  // 個別 try/catch，讓某個 scan fail 不影響另一個 + 把詳細 error 帶回 client
+  const errors: string[] = [];
+  try { await scanDb04(); } catch (e: any) { errors.push(`DB04 掃描失敗：${e?.message || e}`); console.error("[workbench/notifications] scanDb04:", e); }
+  try { await scanDb07(); } catch (e: any) { errors.push(`DB07 掃描失敗：${e?.message || e}`); console.error("[workbench/notifications] scanDb07:", e); }
+
   try {
-    await Promise.all([scanDb04(), scanDb07()]);
     const items = await fetchNotifications();
-    return NextResponse.json({ ok: true, items });
-  } catch (err: any) {
-    console.error("[workbench/notifications] error:", err);
-    return NextResponse.json({ error: err?.message || "scan failed" }, { status: 500 });
+    return NextResponse.json({ ok: true, items, ...(errors.length > 0 ? { warnings: errors } : {}) });
+  } catch (e: any) {
+    return NextResponse.json({ error: `讀通知失敗：${e?.message}`, warnings: errors }, { status: 500 });
   }
 }
 
 // ── DB04 掃描 ────────────────────────────────────────
 async function scanDb04() {
-  // 1. 拉所有「執行狀態 = 執行中」的 page（用 lib/notion 的 queryDatabase，
-  //    內含 dataSources.query + 502/504 重試 + auto-pagination）
+  // server-side filter「執行狀態 = 執行中」，避免拉全量 DB04 太慢
+  // 不傳 sorts（v5 sorts 格式可能跟 v4 不同，且排序對掃描本身不重要）
   const pages: any[] = await queryDatabase(
     DB.DB04_COLLABORATION,
     { property: "執行狀態", status: { equals: "執行中" } },
-    [{ timestamp: "last_edited_time", direction: "descending" }],
-    100,
   );
 
   const activeIds = new Set<string>(pages.map((p: any) => p.id.replace(/-/g, "")));
