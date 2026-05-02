@@ -112,13 +112,17 @@ function ActivityFeed() {
   const [warnings, setWarnings] = useState<string[]>([]);
   const [previewId, setPreviewId] = useState<string | null>(null);
 
-  const load = async () => {
+  // scan=true → 強制觸發後端掃描 DB04/DB07（慢），預設只取 cached events（秒回）
+  const load = async (scan = false) => {
     setLoading(true);
     setError("");
     setWarnings([]);
     try {
-      const res = await staffFetch("/api/staff/workbench/notifications");
-      const json = await res.json();
+      const url = scan ? "/api/staff/workbench/notifications?scan=1" : "/api/staff/workbench/notifications";
+      const res = await staffFetch(url);
+      const text = await res.text();
+      let json: any;
+      try { json = JSON.parse(text); } catch { throw new Error(`回應非 JSON：${text.slice(0, 100)}`); }
       if (!res.ok || !json.ok) throw new Error(json.error || "載入失敗");
       setItems((json.items || []) as NotifItem[]);
       setWarnings((json.warnings || []) as string[]);
@@ -129,7 +133,7 @@ function ActivityFeed() {
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(false); }, []);
 
   return (
     <>
@@ -139,7 +143,7 @@ function ActivityFeed() {
       <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
         <p className="text-sm font-bold" style={{ color: "#333" }}>動態 ({items.length})</p>
         <button
-          onClick={load}
+          onClick={() => load(true)}
           disabled={loading}
           className="text-xs px-2 py-1 rounded"
           style={{ color: "#7a5c40", background: "transparent", border: "1px solid #ddd", cursor: loading ? "wait" : "pointer" }}
