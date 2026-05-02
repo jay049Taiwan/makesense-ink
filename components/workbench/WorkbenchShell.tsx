@@ -139,17 +139,29 @@ function ActivityFeed() {
     <>
       {previewId && <PagePreviewModal notionId={previewId} onClose={() => setPreviewId(null)} />}
 
-      {/* Header：標題 + 重新整理 */}
-      <div className="flex items-center justify-between px-4 py-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+      {/* Header：標題 + 兩個更新按鈕 */}
+      <div className="flex items-center justify-between px-4 py-3 gap-2" style={{ borderBottom: "1px solid #f0f0f0" }}>
         <p className="text-sm font-bold" style={{ color: "#333" }}>動態 ({items.length})</p>
-        <button
-          onClick={() => load(true)}
-          disabled={loading}
-          className="text-xs px-2 py-1 rounded"
-          style={{ color: "#7a5c40", background: "transparent", border: "1px solid #ddd", cursor: loading ? "wait" : "pointer" }}
-        >
-          {loading ? "掃描中…" : "🔄 重新掃描"}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => load(false)}
+            disabled={loading}
+            title="只重抓 cached events，不重掃描 Notion（n8n cron 每 5 分鐘自動掃）"
+            className="text-xs px-2 py-1 rounded"
+            style={{ color: "#666", background: "transparent", border: "1px solid #ddd", cursor: loading ? "wait" : "pointer" }}
+          >
+            {loading ? "…" : "🔄 重新整理"}
+          </button>
+          <button
+            onClick={() => load(true)}
+            disabled={loading}
+            title="主動掃描 Notion DB04/DB07（較慢，通常用 n8n 自動掃，這個按鈕是手動補上）"
+            className="text-xs px-2 py-1 rounded"
+            style={{ color: "#7a5c40", background: "transparent", border: "1px solid #7a5c40", cursor: loading ? "wait" : "pointer" }}
+          >
+            {loading ? "掃描中…" : "強制掃描"}
+          </button>
+        </div>
       </div>
 
       {loading && items.length === 0 && (
