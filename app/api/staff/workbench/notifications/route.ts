@@ -1,10 +1,15 @@
 import { NextResponse } from "next/server";
+import { Client } from "@notionhq/client";
 import { requireStaff } from "../../_guard";
 import { supabaseAdmin } from "@/lib/supabase";
-import { DB, queryDatabase } from "@/lib/notion";
+import { DB } from "@/lib/notion";
 
 export const runtime = "nodejs";
-export const maxDuration = 30;
+export const maxDuration = 60;  // 從 30 加到 60（Vercel Hobby tier max）
+
+// 直接呼叫 dataSources.query，不走 lib/notion 的 queryDatabase
+// （那個有 5s/15s/30s 重試退避，遇到 Notion 不穩可能累積超過 timeout）
+const notion = new Client({ auth: process.env.NOTION_API_KEY, timeoutMs: 15000 });
 
 /**
  * GET /api/staff/workbench/notifications
@@ -58,11 +63,14 @@ function formatErr(e: any): string {
 
 // ── DB04 掃描（in-memory diff，避免 N 次 supabase query 撞 timeout）──
 async function scanDb04() {
-  // 1. 拉 Notion DB04「執行中」
-  const pages: any[] = await queryDatabase(
-    DB.DB04_COLLABORATION,
-    { property: "執行狀態", status: { equals: "執行中" } },
-  );
+  // 1. 拉 Notion DB04「執行中」（single-shot，最多 100 筆，不分頁不重試，
+  //    避免 lib/notion queryDatabase 的退避重試累積超過 timeout）
+  const res: any = await notion.dataSources.query({
+    data_source_id: DB.DB04_COLLABORATION,
+    filter: { property: "執行狀態", status: { equals: "執行中" } } as any,
+    page_size: 100,
+  });
+  const pages: any[] = res.results || [];
   const activeIds = new Set<string>(pages.map((p: any) => p.id.replace(/-/g, "")));
 
   // 2. 一次拉所有現有的 DB04 events，建 map: notion_id → 最新 event_at
