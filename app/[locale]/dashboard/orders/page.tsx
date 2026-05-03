@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
 import { useLiff } from "@/components/providers/LiffProvider";
@@ -84,6 +85,11 @@ export default function OrdersPage() {
 
   return (
     <div>
+      <div className="mb-5">
+        <Link href="/dashboard" className="text-sm" style={{ color: "var(--color-teal)" }}>
+          ← 回會員中心
+        </Link>
+      </div>
       <h2 className="text-xl font-semibold text-brand-brown mb-4">訂單紀錄</h2>
 
       {loading ? (

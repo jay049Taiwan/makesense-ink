@@ -370,11 +370,11 @@ function MemberOverview() {
           </Link>
         </div>
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
-          <FootprintCard icon="🗺️" value={footprint.distanceKm} unit="km" label="走讀里程" color="#4ECDC4" />
-          <FootprintCard icon="⏱️" value={footprint.cultureHours} unit="hr" label="文化時數" color="#b89e7a" />
-          <FootprintCard icon="✨" value={footprint.spendingPoints || stats.points} unit="pt" label="文化積分" color="#ffcc00" />
-          <FootprintCard icon="💡" value={Object.keys(topicCount).length} unit="個" label="觸及觀點" color="#e8935a" />
-          <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" />
+          <FootprintCard icon="🗺️" value={footprint.distanceKm} unit="km" label="走讀里程" color="#4ECDC4" hint="走讀活動累積距離" />
+          <FootprintCard icon="⏱️" value={footprint.cultureHours} unit="hr" label="文化時數" color="#b89e7a" hint="走讀 / 市集活動時長" />
+          <FootprintCard icon="✨" value={footprint.spendingPoints || stats.points} unit="pt" label="文化積分" color="#ffcc00" hint="消費 10 元 = 1 點" />
+          <FootprintCard icon="💡" value={Object.keys(topicCount).length} unit="個" label="觸及觀點" color="#e8935a" hint="購買涵蓋的議題數" />
+          <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" hint="完成評價的次數" />
         </div>
       </div>
 
@@ -463,11 +463,18 @@ function MemberOverview() {
               </span>
             )}
             </div>
-            <Link href="/dashboard/points"
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90"
-              style={{ background: "rgba(78,205,196,0.12)", color: "var(--color-teal)", border: "1px solid var(--color-teal)" }}>
-              ✨ 我的積點 →
-            </Link>
+            <div className="flex items-center gap-2">
+              <Link href="/dashboard/orders"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90"
+                style={{ background: "rgba(122,92,64,0.08)", color: "var(--color-bark)", border: "1px solid rgba(122,92,64,0.25)" }}>
+                📦 全部訂單 →
+              </Link>
+              <Link href="/dashboard/points"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90"
+                style={{ background: "rgba(78,205,196,0.12)", color: "var(--color-teal)", border: "1px solid var(--color-teal)" }}>
+                ✨ 我的積點 →
+              </Link>
+            </div>
           </div>
           <div className="flex px-6" style={{ borderBottom: "1px solid #e8e8e8" }}>
             {(["orders", "categories"] as const).map((tab) => (
@@ -778,8 +785,8 @@ function Divider() {
   return <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>;
 }
 
-function FootprintCard({ icon, value, unit, label, color }: {
-  icon: string; value: number; unit: string; label: string; color: string;
+function FootprintCard({ icon, value, unit, label, color, hint }: {
+  icon: string; value: number; unit: string; label: string; color: string; hint?: string;
 }) {
   const display = value === 0 ? "—" : (Number.isInteger(value) ? value.toString() : value.toFixed(1));
   return (
@@ -791,6 +798,7 @@ function FootprintCard({ icon, value, unit, label, color }: {
         {value !== 0 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginLeft: 3 }}>{unit}</span>}
       </div>
       <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1, whiteSpace: "nowrap" }}>{label}</div>
+      {hint && <div style={{ fontSize: 9, color: "rgba(255,255,255,0.22)", marginTop: 1, whiteSpace: "nowrap" }}>{hint}</div>}
     </div>
   );
 }
