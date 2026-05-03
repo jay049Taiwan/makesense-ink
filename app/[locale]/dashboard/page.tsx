@@ -518,17 +518,34 @@ function MemberOverview() {
                     </div>
 
                     {/* 細分隔線 */}
-                    <div style={{ width: 1, height: 36, background: "#e8e8e8", flexShrink: 0 }} />
+                    <div style={{ width: 1, alignSelf: "stretch", background: "#e8e8e8", flexShrink: 0 }} />
 
                     {/* 商品名稱預覽 */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium truncate" style={{ color: "#222" }}>
-                        {order.order_items?.[0]?.name || "—"}
-                        {(order.order_items?.length || 0) > 1 && (
-                          <span style={{ color: "#aaa", fontSize: 12, fontWeight: 400 }}> 等 {order.order_items.length} 件</span>
+                      {/* 品項列（最多 3 筆）*/}
+                      <div className="flex flex-col gap-1 mb-1.5">
+                        {(order.order_items || []).slice(0, 3).map((item: any) => {
+                          const itemName = item.name || item.meta?.name || "—";
+                          const catColor = CAT_COLORS[item.item_type] || { bg: "#f0ebe3", color: "#7a5c40" };
+                          const catLabel = CAT_LABELS[item.item_type] || item.item_type || "";
+                          return (
+                            <div key={item.id} className="flex items-center gap-1.5 min-w-0">
+                              {catLabel && (
+                                <span className="flex-shrink-0 rounded-full"
+                                  style={{ fontSize: 10, padding: "1px 6px", background: catColor.bg, color: catColor.color }}>
+                                  {catLabel}
+                                </span>
+                              )}
+                              <span className="text-sm truncate" style={{ color: "#333" }}>{itemName}</span>
+                            </div>
+                          );
+                        })}
+                        {(order.order_items?.length || 0) > 3 && (
+                          <span style={{ fontSize: 11, color: "#bbb" }}>另 {order.order_items.length - 3} 件</span>
                         )}
-                      </p>
-                      <div className="flex items-center gap-1.5 mt-1">
+                      </div>
+                      {/* Meta row：訂單號 + 來源 + 點數 */}
+                      <div className="flex items-center gap-2 flex-wrap">
                         <span style={{ fontSize: 11, color: "#bbb", background: "#f5f5f5", borderRadius: 3, padding: "1px 5px", fontFamily: "monospace" }}>
                           #{order.id.slice(-6).toUpperCase()}
                         </span>
@@ -536,6 +553,11 @@ function MemberOverview() {
                           <span style={{ fontSize: 11, color: "#fff", borderRadius: 3, padding: "1px 5px",
                             background: order.source === "liff" ? "#06C755" : "#0088CC" }}>
                             {order.source === "liff" ? "LINE" : "TG"}
+                          </span>
+                        )}
+                        {order.source !== "preorder" && (order.total || 0) > 0 && (
+                          <span style={{ fontSize: 11, color: "#4CAF50", fontWeight: 500 }}>
+                            ✨ +{Math.floor((order.total || 0) / 10)} 點
                           </span>
                         )}
                       </div>
@@ -562,7 +584,7 @@ function MemberOverview() {
                             style={{ borderBottom: "1px solid #f5f5f5" }}>
                             <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0 font-medium"
                               style={{ background: catColor.bg, color: catColor.color }}>{catLabel}</span>
-                            <span className="text-sm flex-1 min-w-0" style={{ color: "#222" }}>{item.name}</span>
+                            <span className="text-sm flex-1 min-w-0" style={{ color: "#222" }}>{item.name || item.meta?.name || "—"}</span>
                             <span className="text-xs flex-shrink-0" style={{ color: "#bbb" }}>×{item.quantity}</span>
                             <span className="text-sm font-medium flex-shrink-0" style={{ color: "#555" }}>NT${item.price}</span>
                             {isSubmitted
