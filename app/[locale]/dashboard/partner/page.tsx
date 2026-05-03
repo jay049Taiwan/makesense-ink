@@ -188,7 +188,7 @@ export default function PartnerPage() {
         {activeTab === "資訊" && <VendorInfo products={products} />}
         {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
-        {activeTab === "設定" && <VendorSettings />}
+        {activeTab === "設定" && <VendorSettings notionId={notionId} />}
       </div>
 
       <div className="sticky bottom-0 z-40" style={{ background: "#fff", borderTop: "1px solid #e8e0d4" }}>
@@ -673,18 +673,75 @@ function VendorFinance({ stats }: { stats: VendorStats }) {
 // ════════════════════════════════════════════
 // 設定
 // ════════════════════════════════════════════
-function VendorSettings() {
+function VendorSettings({ notionId }: { notionId: string | null }) {
+  const [info, setInfo] = useState<{
+    name: string; contactPerson: string | null; email: string | null;
+    phone: string | null; address: string | null; since: string | null;
+  } | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!notionId) { setLoading(false); return; }
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("partners")
+        .select("name, contact, created_at")
+        .eq("notion_id", notionId)
+        .maybeSingle() as { data: { name: string; contact: Record<string, string | null>; created_at: string } | null };
+
+      if (data) {
+        setInfo({
+          name: data.name,
+          contactPerson: data.contact?.contactPerson || null,
+          email: data.contact?.email || null,
+          phone: data.contact?.phone || null,
+          address: data.contact?.address || null,
+          since: data.created_at
+            ? new Date(data.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" })
+            : null,
+        });
+      }
+      setLoading(false);
+    })();
+  }, [notionId]);
+
+  const rows = info ? [
+    ["單位名稱", info.name],
+    ["聯絡人", info.contactPerson || "—"],
+    ["Email", info.email || "—"],
+    ["電話", info.phone || "—"],
+    ["合作起始", info.since || "—"],
+    ["地址", info.address || "—"],
+  ] : [];
+
   return (
     <div className="rounded-xl p-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
       <h3 className="text-base font-semibold mb-4" style={{ color: "#333" }}>單位資料</h3>
-      <div className="grid sm:grid-cols-2 gap-4">
-        {[["單位名稱", "旅人書店"], ["聯絡人", "林世傑"], ["Email", "travelerbookstore@gmail.com"],
-          ["電話", "039-325957"], ["合作起始", "2024/01/15"], ["地址", "宜蘭縣羅東鎮文化街55號"]].map(([l, v]) => (
-          <div key={l}>
-            <p className="text-xs font-semibold mb-1" style={{ color: "#888" }}>{l}</p>
-            <p className="text-sm" style={{ color: "#333" }}>{v}</p>
-          </div>
-        ))}
+      {loading && <p className="text-sm" style={{ color: "#aaa" }}>載入中…</p>}
+      {!loading && !info && (
+        <p className="text-sm" style={{ color: "#aaa" }}>
+          {notionId ? "找不到單位資料，請確認 Notion DB08 已同步。" : "開發模式：無法讀取廠商資料。"}
+        </p>
+      )}
+      {!loading && info && (
+        <div className="grid sm:grid-cols-2 gap-4">
+          {rows.map(([l, v]) => (
+            <div key={l}>
+              <p className="text-xs font-semibold mb-1" style={{ color: "#888" }}>{l}</p>
+              <p className="text-sm break-all" style={{ color: "#333" }}>{v}</p>
+            </div>
+          ))}
+        </div>
+      )}
+      {/* 聯絡修改提示 */}
+      <div className="mt-5 pt-4" style={{ borderTop: "1px solid #f0f0f0" }}>
+        <p className="text-xs" style={{ color: "#aaa" }}>
+          如需修改單位資料，請透過{" "}
+          <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer" style={{ color: "#06C755", fontWeight: 600 }}>LINE 官方帳號</a>{" "}
+          或{" "}
+          <a href="mailto:hello@makesense.ink" style={{ color: "#7a5c40", fontWeight: 600 }}>hello@makesense.ink</a>{" "}
+          聯繫管理員。
+        </p>
       </div>
     </div>
   );

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
     const { data: orders, error } = await supabase
       .from("orders")
       .select(`
-        id, status, total, created_at,
+        id, status, checkin_status, total, created_at,
         order_items (
           id, item_type, quantity, price, meta,
           reviews (id, rating, comment, created_at)
