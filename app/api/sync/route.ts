@@ -11,9 +11,11 @@ export const maxDuration = 300; // Vercel timeout 5 min
  * Query params:
  *   ?tables=products,events,articles — 只同步指定表（逗號分隔）
  *   ?writeback=true — 回寫 Notion（發佈狀態 + 對應連結）
+ *   ?skip-images=true — 跳過 Cloudinary 圖片上傳（純資料補寫，避免 Vercel 5 min timeout）
  */
 export async function POST(req: NextRequest) {
   const doWriteback = req.nextUrl.searchParams.get("writeback") === "true";
+  const skipImages = req.nextUrl.searchParams.get("skip-images") === "true";
   const tablesParam = req.nextUrl.searchParams.get("tables");
   const only = tablesParam ? new Set(tablesParam.split(",").map(t => t.trim())) : null;
   const results: Record<string, { upserted: number; errors: number }> = {};
@@ -24,9 +26,9 @@ export async function POST(req: NextRequest) {
     partners: syncPartners,
     members: syncMembers,
     staff: syncStaff,
-    products: () => syncProducts(doWriteback),
-    events: () => syncEvents(doWriteback),
-    articles: () => syncArticles(doWriteback),
+    products: () => syncProducts(doWriteback, skipImages),
+    events: () => syncEvents(doWriteback, skipImages),
+    articles: () => syncArticles(doWriteback, skipImages),
   };
 
   const order = ["persons", "topics", "partners", "members", "staff", "products", "events", "articles"];
@@ -89,7 +91,7 @@ function ms(val: string | null, map: Record<string, string>): string | null {
 
 const SITE_URL = "https://makesense.ink";
 const BATCH_SIZE = 200; // 每批 upsert 筆數
-const ENABLE_CLOUDINARY = true; // 同步時自動上傳圖片到 Cloudinary
+const ENABLE_CLOUDINARY = true; // 同步時自動上傳圖片到 Cloudinary（可被 ?skip-images=true 覆寫）
 
 /** 批次遷移 cover_url 到 Cloudinary（並行處理，每 5 張一組避免限流） */
 async function migrateCoverUrls(rows: Record<string, any>[], table: string): Promise<void> {
@@ -387,7 +389,7 @@ async function syncStaff() {
 }
 
 // ── DB07 → products ──
-async function syncProducts(wb = false) {
+async function syncProducts(wb = false, skipImages = false) {
   const pages = await queryDatabase(DB.DB07_INVENTORY, { property: "庫存類型", select: { equals: "商品" } });
 
   // 批次反查 author/publisher
@@ -432,8 +434,8 @@ async function syncProducts(wb = false) {
   const validRows = rows.filter(r => r.status !== null);
   console.log(`[sync] products: ${rows.length} total, ${validRows.length} with publish status`);
 
-  // 圖片遷移到 Cloudinary（在 upsert 前）
-  await migrateProductImages(validRows);
+  // 圖片遷移到 Cloudinary（在 upsert 前；?skip-images=true 時略過）
+  if (!skipImages) await migrateProductImages(validRows);
 
   const result = await batchUpsert("products", validRows, "notion_id");
 
@@ -446,7 +448,7 @@ async function syncProducts(wb = false) {
 }
 
 // ── DB04 → events ──
-async function syncEvents(wb = false) {
+async function syncEvents(wb = false, skipImages = false) {
   const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作選項", select: { equals: "活動辦理" } });
 
   // 批次反查 relation → persons 名字
@@ -511,7 +513,7 @@ async function syncEvents(wb = false) {
   const validRows = rows.filter(r => r.status !== null);
   console.log(`[sync] events: ${rows.length} total, ${validRows.length} with publish status`);
 
-  await migrateCoverUrls(validRows, "events");
+  if (!skipImages) await migrateCoverUrls(validRows, "events");
 
   const result = await batchUpsert("events", validRows, "notion_id");
 
@@ -524,7 +526,7 @@ async function syncEvents(wb = false) {
 }
 
 // ── DB05 → articles ──
-async function syncArticles(wb = false) {
+async function syncArticles(wb = false, skipImages = false) {
   const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案細項", select: { equals: "官網內容" } });
 
   const eIds: string[] = [];
@@ -570,7 +572,7 @@ async function syncArticles(wb = false) {
   const validRows = rows.filter(r => r.status !== null);
   console.log(`[sync] articles: ${rows.length} total, ${validRows.length} with publish status`);
 
-  await migrateCoverUrls(validRows, "articles");
+  if (!skipImages) await migrateCoverUrls(validRows, "articles");
 
   const result = await batchUpsert("articles", validRows, "notion_id");
 
