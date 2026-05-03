@@ -43,6 +43,7 @@ export default function PartnerPage() {
   const [activities, setActivities] = useState<{ id: string; title: string; date: string; type: string; registered: number; capacity: number }[]>([]);
   const [newsletters, setNewsletters] = useState<{ id: string; title: string; date: string; summary: string }[]>([]);
   const [stats, setStats] = useState<VendorStats>(emptyStats);
+  const [showScanner, setShowScanner] = useState(false);
 
   // Load products + activities + newsletters + stats from Supabase
   // 商品：DB07「對應發行」含此廠商 + 庫存類型=商品 → products.publisher_notion_id + category like '商品%'
@@ -183,7 +184,7 @@ export default function PartnerPage() {
       </nav>
 
       <div className="mb-24">
-        {activeTab === "概覽" && <VendorOverview stats={stats} />}
+        {activeTab === "概覽" && <VendorOverview stats={stats} onOpenScanner={() => setShowScanner(true)} />}
         {activeTab === "資訊" && <VendorInfo products={products} />}
         {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
@@ -205,6 +206,9 @@ export default function PartnerPage() {
           </div>
         </div>
       </div>
+
+      {/* QR 掃碼簽到 Modal（Portal 層，掛在 PartnerPage 確保 notionId 可用）*/}
+      {showScanner && <QrScanModal onClose={() => setShowScanner(false)} notionId={notionId} />}
     </div>
   );
 }
@@ -212,16 +216,14 @@ export default function PartnerPage() {
 // ════════════════════════════════════════════
 // 概覽
 // ════════════════════════════════════════════
-function VendorOverview({ stats }: { stats: VendorStats }) {
-  const [showScanner, setShowScanner] = useState(false);
-
+function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenScanner: () => void }) {
   return (
     <div>
       {/* 統計標題列 + 掃碼按鈕 */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold" style={{ color: "#aaa" }}>本期數據概覽</p>
         <button
-          onClick={() => setShowScanner(true)}
+          onClick={onOpenScanner}
           className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold transition-colors"
           style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}
         >
@@ -241,8 +243,6 @@ function VendorOverview({ stats }: { stats: VendorStats }) {
         <StatCard label="缺貨商品" value={stats.outOfStock} unit="項" color="#e53e3e" />
       </div>
       <PartnerReviews />
-
-      {showScanner && <QrScanModal onClose={() => setShowScanner(false)} />}
     </div>
   );
 }

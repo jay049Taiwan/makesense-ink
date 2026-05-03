@@ -1,147 +1,193 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { supabase } from "@/lib/supabase";
 
-// ── Mock 預購訂單資料（之後改為 Supabase 查詢）────────────────────────────
-interface PreorderItem {
+// ── 訂單資料型別 ────────────────────────────────────────────────────────────
+interface OrderItem {
   name: string;
   qty: number;
   price: number;
 }
-interface MockPreorder {
-  id: string;
+interface RealOrder {
+  orderId: string;
   buyerName: string;
   buyerPhone: string;
   createdAt: string;
-  items: PreorderItem[];
-  status: "confirmed" | "completed";
+  checkinStatus: string; // pending / in_progress / checked_in
+  items: OrderItem[];
 }
 
-const MOCK_PREORDERS: Record<string, MockPreorder> = {
-  "member_001": {
-    id: "ord_20260510_001",
-    buyerName: "王小明",
-    buyerPhone: "0912-345-678",
-    createdAt: "2026/05/08 14:32",
-    items: [
-      { name: "蘭東案內 06期", qty: 2, price: 280 },
-      { name: "宜蘭街散步圖", qty: 1, price: 50 },
-    ],
-    status: "confirmed",
-  },
-  "member_002": {
-    id: "ord_20260510_002",
-    buyerName: "陳美麗",
-    buyerPhone: "0923-456-789",
-    createdAt: "2026/05/09 09:15",
-    items: [
-      { name: "散步宜蘭街貼紙", qty: 3, price: 30 },
-    ],
-    status: "confirmed",
-  },
-};
-
-// ── QR 掃碼 Modal ──────────────────────────────────────────────────────────
+// ── QR 掃碼 Modal ────────────────────────────────────────────────────────────
 interface Props {
   onClose: () => void;
+  /** DB08 notion_id（32 碼無 dash）；null = dev 模式（不驗廠商） */
+  notionId?: string | null;
 }
 
-type ScanStep = "scanning" | "found" | "not_found" | "completed";
+type ScanStep =
+  | "scanning"
+  | "loading"
+  | "found"
+  | "not_found"
+  | "already_checked_in"
+  | "wrong_vendor"
+  | "completed";
 
-export default function QrScanModal({ onClose }: Props) {
+export default function QrScanModal({ onClose, notionId }: Props) {
   const scannerDivRef = useRef<HTMLDivElement>(null);
   const scannerRef = useRef<any>(null);
   const [step, setStep] = useState<ScanStep>("scanning");
-  const [preorder, setPreorder] = useState<MockPreorder | null>(null);
+  const [order, setOrder] = useState<RealOrder | null>(null);
   const [cameraError, setCameraError] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
 
-  // 啟動相機掃描
+  // ── 啟動相機掃描 ──
   useEffect(() => {
-    let html5QrcodeScanner: any;
-
+    let scanner: any;
     async function startScanner() {
       try {
         const { Html5QrcodeScanner } = await import("html5-qrcode");
         if (!scannerDivRef.current) return;
-
-        html5QrcodeScanner = new Html5QrcodeScanner(
+        scanner = new Html5QrcodeScanner(
           "qr-scanner-region",
-          {
-            fps: 10,
-            qrbox: { width: 220, height: 220 },
-            rememberLastUsedCamera: true,
-            showTorchButtonIfSupported: true,
-          },
+          { fps: 10, qrbox: { width: 220, height: 220 }, rememberLastUsedCamera: true, showTorchButtonIfSupported: true },
           false
         );
-
-        scannerRef.current = html5QrcodeScanner;
-
-        html5QrcodeScanner.render(
-          (decodedText: string) => {
-            // 掃碼成功
-            html5QrcodeScanner.clear().catch(() => {});
-            handleScanResult(decodedText);
-          },
-          () => {
-            // 掃描中（每幀失敗都會呼叫，不處理）
-          }
+        scannerRef.current = scanner;
+        scanner.render(
+          (text: string) => { scanner.clear().catch(() => {}); handleScanResult(text); },
+          () => {}
         );
       } catch (err: any) {
-        if (err?.message?.includes("camera") || err?.name === "NotAllowedError") {
-          setCameraError("無法開啟相機，請確認瀏覽器已授予相機權限，且頁面是 HTTPS 或 localhost。");
-        } else {
-          setCameraError("掃碼功能載入失敗，請重新整理後再試。");
-        }
+        const msg = err?.message || "";
+        setCameraError(
+          msg.includes("camera") || err?.name === "NotAllowedError"
+            ? "無法開啟相機，請確認瀏覽器已授予相機權限，且頁面是 HTTPS 或 localhost。"
+            : "掃碼功能載入失敗，請重新整理後再試。"
+        );
       }
     }
-
     startScanner();
-
-    return () => {
-      if (scannerRef.current) {
-        scannerRef.current.clear().catch(() => {});
-      }
-    };
+    return () => { if (scannerRef.current) scannerRef.current.clear().catch(() => {}); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  function handleScanResult(text: string) {
-    // 解析 member_id：支援純 ID 字串，或 JSON { member_id: "..." }
-    let memberId = text.trim();
+  // ── 解析掃碼結果 → 取得 orderId ──
+  function parseOrderId(text: string): string | null {
+    const t = text.trim();
+    // JSON 格式：{ "order_id": "..." } 或 { "orderId": "..." }
     try {
-      const parsed = JSON.parse(text);
-      if (parsed.member_id) memberId = parsed.member_id;
-    } catch {
-      // 純字串就直接用
-    }
+      const obj = JSON.parse(t);
+      if (obj.order_id) return obj.order_id;
+      if (obj.orderId) return obj.orderId;
+    } catch { /* 不是 JSON */ }
+    // "order:UUID" 前綴格式
+    if (t.startsWith("order:")) return t.slice(6);
+    // 直接是 UUID（32 hex 無 dash 或標準 UUID 格式）
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(t)) return t;
+    if (/^[0-9a-f]{32}$/i.test(t)) return `${t.slice(0,8)}-${t.slice(8,12)}-${t.slice(12,16)}-${t.slice(16,20)}-${t.slice(20)}`;
+    return null;
+  }
 
-    // TODO: 正式環境改為：
-    // const res = await fetch(`/api/preorders?member_id=${memberId}&vendor_id=${vendorId}`)
-    const found = MOCK_PREORDERS[memberId];
-    if (found) {
-      setPreorder(found);
+  async function handleScanResult(text: string) {
+    setStep("loading");
+    const orderId = parseOrderId(text);
+    if (!orderId) { setStep("not_found"); return; }
+
+    try {
+      // 1. 查訂單基本資料
+      const { data: orderRow } = await supabase
+        .from("orders")
+        .select("id, checkin_status, created_at, status, member_id")
+        .eq("id", orderId)
+        .neq("status", "cancelled")
+        .maybeSingle();
+
+      if (!orderRow) { setStep("not_found"); return; }
+      if (orderRow.checkin_status === "checked_in") {
+        setStep("already_checked_in");
+        return;
+      }
+
+      // 2. 查此訂單的 product 項目
+      const { data: items } = await supabase
+        .from("order_items")
+        .select("item_id, item_type, quantity, price, item_name")
+        .eq("order_id", orderId)
+        .eq("item_type", "product");
+
+      const productItems = items || [];
+
+      // 3. 驗廠商歸屬（notionId 為 null 時跳過，dev 模式顯示所有）
+      let myItems = productItems;
+      if (notionId && productItems.length > 0) {
+        const prodIds = productItems.map(i => i.item_id).filter(Boolean);
+        const { data: prods } = await supabase
+          .from("products")
+          .select("id, publisher_notion_id")
+          .in("id", prodIds);
+        const myProdIds = new Set(
+          (prods || []).filter(p => p.publisher_notion_id === notionId).map(p => p.id)
+        );
+        myItems = productItems.filter(i => myProdIds.has(i.item_id));
+        if (myItems.length === 0) { setStep("wrong_vendor"); return; }
+      }
+
+      // 4. 取會員資訊
+      let buyerName = "顧客", buyerPhone = "—";
+      if (orderRow.member_id) {
+        const { data: member } = await supabase
+          .from("members")
+          .select("name, phone")
+          .eq("id", orderRow.member_id)
+          .maybeSingle();
+        if (member) {
+          buyerName = member.name || "顧客";
+          buyerPhone = member.phone || "—";
+        }
+      }
+
+      setOrder({
+        orderId: orderRow.id,
+        buyerName,
+        buyerPhone,
+        createdAt: new Date(orderRow.created_at).toLocaleString("zh-TW"),
+        checkinStatus: orderRow.checkin_status,
+        items: myItems.map(i => ({
+          name: i.item_name || "商品",
+          qty: i.quantity || 1,
+          price: i.price || 0,
+        })),
+      });
       setStep("found");
-    } else {
+    } catch {
       setStep("not_found");
     }
   }
 
-  function confirmPickup() {
-    if (preorder) {
-      setPreorder({ ...preorder, status: "completed" });
+  async function confirmPickup() {
+    if (!order) return;
+    setConfirming(true);
+    try {
+      await supabase
+        .from("orders")
+        .update({ checkin_status: "checked_in" })
+        .eq("id", order.orderId);
+      setOrder({ ...order, checkinStatus: "checked_in" });
       setStep("completed");
+    } finally {
+      setConfirming(false);
     }
   }
 
-  const total = preorder
-    ? preorder.items.reduce((s, i) => s + i.price * i.qty, 0)
-    : 0;
+  const total = order ? order.items.reduce((s, i) => s + i.price * i.qty, 0) : 0;
 
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center p-4"
       style={{ background: "rgba(0,0,0,0.6)" }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="rounded-2xl overflow-hidden"
@@ -149,51 +195,31 @@ export default function QrScanModal({ onClose }: Props) {
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3" style={{ background: "#1a1a2e" }}>
-          <p className="text-sm font-semibold" style={{ color: "#fff" }}>
-            📷 掃碼簽到
-          </p>
-          <button
-            onClick={onClose}
-            style={{ color: "rgba(255,255,255,0.6)", background: "none", border: "none", cursor: "pointer", fontSize: 18 }}
-          >
-            ✕
-          </button>
+          <p className="text-sm font-semibold" style={{ color: "#fff" }}>📷 掃碼簽到</p>
+          <button onClick={onClose} style={{ color: "rgba(255,255,255,0.6)", background: "none", border: "none", cursor: "pointer", fontSize: 18 }}>✕</button>
         </div>
 
-        {/* 掃描畫面 */}
+        {/* 掃描中 */}
         {step === "scanning" && (
           <div>
             {cameraError ? (
               <div className="p-5 text-center">
                 <p className="text-3xl mb-3">📵</p>
                 <p className="text-sm font-semibold mb-2" style={{ color: "#333" }}>相機無法開啟</p>
-                <p className="text-xs leading-relaxed" style={{ color: "#888" }}>{cameraError}</p>
-                {/* Dev 模式：直接輸入 member_id 測試 */}
-                <div className="mt-4 p-3 rounded-xl" style={{ background: "#faf8f4", border: "1px solid #e8e0d4" }}>
-                  <p className="text-xs font-semibold mb-2" style={{ color: "#7a5c40" }}>
-                    🛠 Dev 模式測試
-                  </p>
-                  <p className="text-xs mb-2" style={{ color: "#aaa" }}>
-                    輸入 member_001 或 member_002 模擬掃碼
-                  </p>
-                  <DevInput onResult={handleScanResult} />
+                <p className="text-xs leading-relaxed mb-4" style={{ color: "#888" }}>{cameraError}</p>
+                <div className="p-3 rounded-xl" style={{ background: "#faf8f4", border: "1px solid #e8e0d4" }}>
+                  <p className="text-xs font-semibold mb-2" style={{ color: "#7a5c40" }}>🛠 輸入訂單 ID 測試</p>
+                  <DevInput onResult={handleScanResult} placeholder="貼上 Order UUID" />
                 </div>
               </div>
             ) : (
               <div>
-                <div
-                  id="qr-scanner-region"
-                  ref={scannerDivRef}
-                  style={{ width: "100%" }}
-                />
+                <div id="qr-scanner-region" ref={scannerDivRef} style={{ width: "100%" }} />
                 <div className="px-4 pb-4">
-                  <p className="text-xs text-center" style={{ color: "#aaa" }}>
-                    將會員條碼對準框內掃描
-                  </p>
-                  {/* Dev 模式輸入框 */}
+                  <p className="text-xs text-center" style={{ color: "#aaa" }}>將訂單 QR Code 對準框內掃描</p>
                   <div className="mt-3 p-3 rounded-xl" style={{ background: "#faf8f4", border: "1px dashed #c8b89a" }}>
                     <p className="text-xs font-semibold mb-1.5" style={{ color: "#7a5c40" }}>🛠 Dev 測試</p>
-                    <DevInput onResult={handleScanResult} />
+                    <DevInput onResult={handleScanResult} placeholder="貼上 Order UUID" />
                   </div>
                 </div>
               </div>
@@ -201,124 +227,107 @@ export default function QrScanModal({ onClose }: Props) {
           </div>
         )}
 
-        {/* 找不到訂單 */}
+        {/* 查詢中 */}
+        {step === "loading" && (
+          <div className="p-10 text-center">
+            <p className="text-3xl mb-3 animate-pulse">🔍</p>
+            <p className="text-sm" style={{ color: "#888" }}>查詢訂單中…</p>
+          </div>
+        )}
+
+        {/* 查無訂單 */}
         {step === "not_found" && (
           <div className="p-5 text-center">
             <p className="text-4xl mb-3">🔍</p>
-            <p className="text-base font-semibold mb-1" style={{ color: "#333" }}>查無預購訂單</p>
-            <p className="text-xs mb-4" style={{ color: "#aaa" }}>
-              此會員目前沒有跟您相關的待取貨預購紀錄
-            </p>
-            <button
-              onClick={() => setStep("scanning")}
-              className="w-full h-10 rounded-xl text-sm font-semibold"
-              style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}
-            >
+            <p className="text-base font-semibold mb-1" style={{ color: "#333" }}>查無訂單</p>
+            <p className="text-xs mb-4" style={{ color: "#aaa" }}>找不到這筆訂單，請確認 QR Code 是否正確</p>
+            <button onClick={() => setStep("scanning")} className="w-full h-10 rounded-xl text-sm font-semibold"
+              style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}>
+              重新掃描
+            </button>
+          </div>
+        )}
+
+        {/* 已簽到 */}
+        {step === "already_checked_in" && (
+          <div className="p-5 text-center">
+            <p className="text-4xl mb-3">✅</p>
+            <p className="text-base font-semibold mb-1" style={{ color: "#333" }}>此訂單已簽到</p>
+            <p className="text-xs mb-4" style={{ color: "#aaa" }}>這筆訂單已完成取貨，不能重複簽到</p>
+            <button onClick={() => setStep("scanning")} className="w-full h-10 rounded-xl text-sm font-semibold"
+              style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}>
+              繼續掃下一位
+            </button>
+          </div>
+        )}
+
+        {/* 非本廠商的訂單 */}
+        {step === "wrong_vendor" && (
+          <div className="p-5 text-center">
+            <p className="text-4xl mb-3">⚠️</p>
+            <p className="text-base font-semibold mb-1" style={{ color: "#333" }}>非本攤位訂單</p>
+            <p className="text-xs mb-4" style={{ color: "#aaa" }}>此訂單的商品不屬於您的攤位</p>
+            <button onClick={() => setStep("scanning")} className="w-full h-10 rounded-xl text-sm font-semibold"
+              style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}>
               重新掃描
             </button>
           </div>
         )}
 
         {/* 找到訂單 */}
-        {step === "found" && preorder && (
+        {step === "found" && order && (
           <div className="p-4">
-            <div
-              className="rounded-xl p-3 mb-3"
-              style={{ background: "#faf8f4", border: "1px solid #e8e0d4" }}
-            >
+            <div className="rounded-xl p-3 mb-3" style={{ background: "#faf8f4", border: "1px solid #e8e0d4" }}>
               <div className="flex items-center justify-between mb-2">
                 <div>
-                  <p className="text-base font-bold" style={{ color: "#1a1a2e" }}>
-                    {preorder.buyerName}
-                  </p>
-                  <p className="text-xs" style={{ color: "#aaa" }}>
-                    📞 {preorder.buyerPhone}
-                  </p>
+                  <p className="text-base font-bold" style={{ color: "#1a1a2e" }}>{order.buyerName}</p>
+                  <p className="text-xs" style={{ color: "#aaa" }}>📞 {order.buyerPhone}</p>
                 </div>
-                <span
-                  className="text-xs px-2 py-1 rounded-full font-semibold"
-                  style={{ background: "#e8f5e9", color: "#2e7d32" }}
-                >
-                  已確認
+                <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ background: "#e8f5e9", color: "#2e7d32" }}>
+                  {order.checkinStatus === "in_progress" ? "進行中" : "已確認"}
                 </span>
               </div>
-              <p className="text-xs mb-2" style={{ color: "#bbb" }}>
-                預購時間：{preorder.createdAt}
-              </p>
-
-              {/* 商品清單 */}
+              <p className="text-xs mb-2" style={{ color: "#bbb" }}>預購時間：{order.createdAt}</p>
               <div style={{ borderTop: "1px solid #ede8e0", paddingTop: 8 }}>
-                {preorder.items.map((item, i) => (
-                  <div
-                    key={i}
-                    className="flex justify-between text-sm py-1"
-                    style={{ color: "#333" }}
-                  >
-                    <span>
-                      {item.name}{" "}
-                      <span style={{ color: "#aaa" }}>×{item.qty}</span>
-                    </span>
-                    <span style={{ color: "#e8935a", fontWeight: 600 }}>
-                      NT$ {(item.price * item.qty).toLocaleString()}
-                    </span>
+                {order.items.map((item, i) => (
+                  <div key={i} className="flex justify-between text-sm py-1" style={{ color: "#333" }}>
+                    <span>{item.name} <span style={{ color: "#aaa" }}>×{item.qty}</span></span>
+                    <span style={{ color: "#e8935a", fontWeight: 600 }}>NT$ {(item.price * item.qty).toLocaleString()}</span>
                   </div>
                 ))}
-                <div
-                  className="flex justify-between text-sm pt-2 mt-1"
-                  style={{ borderTop: "1px solid #ede8e0", fontWeight: 700, color: "#1a1a2e" }}
-                >
+                <div className="flex justify-between text-sm pt-2 mt-1"
+                  style={{ borderTop: "1px solid #ede8e0", fontWeight: 700, color: "#1a1a2e" }}>
                   <span>合計</span>
                   <span>NT$ {total.toLocaleString()}</span>
                 </div>
               </div>
             </div>
-
-            <button
-              onClick={confirmPickup}
+            <button onClick={confirmPickup} disabled={confirming}
               className="w-full h-12 rounded-xl text-sm font-bold mb-2"
-              style={{ background: "#4CAF50", color: "#fff", border: "none", cursor: "pointer" }}
-            >
-              ✅ 確認取貨・收款 NT$ {total.toLocaleString()}
+              style={{ background: confirming ? "#aaa" : "#4CAF50", color: "#fff", border: "none", cursor: confirming ? "default" : "pointer" }}>
+              {confirming ? "處理中…" : `✅ 確認取貨・收款 NT$ ${total.toLocaleString()}`}
             </button>
-            <button
-              onClick={() => setStep("scanning")}
-              className="w-full h-9 rounded-xl text-sm font-medium"
-              style={{ background: "#fff", color: "#aaa", border: "1px solid #ddd", cursor: "pointer" }}
-            >
+            <button onClick={() => setStep("scanning")} className="w-full h-9 rounded-xl text-sm font-medium"
+              style={{ background: "#fff", color: "#aaa", border: "1px solid #ddd", cursor: "pointer" }}>
               取消，重新掃描
             </button>
           </div>
         )}
 
         {/* 取貨完成 */}
-        {step === "completed" && preorder && (
+        {step === "completed" && order && (
           <div className="p-5 text-center">
             <p className="text-4xl mb-3">🎉</p>
-            <p className="text-base font-bold mb-1" style={{ color: "#1a1a2e" }}>
-              取貨完成！
-            </p>
-            <p className="text-sm mb-1" style={{ color: "#333" }}>
-              {preorder.buyerName} 的訂單已完成
-            </p>
-            <p
-              className="text-lg font-bold mb-4"
-              style={{ color: "#4CAF50" }}
-            >
-              已收款 NT$ {total.toLocaleString()}
-            </p>
+            <p className="text-base font-bold mb-1" style={{ color: "#1a1a2e" }}>取貨完成！</p>
+            <p className="text-sm mb-1" style={{ color: "#333" }}>{order.buyerName} 的訂單已完成</p>
+            <p className="text-lg font-bold mb-4" style={{ color: "#4CAF50" }}>已收款 NT$ {total.toLocaleString()}</p>
             <div className="flex gap-2">
-              <button
-                onClick={() => setStep("scanning")}
-                className="flex-1 h-10 rounded-xl text-sm font-semibold"
-                style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}
-              >
+              <button onClick={() => setStep("scanning")} className="flex-1 h-10 rounded-xl text-sm font-semibold"
+                style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}>
                 繼續掃下一位
               </button>
-              <button
-                onClick={onClose}
-                className="flex-1 h-10 rounded-xl text-sm font-medium"
-                style={{ background: "#fff", color: "#888", border: "1px solid #ddd", cursor: "pointer" }}
-              >
+              <button onClick={onClose} className="flex-1 h-10 rounded-xl text-sm font-medium"
+                style={{ background: "#fff", color: "#888", border: "1px solid #ddd", cursor: "pointer" }}>
                 關閉
               </button>
             </div>
@@ -329,29 +338,20 @@ export default function QrScanModal({ onClose }: Props) {
   );
 }
 
-// Dev 模式輸入框（相機不可用時的替代方案）
-function DevInput({ onResult }: { onResult: (text: string) => void }) {
+// ── Dev 模式輸入框 ────────────────────────────────────────────────────────────
+function DevInput({ onResult, placeholder }: { onResult: (text: string) => void; placeholder?: string }) {
   const [val, setVal] = useState("");
   return (
     <div className="flex gap-2">
-      <input
-        value={val}
-        onChange={(e) => setVal(e.target.value)}
-        placeholder="member_001"
+      <input value={val} onChange={e => setVal(e.target.value)}
+        placeholder={placeholder || "Order UUID"}
         className="flex-1 h-8 px-2 rounded-lg text-xs outline-none"
         style={{ border: "1px solid #ddd" }}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" && val.trim()) {
-            onResult(val.trim());
-            setVal("");
-          }
-        }}
+        onKeyDown={e => { if (e.key === "Enter" && val.trim()) { onResult(val.trim()); setVal(""); } }}
       />
-      <button
-        onClick={() => { if (val.trim()) { onResult(val.trim()); setVal(""); } }}
+      <button onClick={() => { if (val.trim()) { onResult(val.trim()); setVal(""); } }}
         className="px-3 h-8 rounded-lg text-xs font-semibold"
-        style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}
-      >
+        style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}>
         模擬
       </button>
     </div>
