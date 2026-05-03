@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
+import { QRCodeSVG } from "qrcode.react";
 
 interface OrderItem {
   id: string;
@@ -18,6 +19,7 @@ interface OrderItem {
 interface Order {
   id: string;
   status: string;
+  checkinStatus: string | null; // pending / in_progress / checked_in
   total: number;
   createdAt: string;
   items: OrderItem[];
@@ -64,6 +66,7 @@ export default function OrderDetailPage() {
         setOrder({
           id: match.id,
           status: match.status,
+          checkinStatus: match.checkin_status || null,
           total: Number(match.total) || 0,
           createdAt: match.created_at,
           items: (match.order_items || []).map((it: any) => ({
@@ -123,6 +126,33 @@ export default function OrderDetailPage() {
           查看所有訂單
         </Link>
       </div>
+
+      {/* 取貨 QR Code */}
+      {order.status !== "cancelled" && (
+        <div className="rounded-xl p-5 mb-4 text-center" style={{ background: "#fff", border: "1px solid #e8e0d4" }}>
+          <p className="text-sm font-semibold mb-3" style={{ color: "#1a1a2e" }}>📱 取貨 QR Code</p>
+          <div className="flex justify-center mb-3">
+            <div className="relative p-3 rounded-lg" style={{ background: order.checkinStatus === "checked_in" ? "#f5f5f5" : "#fafafa" }}>
+              <QRCodeSVG
+                value={order.id}
+                size={200}
+                level="M"
+                style={{ opacity: order.checkinStatus === "checked_in" ? 0.25 : 1, display: "block" }}
+              />
+              {order.checkinStatus === "checked_in" && (
+                <div className="absolute inset-0 flex items-center justify-center rounded-lg">
+                  <div className="px-4 py-2 rounded-full text-sm font-bold" style={{ background: "#4CAF50", color: "#fff" }}>
+                    ✅ 已取貨
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+          <p className="text-xs" style={{ color: order.checkinStatus === "checked_in" ? "#4CAF50" : "#aaa" }}>
+            {order.checkinStatus === "checked_in" ? "此訂單已完成取貨" : "到店取貨時出示給廠商掃描"}
+          </p>
+        </div>
+      )}
 
       <div className="rounded-xl border border-border bg-white overflow-hidden">
         {/* 訂單標頭 */}

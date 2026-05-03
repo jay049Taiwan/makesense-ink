@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import Link from "next/link";
+import { QRCodeSVG } from "qrcode.react";
 
 interface OrderItem {
   id: string;
@@ -102,6 +103,17 @@ function SuccessContent() {
             </div>
           )}
         </div>
+
+        {/* 取貨 QR Code（實體商品 / 市集現場自取，受理中訂單不顯示） */}
+        {orderId && !isReview && (
+          <div className="rounded-xl p-5 mb-4 text-center" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
+            <p className="text-sm font-semibold mb-3" style={{ color: "var(--color-ink)" }}>📱 取貨 QR Code</p>
+            <div className="flex justify-center mb-3 p-3 rounded-lg" style={{ background: "#fafafa", display: "inline-flex" }}>
+              <QRCodeSVG value={orderId} size={200} level="M" />
+            </div>
+            <p className="text-xs mt-3" style={{ color: "var(--color-mist)" }}>到店取貨或市集現場，出示給廠商掃描</p>
+          </div>
+        )}
 
         {/* 訂單明細 */}
         <div className="rounded-xl p-4" style={{ background: "#fff", border: "1px solid var(--color-dust)" }}>
