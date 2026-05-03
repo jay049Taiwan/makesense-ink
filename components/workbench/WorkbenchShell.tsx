@@ -1093,10 +1093,24 @@ function NoteEditorOverlay({
 }
 
 // ═══════════════════════════════════════════
-// 紀錄 — 打卡/日誌/請假/加班/班表 UI
+// 紀錄 — 打卡/日誌/請假/加班 UI
+//   - 寫入：POST /api/staff/attendance（同時寫 Notion DB05 + Supabase staff_activities）
+//   - 讀取：GET  /api/staff/attendance?sub_type=...（走 Supabase staff_activities）
 // ═══════════════════════════════════════════
+type AttendanceSubTab = "打卡" | "日誌" | "請假" | "加班";
+
+interface AttendanceRecord {
+  id: string;
+  task_type: string;
+  detail: any;
+  activity_date: string | null;
+  hours: number | null;
+  notion_db05_id: string | null;
+  created_at: string;
+}
+
 function AttendancePanel() {
-  const [subTab, setSubTab] = useState<"打卡" | "日誌" | "請假" | "加班" | "班表">("打卡");
+  const [subTab, setSubTab] = useState<AttendanceSubTab>("打卡");
   const [now, setNow] = useState(new Date());
 
   useEffect(() => {
@@ -1114,25 +1128,298 @@ function AttendancePanel() {
           <p className="text-4xl font-bold tracking-wider" style={{ color: "#333", fontFamily: "monospace" }}>{timeStr}</p>
           <p className="text-xs mt-1" style={{ color: "#999" }}>{dateStr}</p>
         </div>
-        {(["打卡", "日誌", "請假", "加班", "班表"] as const).map((t) => (
+        {(["打卡", "日誌", "請假", "加班"] as const).map((t) => (
           <button key={t} onClick={() => setSubTab(t)} className="w-full text-left px-4 py-3 rounded-lg mb-1 text-sm transition-colors"
             style={{ background: subTab === t ? "#2d5016" : "transparent", color: subTab === t ? "#fff" : "#666", border: subTab === t ? "none" : "1px solid #e8e0d4", fontWeight: subTab === t ? 600 : 400, cursor: "pointer" }}>{t}</button>
         ))}
       </div>
       <div className="py-3 sm:p-6">
-        {subTab === "打卡" && (
-          <div className="flex flex-col items-center">
-            <div className="flex justify-center mb-8">
-              <button className="w-36 h-36 rounded-full text-white text-lg font-bold flex items-center justify-center transition-transform hover:scale-105"
-                style={{ background: "#2d5016", border: "none", cursor: "pointer", boxShadow: "0 4px 20px rgba(45,80,22,0.3)" }}>上班打卡</button>
-            </div>
-            <p className="text-xs" style={{ color: "#999" }}>打卡紀錄將從 Supabase 讀取</p>
+        {subTab === "打卡" && <PunchForm />}
+        {subTab === "日誌" && <LogForm />}
+        {subTab === "請假" && <LeaveForm />}
+        {subTab === "加班" && <OvertimeForm />}
+      </div>
+    </div>
+  );
+}
+
+// 共用：歷史紀錄列表
+function RecentRecords({ subType, refreshKey }: { subType: AttendanceSubTab; refreshKey: number }) {
+  const [records, setRecords] = useState<AttendanceRecord[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let abort = false;
+    setLoading(true);
+    staffFetch(`/api/staff/attendance?sub_type=${encodeURIComponent(subType)}&limit=20`)
+      .then((r) => r.json())
+      .then((j) => { if (!abort) setRecords(j.records || []); })
+      .catch(() => { if (!abort) setRecords([]); })
+      .finally(() => { if (!abort) setLoading(false); });
+    return () => { abort = true; };
+  }, [subType, refreshKey]);
+
+  if (loading) return <p className="text-xs text-center py-4" style={{ color: "#999" }}>載入中…</p>;
+  if (records.length === 0) return <p className="text-xs text-center py-4" style={{ color: "#aaa" }}>尚無{subType}紀錄</p>;
+
+  return (
+    <div className="space-y-1.5">
+      {records.map((r) => (
+        <div key={r.id} className="text-xs px-3 py-2 rounded" style={{ background: "#faf8f4", border: "1px solid #f0ebe2" }}>
+          <div className="flex justify-between items-start gap-2">
+            <span style={{ color: "#666" }}>{summarizeRecord(r)}</span>
+            <span style={{ color: "#aaa", whiteSpace: "nowrap" }}>{fmtAgo(r.created_at)}</span>
           </div>
-        )}
-        {subTab !== "打卡" && (
-          <div className="text-center py-16"><p className="text-sm" style={{ color: "#aaa" }}>{subTab}功能開發中</p></div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function summarizeRecord(r: AttendanceRecord): string {
+  const d = r.detail || {};
+  if (r.task_type === "打卡") return `${d.action || "上班"}打卡`;
+  if (r.task_type === "日誌") return d.content ? String(d.content).slice(0, 40) : "—";
+  if (r.task_type === "請假") return `${d.leave_type || "請假"} ${d.start_date || ""}~${d.end_date || ""}`;
+  if (r.task_type === "加班") return `${d.date || r.activity_date || ""} ${r.hours || d.hours || 0}h`;
+  return r.task_type;
+}
+
+function fmtAgo(iso: string): string {
+  const diff = (Date.now() - new Date(iso).getTime()) / 1000;
+  if (diff < 60) return `${Math.round(diff)} 秒前`;
+  if (diff < 3600) return `${Math.round(diff / 60)} 分前`;
+  if (diff < 86400) return `${Math.round(diff / 3600)} 小時前`;
+  return `${Math.round(diff / 86400)} 天前`;
+}
+
+// 打卡
+function PunchForm() {
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const punch = async (action: "上班" | "下班") => {
+    if (submitting) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const res = await staffFetch("/api/staff/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sub_type: "打卡", payload: { action } }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setMsg({ kind: "ok", text: `${action}打卡成功` });
+      setRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setMsg({ kind: "err", text: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div>
+      <div className="flex flex-col items-center mb-6">
+        <div className="flex gap-4 mb-4">
+          <button onClick={() => punch("上班")} disabled={submitting} className="w-32 h-32 rounded-full text-white text-base font-bold transition-transform hover:scale-105 disabled:opacity-50"
+            style={{ background: "#2d5016", border: "none", cursor: submitting ? "wait" : "pointer", boxShadow: "0 4px 20px rgba(45,80,22,0.3)" }}>上班打卡</button>
+          <button onClick={() => punch("下班")} disabled={submitting} className="w-32 h-32 rounded-full text-white text-base font-bold transition-transform hover:scale-105 disabled:opacity-50"
+            style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer", boxShadow: "0 4px 20px rgba(122,92,64,0.3)" }}>下班打卡</button>
+        </div>
+        {msg && (
+          <p className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</p>
         )}
       </div>
+      <div>
+        <h4 className="text-xs font-bold mb-2" style={{ color: "#999" }}>最近打卡</h4>
+        <RecentRecords subType="打卡" refreshKey={refreshKey} />
+      </div>
+    </div>
+  );
+}
+
+// 日誌
+function LogForm() {
+  const [content, setContent] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const submit = async () => {
+    if (!content.trim() || submitting) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const res = await staffFetch("/api/staff/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sub_type: "日誌", payload: { content: content.trim() } }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setMsg({ kind: "ok", text: "日誌已送出" });
+      setContent("");
+      setRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setMsg({ kind: "err", text: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 600 }}>
+      <h3 className="text-base font-bold mb-3" style={{ color: "#333" }}>工作日誌</h3>
+      <textarea value={content} onChange={(e) => setContent(e.target.value)} placeholder="今天做了什麼、進度、卡點…" rows={5}
+        className="w-full px-3 py-2 rounded border text-sm outline-none mb-3" style={{ borderColor: "#ddd" }} />
+      <div className="flex items-center justify-between mb-6">
+        {msg ? <span className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</span> : <span />}
+        <button onClick={submit} disabled={!content.trim() || submitting} className="px-6 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+          style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer" }}>{submitting ? "送出中…" : "送出日誌"}</button>
+      </div>
+      <h4 className="text-xs font-bold mb-2" style={{ color: "#999" }}>最近日誌</h4>
+      <RecentRecords subType="日誌" refreshKey={refreshKey} />
+    </div>
+  );
+}
+
+// 請假
+function LeaveForm() {
+  const [leaveType, setLeaveType] = useState("特休");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  const submit = async () => {
+    if (!startDate || !endDate || submitting) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const res = await staffFetch("/api/staff/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          sub_type: "請假",
+          payload: { leave_type: leaveType, start_date: startDate, end_date: endDate, reason },
+        }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setMsg({ kind: "ok", text: "請假已送出" });
+      setStartDate(""); setEndDate(""); setReason("");
+      setRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setMsg({ kind: "err", text: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 500 }}>
+      <h3 className="text-base font-bold mb-3" style={{ color: "#333" }}>請假申請</h3>
+      <label className="text-xs block mb-1" style={{ color: "#888" }}>假別</label>
+      <div className="flex flex-wrap gap-2 mb-3">
+        {(["特休", "病假", "事假", "公假", "其他"] as const).map((v) => (
+          <button key={v} onClick={() => setLeaveType(v)} className="px-3 py-1.5 rounded text-sm"
+            style={{ background: leaveType === v ? "#7a5c40" : "transparent", color: leaveType === v ? "#fff" : "#666", border: "1px solid #ddd", cursor: "pointer" }}>{v}</button>
+        ))}
+      </div>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>起始日</label>
+          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)}
+            className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+        </div>
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>結束日</label>
+          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)}
+            className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+        </div>
+      </div>
+      <label className="text-xs block mb-1" style={{ color: "#888" }}>事由</label>
+      <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="（選填）"
+        className="w-full px-3 py-2 rounded border text-sm outline-none mb-3" style={{ borderColor: "#ddd" }} />
+      <div className="flex items-center justify-between mb-6">
+        {msg ? <span className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</span> : <span />}
+        <button onClick={submit} disabled={!startDate || !endDate || submitting} className="px-6 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+          style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer" }}>{submitting ? "送出中…" : "送出請假"}</button>
+      </div>
+      <h4 className="text-xs font-bold mb-2" style={{ color: "#999" }}>最近請假</h4>
+      <RecentRecords subType="請假" refreshKey={refreshKey} />
+    </div>
+  );
+}
+
+// 加班
+function OvertimeForm() {
+  const [date, setDate] = useState("");
+  const [hours, setHours] = useState<number | "">("");
+  const [reason, setReason] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const d = new Date();
+    const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+    setDate(iso);
+  }, []);
+
+  const submit = async () => {
+    const h = Number(hours);
+    if (!date || !h || h <= 0 || submitting) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const res = await staffFetch("/api/staff/attendance", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sub_type: "加班", payload: { date, hours: h, reason } }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setMsg({ kind: "ok", text: "加班已送出" });
+      setHours(""); setReason("");
+      setRefreshKey((k) => k + 1);
+    } catch (e: any) {
+      setMsg({ kind: "err", text: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div style={{ maxWidth: 500 }}>
+      <h3 className="text-base font-bold mb-3" style={{ color: "#333" }}>加班申請</h3>
+      <div className="grid grid-cols-2 gap-2 mb-3">
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>日期</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+        </div>
+        <div>
+          <label className="text-xs block mb-1" style={{ color: "#888" }}>時數</label>
+          <input type="number" min={0.5} step={0.5} value={hours} onChange={(e) => setHours(e.target.value === "" ? "" : Number(e.target.value))} placeholder="例 2.5"
+            className="w-full px-3 py-2 rounded border text-sm outline-none" style={{ borderColor: "#ddd" }} />
+        </div>
+      </div>
+      <label className="text-xs block mb-1" style={{ color: "#888" }}>事由</label>
+      <textarea value={reason} onChange={(e) => setReason(e.target.value)} rows={2} placeholder="（選填）"
+        className="w-full px-3 py-2 rounded border text-sm outline-none mb-3" style={{ borderColor: "#ddd" }} />
+      <div className="flex items-center justify-between mb-6">
+        {msg ? <span className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</span> : <span />}
+        <button onClick={submit} disabled={!date || !hours || submitting} className="px-6 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+          style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer" }}>{submitting ? "送出中…" : "送出加班"}</button>
+      </div>
+      <h4 className="text-xs font-bold mb-2" style={{ color: "#999" }}>最近加班</h4>
+      <RecentRecords subType="加班" refreshKey={refreshKey} />
     </div>
   );
 }
@@ -1146,6 +1433,8 @@ function ExpensePanel() {
   const [claimReceipt, setClaimReceipt] = useState<"有" | "無" | "">("");
   const [claimNote, setClaimNote] = useState("");
   const [purchaseItems, setPurchaseItems] = useState([{ name: "", price: 0, qty: 1, note: "", url: "" }]);
+  const [submitting, setSubmitting] = useState(false);
+  const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
 
   const claimTotal = claimItems.reduce((s, i) => s + i.price * i.qty, 0);
   const purchaseTotal = purchaseItems.reduce((s, i) => s + i.price * i.qty, 0);
@@ -1154,6 +1443,35 @@ function ExpensePanel() {
   const addPurchaseItem = () => setPurchaseItems([...purchaseItems, { name: "", price: 0, qty: 1, note: "", url: "" }]);
   const updateClaim = (i: number, field: string, value: any) => { setClaimItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item)); };
   const updatePurchase = (i: number, field: string, value: any) => { setPurchaseItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item)); };
+
+  const submitExpense = async (kind: "請款" | "請購") => {
+    if (submitting) return;
+    setSubmitting(true);
+    setMsg(null);
+    try {
+      const items = kind === "請款"
+        ? claimItems.filter(i => i.name && i.price > 0 && i.qty > 0)
+        : purchaseItems.filter(i => i.name && i.price > 0 && i.qty > 0);
+      if (items.length === 0) throw new Error("至少需要一筆有效品項（含品名、金額、數量）");
+      const body = kind === "請款"
+        ? { sub_type: "請款", items, has_receipt: claimReceipt === "有", note: claimNote }
+        : { sub_type: "請購", items };
+      const res = await staffFetch("/api/staff/expense", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setMsg({ kind: "ok", text: `${kind}已送出（NT$${j.total?.toLocaleString?.() || 0}）` });
+      if (kind === "請款") { setClaimItems([{ name: "", price: 0, qty: 1 }]); setClaimReceipt(""); setClaimNote(""); }
+      else { setPurchaseItems([{ name: "", price: 0, qty: 1, note: "", url: "" }]); }
+    } catch (e: any) {
+      setMsg({ kind: "err", text: e.message });
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-[240px_1fr] gap-3 sm:gap-0" style={{ minHeight: 500 }}>
@@ -1184,9 +1502,13 @@ function ExpensePanel() {
               </div>
             </div>
             <textarea value={claimNote} onChange={(e) => setClaimNote(e.target.value)} placeholder="備註" rows={2} className="w-full px-3 py-2 rounded border text-sm outline-none mb-4" style={{ borderColor: "#ddd" }} />
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-sm font-bold" style={{ color: "#333" }}>合計：NT$ {claimTotal.toLocaleString()}</span>
-              <button className="px-6 py-2 rounded-lg text-sm font-bold text-white" style={{ background: "#7a5c40", border: "none", cursor: "pointer" }}>送出請款</button>
+              {msg && mode === "請款" && (
+                <span className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</span>
+              )}
+              <button onClick={() => submitExpense("請款")} disabled={submitting || claimTotal <= 0} className="px-6 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer" }}>{submitting ? "送出中…" : "送出請款"}</button>
             </div>
           </div>
         )}
@@ -1205,9 +1527,13 @@ function ExpensePanel() {
               </div>
             ))}
             <button onClick={addPurchaseItem} className="text-xs px-3 py-1.5 rounded mb-4" style={{ color: "#7a5c40", background: "none", border: "1px dashed #7a5c40", cursor: "pointer" }}>+ 新增品項</button>
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between flex-wrap gap-2">
               <span className="text-sm font-bold" style={{ color: "#333" }}>預估合計：NT$ {purchaseTotal.toLocaleString()}</span>
-              <button className="px-6 py-2 rounded-lg text-sm font-bold text-white" style={{ background: "#7a5c40", border: "none", cursor: "pointer" }}>送出請購</button>
+              {msg && mode === "請購" && (
+                <span className="text-sm" style={{ color: msg.kind === "ok" ? "#2d5016" : "#c0392b" }}>{msg.text}</span>
+              )}
+              <button onClick={() => submitExpense("請購")} disabled={submitting || purchaseTotal <= 0} className="px-6 py-2 rounded-lg text-sm font-bold text-white disabled:opacity-50"
+                style={{ background: "#7a5c40", border: "none", cursor: submitting ? "wait" : "pointer" }}>{submitting ? "送出中…" : "送出請購"}</button>
             </div>
           </div>
         )}
