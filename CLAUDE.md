@@ -447,3 +447,67 @@ npm run lint   # ESLint
 - 非英文路徑偶爾導致 Turbopack panic，重裝 node_modules 可解決
 - 舊站 makesense.site 已退役，不再維護
 - Build 時 `.next` 資料夾可能鎖定，需先停 dev server 再 build
+
+---
+
+## 📌 補充更新（2026/04/28-29 第二批）
+
+### DB05 欄位補充（之前文件漂移漏記）
+- **紀錄備項**（select）— 工作台「考勤」用：打卡紀錄 / 加班紀錄 / 請假紀錄 / 工作紀錄 / 搜查彙報 / 會議討論
+- **請款請購**（select）— 工作台「費用」用：請購直匯 / 請款轉交
+- **登記單價**（number）— 金額欄位，DB05 與 DB06 都有
+- **責任執行**（people）— Notion users，工作台寫入時自動帶員工本人
+
+### DB05 / DB06 cascade 機制（2026/04/29 釐清）
+- 不是 Notion automation，是 **code-driven**
+- 範例：`/api/staff/inventory/route.ts` 庫存異動由 Next.js API 同時寫 DB05+DB06
+- 寫 DB05 時三層欄位齊全：`表單類型=報名登記` + `登記選項=紀錄庫存` + `庫存細項=進貨/出貨/盤點` + `對應明細→DB06`
+- 考勤、費用 不需「報名登記」上游：表單類型留空，直接用紀錄備項 / 請款請購 區分
+- 統一封裝在 `lib/staff-helper.ts`：getStaffNotionPageId + writeStaffDB05Record
+
+### Supabase 新表（2026/04 ~ 04/29）
+- **vendor_photos** — 攤商照片庫（5 類：LOGO/形象/產品/活動體驗/表演），跨次重用，含 archived_at 軟刪除
+- **market_applications** — 市集擺攤申請（status: pending/approved/rejected）+ selected_photo_ids
+- **point_ledger** — 會員積點流水帳（5 type：消費積點/書籍本數/付費文章/距離行程/簽到退）+ expires_at
+- **point_balance**（VIEW）— 即時聚合 ledger（消費積點過濾未過期）
+- **partner_metrics_v**（VIEW）— 合作夥伴 reach + conversion 即時聚合（用 publisher_notion_id 直接 join）
+- 已停用：order_items.points_earned / points_status / members.points_balance（中途加錯，已 drop）
+
+### Supabase 新欄位（2026/04/29 partner session 補完 sync route）
+- products: `publisher_notion_id`（廠商識別，避免繞 persons 表）
+- events: `related_partner_ids` (jsonb[]) / `event_category` / `collab_type`
+- articles: `related_partner_ids` (jsonb[])
+
+### 元件異動
+- 新增：
+  - `components/viewpoint/YilanMap.tsx` — 編輯雜誌風 SVG 地圖（取代 ViewpointExplorer），含 sidebar / 鄰縣 / 龜山島
+  - `components/ui/AddToCartButton.tsx` — 直接加購車不跳頁
+  - `components/ui/QuickBookButton.tsx` — 跳 /events/[slug]#booking
+  - `lib/clean-title.ts` — 自動去除標題尾端裝飾 emoji
+  - `lib/school-breaks.ts` — 寒暑假日期表（每年手動更新）
+  - `lib/sense-data.ts` — /sense 編輯雜誌風寫死資料
+- 刪除：
+  - `components/bookstore/ViewpointExplorer.tsx`（被 YilanMap 取代）
+  - `components/ui/WishlistButton.tsx`（收藏功能停用）
+
+### 新頁面
+- **/search?q=** — 全站搜尋結果頁（4 類分區，兩段式 Enter）
+- **/market-apply/[slug]** + **/done** — 市集擺攤申請（會員登入 + 5 類照片庫）
+- **/dashboard/points** — 我的積點（餘額卡 + 流水）
+
+### /sense 改版（2026/04/27）
+舊：S0 / S-D1 核心能力 / S-D2 營運績效 / S4 發展歷程
+新：
+- §04 / TIMELINE — Timeline 4 階段（醞釀/萌芽/擴張/深耕）
+- §05A / IMPACT — 6 卡（events/partners 從 Supabase；creators/spaces/reach/press 寫死）
+- §05B / CAPABILITIES — 3 大類能力（寫死於 lib/sense-data.ts）
+
+### Footer 更新
+- 「© 2012-2026 現思文化創藝術有限公司」 → 「**makesense** since 2012」
+
+### 三角色介面開發（2026/04/29 起）
+分 3 個 session 平行開發：
+- **Member session** — /dashboard 主頁、/dashboard/orders、/dashboard/points、文化足跡 5 維度卡片（FootprintCard）
+- **Partner session** — /dashboard/partner（5 tab）、QrScanModal 接 Supabase、partner_metrics_v
+- **Staff session** — /dashboard/workbench、components/workbench/WorkbenchShell.tsx（兩入口共用）
+- 共用資源（components/ui/、lib/、providers/）動之前先群組告知
