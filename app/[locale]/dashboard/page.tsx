@@ -408,13 +408,20 @@ function MemberOverview() {
       <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
         {/* Header + Tab Bar */}
         <div style={{ background: "#fafafa" }}>
-          <div className="flex items-center gap-3 px-6 pt-4 pb-3">
-            <h3 className="text-base font-semibold" style={{ color: "#333", margin: 0 }}>🛒 消費明細</h3>
+          <div className="flex items-center justify-between gap-3 px-6 pt-4 pb-3 flex-wrap">
+            <div className="flex items-center gap-3">
+              <h3 className="text-base font-semibold" style={{ color: "#333", margin: 0 }}>🛒 消費明細</h3>
             {pendingCount > 0 && (
               <span className="px-3 py-1 rounded-full text-xs font-bold text-white" style={{ background: "#e8935a" }}>
                 {pendingCount} 待評價
               </span>
             )}
+            </div>
+            <Link href="/dashboard/points"
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90"
+              style={{ background: "rgba(78,205,196,0.12)", color: "var(--color-teal)", border: "1px solid var(--color-teal)" }}>
+              ✨ 我的積點 →
+            </Link>
           </div>
           <div className="flex px-6" style={{ borderBottom: "1px solid #e8e8e8" }}>
             {(["orders", "categories"] as const).map((tab) => (

@@ -31,14 +31,14 @@ async function resolveProduct(input: string) {
   // 先試 notion_id 比對
   const byNotion = await supabase
     .from("products")
-    .select("id, notion_id, name, stock, price")
+    .select("id, notion_id, name, stock, price, category")
     .eq("notion_id", normalized)
     .maybeSingle();
   if (byNotion.data) return byNotion.data;
   // 再試 Supabase id（UUID）比對
   const byId = await supabase
     .from("products")
-    .select("id, notion_id, name, stock, price")
+    .select("id, notion_id, name, stock, price, category")
     .eq("id", input)
     .maybeSingle();
   return byId.data;
@@ -261,6 +261,65 @@ export async function POST(req: NextRequest) {
         if (stockError) {
           console.warn(`[checkout] 扣庫存失敗 ${productInfo.name}:`, stockError.message);
         }
+      }
+    }
+
+    // 4.6 寫入點數流水帳（會員專屬，3 種類型：消費 / 書籍 / 付費文章）
+    //     reservation 模式不寫（等錄取後才算數）；訪客結帳沒 memberId 也不寫
+    if (memberId && orderMode === "direct") {
+      try {
+        const ledgerRows: Array<{ member_id: string; type: string; value: number; source_table: string; source_id: string; note?: string }> = [];
+
+        // (a) 消費積點：1 點 = 1 元
+        if (total > 0) {
+          ledgerRows.push({
+            member_id: memberId, type: "消費積點", value: total,
+            source_table: "orders", source_id: order.id,
+            note: `訂單 #${order.id.slice(0, 8)}`,
+          });
+        }
+
+        // (b) 書籍本數：累計 category='商品/選書' 的數量
+        let bookCount = 0;
+        const purchasedProductSupabaseIds: string[] = [];
+        for (const { item, productInfo } of resolvedItems) {
+          if (!productInfo) continue;
+          purchasedProductSupabaseIds.push(productInfo.id);
+          if (typeof productInfo.category === "string" && productInfo.category.startsWith("商品/選書")) {
+            bookCount += item.qty;
+          }
+        }
+        if (bookCount > 0) {
+          ledgerRows.push({
+            member_id: memberId, type: "書籍本數", value: bookCount,
+            source_table: "orders", source_id: order.id,
+            note: `${bookCount} 本`,
+          });
+        }
+
+        // (c) 付費文章：本次購買的商品如果是某些文章的「對應商品」→ 解鎖那些文章
+        if (purchasedProductSupabaseIds.length > 0) {
+          const { data: unlocked } = await supabase
+            .from("articles")
+            .select("id")
+            .in("related_product_id", purchasedProductSupabaseIds)
+            .eq("status", "published");
+          const articleCount = (unlocked || []).length;
+          if (articleCount > 0) {
+            ledgerRows.push({
+              member_id: memberId, type: "付費文章", value: articleCount,
+              source_table: "orders", source_id: order.id,
+              note: `解鎖 ${articleCount} 篇`,
+            });
+          }
+        }
+
+        if (ledgerRows.length > 0) {
+          const { error: ledgerErr } = await supabase.from("point_ledger").insert(ledgerRows);
+          if (ledgerErr) console.warn("[checkout] 寫 point_ledger 失敗:", ledgerErr.message);
+        }
+      } catch (e: any) {
+        console.warn("[checkout] 點數寫入錯誤:", e?.message);
       }
     }
 
