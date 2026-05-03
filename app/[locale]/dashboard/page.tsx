@@ -122,6 +122,7 @@ function MemberOverview() {
     }
   };
   const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
+  const [footprint, setFootprint] = useState({ distanceKm: 0, cultureHours: 0 });
 
   const [purchases, setPurchases] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -183,6 +184,11 @@ function MemberOverview() {
       }))));
     }
   }, [isDev, purchases.length]);
+
+  // Dev: mock 文化足跡數值
+  useEffect(() => {
+    if (isDev) setFootprint({ distanceKm: 12.5, cultureHours: 8.5 });
+  }, [isDev]);
 
   const [showQR, setShowQR] = useState(false);
   const [detailTab, setDetailTab] = useState<"orders" | "categories">("orders");
@@ -331,6 +337,26 @@ function MemberOverview() {
 
       {/* ── Staff 分頁 tab（問候列下方）── */}
       <StaffTabs />
+
+      {/* ── 文化足跡 ── */}
+      <div className="rounded-xl mb-6 p-5" style={{ background: "#1a1a2e" }}>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="text-sm font-semibold" style={{ color: "#fff", margin: 0 }}>🗺️ 文化足跡</h3>
+            <p className="text-xs mt-0.5" style={{ color: "rgba(255,255,255,0.4)" }}>走入宜蘭，留下你的文化印記</p>
+          </div>
+          <Link href="/dashboard/points" className="text-xs px-3 py-1.5 rounded-md" style={{ background: "rgba(78,205,196,0.15)", color: "#4ECDC4", border: "1px solid rgba(78,205,196,0.3)", textDecoration: "none" }}>
+            積點明細 →
+          </Link>
+        </div>
+        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
+          <FootprintCard icon="🗺️" value={footprint.distanceKm} unit="km" label="走讀里程" color="#4ECDC4" />
+          <FootprintCard icon="⏱️" value={footprint.cultureHours} unit="hr" label="文化時數" color="#b89e7a" />
+          <FootprintCard icon="✨" value={stats.points} unit="pt" label="文化積分" color="#ffcc00" />
+          <FootprintCard icon="💡" value={Object.keys(topicCount).length} unit="個" label="觸及觀點" color="#e8935a" />
+          <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" />
+        </div>
+      </div>
 
       {/* ── 我的參與分析 ── */}
       <div className="rounded-xl mb-6 overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
@@ -730,6 +756,23 @@ function EditIconButton({ onClick, title }: { onClick: () => void; title: string
 
 function Divider() {
   return <span style={{ color: "rgba(255,255,255,0.3)" }}>|</span>;
+}
+
+function FootprintCard({ icon, value, unit, label, color }: {
+  icon: string; value: number; unit: string; label: string; color: string;
+}) {
+  const display = value === 0 ? "—" : (Number.isInteger(value) ? value.toString() : value.toFixed(1));
+  return (
+    <div className="rounded-xl p-3 sm:p-4 flex flex-col items-center gap-1 text-center"
+      style={{ background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)" }}>
+      <div style={{ fontSize: 20 }}>{icon}</div>
+      <div style={{ lineHeight: 1 }}>
+        <span style={{ fontSize: 22, fontWeight: 700, color, fontFamily: "var(--font-display)" }}>{display}</span>
+        {value !== 0 && <span style={{ fontSize: 11, color: "rgba(255,255,255,0.45)", marginLeft: 3 }}>{unit}</span>}
+      </div>
+      <div style={{ fontSize: 11, color: "rgba(255,255,255,0.4)", marginTop: 1, whiteSpace: "nowrap" }}>{label}</div>
+    </div>
+  );
 }
 
 function StaffTabs() {
