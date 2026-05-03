@@ -125,37 +125,33 @@ export default function PartnerPage() {
         }
       }
 
-      // ── 績效數據 ──
-      // 先用 email 找 partner.id（績效表仍用 partner_id uuid）
-      const { data: partner } = await supabase
-        .from("partners")
-        .select("id")
-        .eq("contact->>email" as any, email)
-        .maybeSingle();
+      // ── 績效數據（partner_metrics_v VIEW，直接用 notionId）──
+      if (notionId) {
+        const { data: metrics } = await (supabase as any)
+          .from("partner_metrics_v")
+          .select("reach_count, conversion_count, total_revenue, product_count, out_of_stock_count, event_count, newsletter_count")
+          .eq("notion_id", notionId)
+          .maybeSingle() as {
+            data: {
+              reach_count: number; conversion_count: number; total_revenue: number;
+              product_count: number; out_of_stock_count: number; event_count: number; newsletter_count: number;
+            } | null;
+          };
 
-      if (partner?.id) {
-        const { data: perf } = await supabase
-          .from("partner_performance")
-          .select("revenue, attendance, rating")
-          .eq("partner_id", partner.id);
-
-        if (perf && perf.length > 0) {
-          const totalRev = perf.reduce((s, r) => s + (r.revenue || 0), 0);
-          const totalAtt = perf.reduce((s, r) => s + (r.attendance || 0), 0);
-          const ratings = perf.filter(r => r.rating).map(r => r.rating!);
-          const avg = ratings.length > 0 ? (ratings.reduce((s, r) => s + r, 0) / ratings.length).toFixed(1) : "—";
+        if (metrics) {
           setStats(prev => ({
             ...prev,
-            totalRevenue: totalRev,
-            totalRegistrations: totalAtt,
-            avgRating: avg,
-            totalActivities: perf.length,
-            totalSold: totalAtt,
+            totalProducts: Number(metrics.product_count) || prev.totalProducts,
+            outOfStock: Number(metrics.out_of_stock_count) || prev.outOfStock,
+            totalRevenue: Number(metrics.total_revenue) || 0,
+            totalSold: Number(metrics.conversion_count) || 0,
+            totalActivities: Number(metrics.event_count) || 0,
+            totalRegistrations: Number(metrics.reach_count) || 0,
           }));
         }
       }
     })();
-  }, [notionId, email, isDev]);
+  }, [notionId, isDev]);
 
   const pageTabs = [
     { href: "/dashboard", label: "個人紀錄", exact: true },
@@ -188,7 +184,7 @@ export default function PartnerPage() {
 
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} />}
-        {activeTab === "資訊" && <VendorInfo products={products} setProducts={setProducts} />}
+        {activeTab === "資訊" && <VendorInfo products={products} />}
         {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings />}
@@ -241,7 +237,7 @@ function VendorOverview({ stats }: { stats: VendorStats }) {
       </div>
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
         <StatCard label="活動數" value={stats.totalActivities} unit="場" color="#1a1a2e" />
-        <StatCard label="總報名人數" value={stats.totalRegistrations} unit="人" color="#4CAF50" />
+        <StatCard label="觸及人次" value={stats.totalRegistrations} unit="次" color="#4CAF50" />
         <StatCard label="缺貨商品" value={stats.outOfStock} unit="項" color="#e53e3e" />
       </div>
       <PartnerReviews />
@@ -252,105 +248,59 @@ function VendorOverview({ stats }: { stats: VendorStats }) {
 }
 
 // ════════════════════════════════════════════
-// 資訊 — 商品自助上架
+// 資訊 — 商品唯讀展示（商品由 Notion DB07 管理，Noah 審核後同步）
 // ════════════════════════════════════════════
-const EMPTY_FORM: Omit<VendorProduct, "id" | "active"> = { name: "", photo: "", price: "", stock: "", note: "" };
-
-function VendorInfo({ products, setProducts }: { products: VendorProduct[]; setProducts: React.Dispatch<React.SetStateAction<VendorProduct[]>> }) {
-  const [modal, setModal] = useState<{ open: boolean; editing: VendorProduct | null }>({ open: false, editing: null });
-  const [form, setForm] = useState<Omit<VendorProduct, "id" | "active">>(EMPTY_FORM);
-
+function VendorInfo({ products }: { products: VendorProduct[] }) {
   const active = products.filter(p => p.active);
   const inactive = products.filter(p => !p.active);
 
-  function openAdd() { setForm(EMPTY_FORM); setModal({ open: true, editing: null }); }
-  function openEdit(p: VendorProduct) {
-    setForm({ name: p.name, photo: p.photo, price: p.price, stock: p.stock, note: p.note });
-    setModal({ open: true, editing: p });
-  }
-  function save() {
-    if (!form.name.trim()) return;
-    if (modal.editing) {
-      setProducts(prev => prev.map(p => p.id === modal.editing!.id ? { ...p, ...form } : p));
-    } else {
-      setProducts(prev => [...prev, { id: `vp${Date.now()}`, ...form, active: true }]);
-    }
-    setModal({ open: false, editing: null });
-  }
-  function toggleActive(id: string) {
-    setProducts(prev => prev.map(p => p.id === id ? { ...p, active: !p.active } : p));
-  }
-
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <div>
-          <h2 className="text-base font-semibold" style={{ color: "#1a1a2e" }}>商品資訊</h2>
-          <p className="text-xs mt-0.5" style={{ color: "#999" }}>在此管理上架商品，資料將顯示於商家頁面與市集預購系統</p>
-        </div>
-        <button onClick={openAdd} className="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold"
-          style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}>
-          ＋ 新增商品
-        </button>
+      <div className="mb-4">
+        <h2 className="text-base font-semibold" style={{ color: "#1a1a2e" }}>商品資訊</h2>
+        <p className="text-xs mt-0.5" style={{ color: "#999" }}>顯示在官網及市集預購頁面的商品清單</p>
       </div>
+
+      {/* 聯絡提示 */}
+      <div className="rounded-xl p-4 mb-5 flex items-start gap-3"
+        style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)" }}>
+        <span className="text-lg flex-shrink-0">💬</span>
+        <div>
+          <p className="text-sm font-medium" style={{ color: "#1a1a2e" }}>想新增或修改商品？</p>
+          <p className="text-xs mt-1" style={{ color: "#555" }}>
+            商品資料由管理員統一維護，確保品牌一致性。請透過以下方式聯繫：
+          </p>
+          <div className="flex flex-wrap gap-3 mt-2">
+            <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold"
+              style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
+              LINE 官方帳號
+            </a>
+            <a href="mailto:hello@makesense.ink"
+              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold"
+              style={{ background: "#fff", color: "#7a5c40", border: "1px solid #c8b89a", textDecoration: "none" }}>
+              ✉ 寄信聯絡
+            </a>
+          </div>
+        </div>
+      </div>
+
       {active.length === 0 ? (
         <div className="rounded-xl py-12 text-center mb-6" style={{ background: "#faf8f4", border: "1px dashed #c8b89a" }}>
           <p className="text-2xl mb-2">🏪</p>
-          <p className="text-sm font-medium" style={{ color: "#7a5c40" }}>尚未新增任何商品</p>
-          <p className="text-xs mt-1" style={{ color: "#aaa" }}>點「新增商品」開始上架，30 秒完成一筆</p>
+          <p className="text-sm font-medium" style={{ color: "#7a5c40" }}>尚無上架商品</p>
+          <p className="text-xs mt-1" style={{ color: "#aaa" }}>聯繫管理員即可新增商品</p>
         </div>
       ) : (
         <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-          {active.map(p => <ProductCard key={p.id} product={p} onEdit={() => openEdit(p)} onToggle={() => toggleActive(p.id)} />)}
+          {active.map(p => <ProductCard key={p.id} product={p} />)}
         </div>
       )}
       {inactive.length > 0 && (
         <div>
           <p className="text-xs font-semibold mb-2" style={{ color: "#aaa" }}>已下架（{inactive.length} 項）</p>
           <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-            {inactive.map(p => <ProductCard key={p.id} product={p} onEdit={() => openEdit(p)} onToggle={() => toggleActive(p.id)} />)}
-          </div>
-        </div>
-      )}
-      {modal.open && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center" style={{ background: "rgba(0,0,0,0.45)" }}
-          onClick={e => { if (e.target === e.currentTarget) setModal({ open: false, editing: null }); }}>
-          <div className="w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl p-6" style={{ background: "#fff", maxHeight: "90vh", overflowY: "auto" }}>
-            <h3 className="text-base font-semibold mb-4" style={{ color: "#1a1a2e" }}>{modal.editing ? "編輯商品" : "新增商品"}</h3>
-            <div className="space-y-3">
-              <FormField label="商品名稱 *">
-                <input value={form.name} onChange={e => setForm({ ...form, name: e.target.value })}
-                  placeholder="例：金棗果醬 100g" className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none" style={{ border: "1px solid #ddd" }} />
-              </FormField>
-              <FormField label="價格（NT$）">
-                <input type="number" value={form.price} onChange={e => setForm({ ...form, price: e.target.value === "" ? "" : Number(e.target.value) })}
-                  placeholder="0" className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none" style={{ border: "1px solid #ddd" }} />
-              </FormField>
-              <FormField label="庫存數量">
-                <input type="number" value={form.stock} onChange={e => setForm({ ...form, stock: e.target.value === "" ? "" : Number(e.target.value) })}
-                  placeholder="0" className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none" style={{ border: "1px solid #ddd" }} />
-              </FormField>
-              <FormField label="照片網址（選填）">
-                <input value={form.photo} onChange={e => setForm({ ...form, photo: e.target.value })}
-                  placeholder="https://..." className="w-full h-10 px-3 rounded-lg border text-sm focus:outline-none" style={{ border: "1px solid #ddd" }} />
-                <p className="text-xs mt-1" style={{ color: "#aaa" }}>照片上傳功能開發中，目前支援貼網址</p>
-              </FormField>
-              <FormField label="備註 / 簡介">
-                <textarea value={form.note} onChange={e => setForm({ ...form, note: e.target.value })}
-                  placeholder="商品描述、材質、保存方式等..." rows={3}
-                  className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none resize-none" style={{ border: "1px solid #ddd" }} />
-              </FormField>
-            </div>
-            <div className="flex gap-3 mt-5">
-              <button onClick={() => setModal({ open: false, editing: null })}
-                className="flex-1 h-10 rounded-lg text-sm font-medium"
-                style={{ border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer" }}>取消</button>
-              <button onClick={save} disabled={!form.name.trim()}
-                className="flex-1 h-10 rounded-lg text-sm font-semibold"
-                style={{ background: form.name.trim() ? "#7a5c40" : "#ccc", color: "#fff", border: "none", cursor: form.name.trim() ? "pointer" : "default" }}>
-                {modal.editing ? "儲存變更" : "新增上架"}
-              </button>
-            </div>
+            {inactive.map(p => <ProductCard key={p.id} product={p} />)}
           </div>
         </div>
       )}
@@ -358,38 +308,28 @@ function VendorInfo({ products, setProducts }: { products: VendorProduct[]; setP
   );
 }
 
-function ProductCard({ product: p, onEdit, onToggle }: { product: VendorProduct; onEdit: () => void; onToggle: () => void }) {
+function ProductCard({ product: p }: { product: VendorProduct }) {
+  const stock = typeof p.stock === "number" ? p.stock : 0;
   return (
     <div className="rounded-xl p-4 flex flex-col gap-2"
       style={{ background: p.active ? "#fff" : "#fafafa", border: `1px solid ${p.active ? "#e8e0d4" : "#eee"}`, opacity: p.active ? 1 : 0.6 }}>
       {p.photo && <img src={p.photo} alt={p.name} className="w-full h-32 object-cover rounded-lg mb-1" />}
-      <p className="text-sm font-semibold" style={{ color: "#1a1a2e" }}>{p.name}</p>
+      <div className="flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold" style={{ color: "#1a1a2e" }}>{p.name}</p>
+        <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
+          style={{ background: p.active ? "rgba(78,205,196,0.12)" : "#f5f5f5", color: p.active ? "#3aa89f" : "#aaa" }}>
+          {p.active ? "上架中" : "已下架"}
+        </span>
+      </div>
       <div className="flex items-center gap-3 text-xs" style={{ color: "#888" }}>
         {p.price !== "" && <span style={{ color: "#e8935a", fontWeight: 600 }}>NT$ {Number(p.price).toLocaleString()}</span>}
         {p.stock !== "" && (
-          <span style={{ color: Number(p.stock) === 0 ? "#e53e3e" : Number(p.stock) <= 5 ? "#C4864A" : "#666" }}>
-            庫存 {Number(p.stock) === 0 ? "缺貨" : `${p.stock} 件`}
+          <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#C4864A" : "#666" }}>
+            庫存 {stock === 0 ? "缺貨" : `${stock} 件`}
           </span>
         )}
       </div>
       {p.note && <p className="text-xs" style={{ color: "#999" }}>{p.note}</p>}
-      <div className="flex gap-2 mt-1">
-        <button onClick={onEdit} className="flex-1 h-8 rounded-lg text-xs font-medium"
-          style={{ border: "1px solid #c8b89a", background: "#fff", color: "#7a5c40", cursor: "pointer" }}>編輯</button>
-        <button onClick={onToggle} className="flex-1 h-8 rounded-lg text-xs font-medium"
-          style={{ border: "none", background: p.active ? "#fdf0f0" : "rgba(78,205,196,0.1)", color: p.active ? "#B85C5C" : "#3aa89f", cursor: "pointer" }}>
-          {p.active ? "下架" : "重新上架"}
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function FormField({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div>
-      <label className="block text-xs font-semibold mb-1" style={{ color: "#666" }}>{label}</label>
-      {children}
     </div>
   );
 }
