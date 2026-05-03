@@ -491,12 +491,18 @@ async function syncEvents(wb = false, skipImages = false) {
       ...pubRel.map((id: string) => id.replace(/-/g, "")),
     ])].filter(Boolean);
 
+    // 計算活動時長：end - start（分鐘）；只有單一日期時預設 120 分鐘（2小時）
+    const durationMin = dateInfo.start && dateInfo.end
+      ? Math.round((new Date(dateInfo.end).getTime() - new Date(dateInfo.start).getTime()) / 60000)
+      : (dateInfo.start ? 120 : null);
+
     return {
       notion_id: nid(page),
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["交接名稱"]?.title) || "未命名活動",
       theme: extractSelect(props["活動類型"]?.select) || null,
       event_type: extractSelect(props["活動類型"]?.select) || null,
       event_date: dateInfo.start || null,
+      duration_min: durationMin,
       price: extractNumber(props["單價"]?.number) || 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,

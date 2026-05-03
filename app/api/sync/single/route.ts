@@ -232,12 +232,18 @@ async function syncSingleEvent(nid: string, props: any) {
     ? Math.min(...tickets.map(t => Number(t.price) || 0))
     : (num(props["單價"]) || 0);
 
+  // 計算活動時長：end - start（分鐘）；只有單一日期時預設 120 分鐘（2小時）
+  const durationMin = dateInfo.start && dateInfo.end
+    ? Math.round((new Date(dateInfo.end).getTime() - new Date(dateInfo.start).getTime()) / 60000)
+    : (dateInfo.start ? 120 : null);
+
   const row = {
     notion_id: nid,
     title: tx(props["主題名稱"]) || t(props["交接名稱"]) || "未命名活動",
     theme: sel(props["活動類型"]),
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
+    duration_min: durationMin,
     price: basePrice,
     tickets,
     capacity: num(props["數量上限"]),

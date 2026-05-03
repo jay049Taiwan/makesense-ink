@@ -182,6 +182,7 @@ function MemberOverview() {
           ...prev,
           distanceKm: data.balance.distance_km ?? 0,
           spendingPoints: data.balance.spending_points ?? 0,
+          cultureHours: data.cultureHours ?? 0,
         }));
       }
     } catch {}
