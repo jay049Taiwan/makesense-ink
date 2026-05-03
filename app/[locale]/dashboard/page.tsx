@@ -122,7 +122,7 @@ function MemberOverview() {
     }
   };
   const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
-  const [footprint, setFootprint] = useState({ distanceKm: 0, cultureHours: 0 });
+  const [footprint, setFootprint] = useState({ distanceKm: 0, cultureHours: 0, spendingPoints: 0 });
 
   const [purchases, setPurchases] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -170,6 +170,25 @@ function MemberOverview() {
 
   useEffect(() => { loadOrders(); }, [loadOrders]);
 
+  // 從 /api/points 載入 point_balance（走讀里程 + 文化積分）
+  const loadPoints = useCallback(async () => {
+    if (isDev) return; // dev mock 另外處理
+    try {
+      const res = await fetch("/api/points");
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.balance) {
+        setFootprint(prev => ({
+          ...prev,
+          distanceKm: data.balance.distance_km ?? 0,
+          spendingPoints: data.balance.spending_points ?? 0,
+        }));
+      }
+    } catch {}
+  }, [isDev]);
+
+  useEffect(() => { loadPoints(); }, [loadPoints]);
+
   // Dev: 沒真實資料時用 mock 填充
   useEffect(() => {
     if (isDev && purchases.length === 0) {
@@ -187,7 +206,7 @@ function MemberOverview() {
 
   // Dev: mock 文化足跡數值
   useEffect(() => {
-    if (isDev) setFootprint({ distanceKm: 12.5, cultureHours: 8.5 });
+    if (isDev) setFootprint({ distanceKm: 12.5, cultureHours: 8.5, spendingPoints: 185 });
   }, [isDev]);
 
   const [showQR, setShowQR] = useState(false);
@@ -319,7 +338,7 @@ function MemberOverview() {
           <Divider />
           <span className="flex items-center gap-1">
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>積分</span>
-            <strong style={{ color: "#ffcc00", fontSize: 16 }}>{stats.points}</strong>
+            <strong style={{ color: "#ffcc00", fontSize: 16 }}>{footprint.spendingPoints || stats.points}</strong>
           </span>
         </div>
       </div>
@@ -352,7 +371,7 @@ function MemberOverview() {
         <div className="grid grid-cols-3 sm:grid-cols-5 gap-3">
           <FootprintCard icon="🗺️" value={footprint.distanceKm} unit="km" label="走讀里程" color="#4ECDC4" />
           <FootprintCard icon="⏱️" value={footprint.cultureHours} unit="hr" label="文化時數" color="#b89e7a" />
-          <FootprintCard icon="✨" value={stats.points} unit="pt" label="文化積分" color="#ffcc00" />
+          <FootprintCard icon="✨" value={footprint.spendingPoints || stats.points} unit="pt" label="文化積分" color="#ffcc00" />
           <FootprintCard icon="💡" value={Object.keys(topicCount).length} unit="個" label="觸及觀點" color="#e8935a" />
           <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" />
         </div>
