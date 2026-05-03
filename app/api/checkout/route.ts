@@ -270,10 +270,10 @@ export async function POST(req: NextRequest) {
       try {
         const ledgerRows: Array<{ member_id: string; type: string; value: number; source_table: string; source_id: string; note?: string }> = [];
 
-        // (a) 消費積點：1 點 = 1 元
+        // (a) 消費積點：10 元 = 1 點
         if (total > 0) {
           ledgerRows.push({
-            member_id: memberId, type: "消費積點", value: total,
+            member_id: memberId, type: "消費積點", value: Math.floor(total / 10),
             source_table: "orders", source_id: order.id,
             note: `訂單 #${order.id.slice(0, 8)}`,
           });

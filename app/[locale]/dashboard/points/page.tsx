@@ -73,7 +73,7 @@ export default function MyPointsPage() {
           我的積點
         </h1>
         <p className="text-sm mt-1" style={{ color: "var(--color-bark)" }}>
-          消費點數可折抵或兌換活動（1 點 = 1 元，未過期才可使用）；其他為累積紀錄。
+          消費點數可折抵或兌換活動（每消費 10 元累積 1 點，未過期才可使用）；其他為累積紀錄。
         </p>
       </div>
 
