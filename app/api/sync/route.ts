@@ -420,6 +420,7 @@ async function syncProducts(wb = false) {
       images: JSON.stringify(fileUrls(props["產品照片"])),
       author_id: aNid ? (aMap[aNid] || null) : null,
       publisher_id: pNid ? (pMap[pNid] || null) : null,
+      publisher_notion_id: pNid || null,
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
@@ -481,6 +482,13 @@ async function syncEvents(wb = false) {
     const guideUuid = guideNid ? guideMap[guideNid] : undefined;
     const guideName = guideUuid ? (personNameMap[guideUuid] || null) : null;
 
+    // 合作夥伴關聯：對應對象 + 對應發佈單位（raw notion_id，不轉 uuid）
+    const pubRel = extractRelation(props["對應發佈單位"]?.relation);
+    const relatedPartnerIds = [...new Set([
+      ...guideRel.map((id: string) => id.replace(/-/g, "")),
+      ...pubRel.map((id: string) => id.replace(/-/g, "")),
+    ])].filter(Boolean);
+
     return {
       notion_id: nid(page),
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["交接名稱"]?.title) || "未命名活動",
@@ -493,6 +501,9 @@ async function syncEvents(wb = false) {
       description: extractText(props["簡介摘要"]?.rich_text) || null,
       location: locationName,
       guide: guideName,
+      related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
+      event_category: extractSelect(props["交接類型"]?.select) || null,
+      collab_type: extractSelect(props["協作選項"]?.select) || null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
@@ -534,6 +545,9 @@ async function syncArticles(wb = false) {
     const pNids = pRel.map((r: string) => r.replace(/-/g, ""));
     const pNid = pNids[0];
     const pIdsAll = pNids.map((n: string) => pMap[n]).filter(Boolean);
+    // 合作夥伴關聯：對應對象（raw notion_id，不轉 uuid）
+    const objRel = extractRelation(props["對應對象"]?.relation);
+    const relatedPartnerIds = objRel.map((id: string) => id.replace(/-/g, "")).filter(Boolean);
     return {
       notion_id: nid(page),
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
@@ -542,6 +556,7 @@ async function syncArticles(wb = false) {
       related_event_id: eNid ? (eMap[eNid] || null) : null,
       related_product_id: pNid ? (pMap[pNid] || null) : null,
       related_product_ids: pIdsAll,
+      related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
       // 2026/04/22：官網備項是 select（單值），包成 text[] 儲存以便未來擴展
       web_tag: (() => {
         const v = extractSelect(props["官網備項"]?.select);
