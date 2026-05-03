@@ -160,8 +160,8 @@ export default function PartnerPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
-      <div className="rounded-xl p-5 mb-4" style={{ background: "#1a1a2e", color: "#fff" }}>
+    <div className="px-3 sm:px-0" style={{ maxWidth: 1100, margin: "0 auto" }}>
+      <div className="rounded-xl p-4 sm:p-5 mb-4" style={{ background: "#1a1a2e", color: "#fff" }}>
         <p className="text-xl font-bold mb-1">{displayName} <span className="font-normal">您好</span></p>
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.65)" }}>
           <span>📧 {email}</span>
@@ -224,7 +224,7 @@ function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenSc
         <p className="text-xs font-semibold" style={{ color: "#aaa" }}>本期數據概覽</p>
         <button
           onClick={onOpenScanner}
-          className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold transition-colors"
+          className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold transition-colors"
           style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}
         >
           📷 掃碼簽到
@@ -272,12 +272,12 @@ function VendorInfo({ products }: { products: VendorProduct[] }) {
           </p>
           <div className="flex flex-wrap gap-3 mt-2">
             <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold"
+              className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold"
               style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
               LINE 官方帳號
             </a>
             <a href="mailto:hello@makesense.ink"
-              className="flex items-center gap-1.5 px-3 h-8 rounded-lg text-xs font-semibold"
+              className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold"
               style={{ background: "#fff", color: "#7a5c40", border: "1px solid #c8b89a", textDecoration: "none" }}>
               ✉ 寄信聯絡
             </a>
@@ -430,7 +430,7 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
 
                 {/* 展開：設定預購商品 */}
                 {isOpen && (
-                  <div className="px-5 pb-5" style={{ background: "#fafcff", borderTop: "1px solid #f0f0f0" }}>
+                  <div className="px-3 sm:px-5 pb-4 sm:pb-5" style={{ background: "#fafcff", borderTop: "1px solid #f0f0f0" }}>
                     {isGenerated ? (
                       // 已產生狀態
                       <div className="pt-4">
@@ -442,17 +442,17 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
                         </div>
                         <div className="flex gap-2">
                           <button onClick={() => navigator.clipboard?.writeText(buyUrl)}
-                            className="flex-1 h-9 rounded-lg text-xs font-semibold"
+                            className="flex-1 h-10 rounded-lg text-xs font-semibold"
                             style={{ border: "1px solid #4ECDC4", background: "#fff", color: "#3aa89f", cursor: "pointer" }}>
                             複製連結
                           </button>
                           <a href={buyUrl} target="_blank" rel="noreferrer"
-                            className="flex-1 h-9 rounded-lg text-xs font-semibold flex items-center justify-center"
+                            className="flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center"
                             style={{ background: "#7a5c40", color: "#fff", textDecoration: "none" }}>
                             開啟預覽 ↗
                           </a>
                           <button onClick={() => setGenerated(prev => ({ ...prev, [a.id]: false }))}
-                            className="h-9 px-3 rounded-lg text-xs"
+                            className="h-10 px-3 rounded-lg text-xs"
                             style={{ border: "1px solid #eee", background: "#fff", color: "#aaa", cursor: "pointer" }}>
                             重新設定
                           </button>
@@ -482,10 +482,10 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
                         )}
                         <div className="flex gap-2">
                           <button onClick={() => setExpanded(null)}
-                            className="h-9 px-4 rounded-lg text-xs"
+                            className="h-10 px-4 rounded-lg text-xs"
                             style={{ border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer" }}>取消</button>
                           <button onClick={() => generate(a.id)}
-                            className="flex-1 h-9 rounded-lg text-xs font-semibold"
+                            className="flex-1 h-10 rounded-lg text-xs font-semibold"
                             style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}>
                             產生預購頁面 →
                           </button>
@@ -527,44 +527,69 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
         )}
       </div>
 
-      {/* 上架商品（Supabase 版，目前用 mock） */}
+      {/* 上架商品 */}
       <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
         <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
           <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📚 上架商品</h3>
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead>
-            <tr style={{ borderBottom: "1px solid #eee" }}>
-              {["商品名稱", "售價", "庫存", "已售", "評分", "狀態"].map(h => (
-                <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888" }}>{h}</th>
-              ))}
-            </tr>
-          </thead>
-          <tbody>
-            {vendorProducts.map(p => {
-              const stock = typeof p.stock === "number" ? p.stock : 0;
-              return (
-                <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                  <td style={{ padding: "12px 14px", fontSize: 14 }}>{p.name}</td>
-                  <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>NT${p.price}</td>
-                  <td style={{ padding: "12px 14px", fontSize: 14 }}>
-                    <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#333", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
-                  </td>
-                  <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>—</td>
-                  <td style={{ padding: "12px 14px", fontSize: 14 }}>
-                    <span style={{ color: "#ccc" }}>—</span>
-                  </td>
-                  <td style={{ padding: "12px 14px" }}>
-                    <span className="text-xs px-2 py-1 rounded-full"
-                      style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
-                      {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
-                    </span>
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+        {/* Mobile card list */}
+        <div className="sm:hidden">
+          {vendorProducts.length === 0 && (
+            <p className="px-5 py-8 text-sm text-center" style={{ color: "#aaa" }}>尚無上架商品</p>
+          )}
+          {vendorProducts.map(p => {
+            const stock = typeof p.stock === "number" ? p.stock : 0;
+            return (
+              <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium truncate" style={{ color: "#333" }}>{p.name}</p>
+                  <p className="text-xs mt-0.5" style={{ color: "#888" }}>
+                    NT${p.price !== "" ? Number(p.price).toLocaleString() : "—"}・庫存{" "}
+                    <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#666", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
+                  </p>
+                </div>
+                <span className="text-xs px-2 py-1 rounded-full flex-shrink-0"
+                  style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
+                  {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead>
+              <tr style={{ borderBottom: "1px solid #eee" }}>
+                {["商品名稱", "售價", "庫存", "已售", "評分", "狀態"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888" }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {vendorProducts.map(p => {
+                const stock = typeof p.stock === "number" ? p.stock : 0;
+                return (
+                  <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                    <td style={{ padding: "12px 14px", fontSize: 14 }}>{p.name}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>NT${p.price}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 14 }}>
+                      <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#333", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
+                    </td>
+                    <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 14 }}><span style={{ color: "#ccc" }}>—</span></td>
+                    <td style={{ padding: "12px 14px" }}>
+                      <span className="text-xs px-2 py-1 rounded-full"
+                        style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
+                        {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
+                      </span>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
@@ -600,28 +625,46 @@ function VendorFinance({ stats }: { stats: VendorStats }) {
         <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
           <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📊 月報表</h3>
         </div>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr style={{ borderBottom: "1px solid #eee" }}>
-            {["月份", "營收", "銷售量", "狀態"].map(h => (
-              <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888" }}>{h}</th>
-            ))}
-          </tr></thead>
-          <tbody>
-            {monthly.map(m => (
-              <tr key={m.month} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600 }}>{m.month}</td>
-                <td style={{ padding: "12px 14px", fontSize: 14 }}>NT$ {m.revenue.toLocaleString()}</td>
-                <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>{m.qty} 件</td>
-                <td style={{ padding: "12px 14px" }}>
-                  <span className="text-xs px-2 py-1 rounded-full"
-                    style={{ background: m.status === "已入帳" ? "#d4edda" : "#fff3cd", color: m.status === "已入帳" ? "#155724" : "#856404" }}>
-                    {m.status}
-                  </span>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        {/* Mobile card list */}
+        <div className="sm:hidden">
+          {monthly.map(m => (
+            <div key={m.month} className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: "#333" }}>{m.month}</p>
+                <p className="text-xs mt-0.5" style={{ color: "#888" }}>NT$ {m.revenue.toLocaleString()}・{m.qty} 件</p>
+              </div>
+              <span className="text-xs px-2 py-1 rounded-full flex-shrink-0"
+                style={{ background: m.status === "已入帳" ? "#d4edda" : "#fff3cd", color: m.status === "已入帳" ? "#155724" : "#856404" }}>
+                {m.status}
+              </span>
+            </div>
+          ))}
+        </div>
+        {/* Desktop table */}
+        <div className="hidden sm:block overflow-x-auto">
+          <table style={{ width: "100%", borderCollapse: "collapse" }}>
+            <thead><tr style={{ borderBottom: "1px solid #eee" }}>
+              {["月份", "營收", "銷售量", "狀態"].map(h => (
+                <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888" }}>{h}</th>
+              ))}
+            </tr></thead>
+            <tbody>
+              {monthly.map(m => (
+                <tr key={m.month} style={{ borderBottom: "1px solid #f5f5f5" }}>
+                  <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 600 }}>{m.month}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 14 }}>NT$ {m.revenue.toLocaleString()}</td>
+                  <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>{m.qty} 件</td>
+                  <td style={{ padding: "12px 14px" }}>
+                    <span className="text-xs px-2 py-1 rounded-full"
+                      style={{ background: m.status === "已入帳" ? "#d4edda" : "#fff3cd", color: m.status === "已入帳" ? "#155724" : "#856404" }}>
+                      {m.status}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );
