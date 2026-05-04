@@ -142,21 +142,30 @@ export default function TasksPanel({ userEmail = "" }: Props) {
       setDb04Dirty(false);
 
       if (!task.children || task.children.length === 0) {
-        setLoadingChildren(true);
-        try {
-          const data = await getTaskChildren(task.id);
-          const children = data.children || [];
+        // applyChildren：把回來的 children 寫進 selectedTask / tree / orphanTasks
+        const applyChildren = (children: any[]) => {
           setSelectedTask((prev) => prev?.id === task.id ? { ...prev, children } : prev);
           setTree((prev) => prev.map((p) => ({
             ...p,
             children: (p.children || []).map((t: Task) => t.id === task.id ? { ...t, children } : t),
           })));
           setOrphanTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, children } : t));
+        };
+
+        // SWR：先讀 cache（亮 loading）→ 顯示 → 背景叫 ?refresh=1 → 主動更新
+        setLoadingChildren(true);
+        try {
+          const data = await getTaskChildren(task.id);
+          applyChildren(data.children || []);
         } catch (err: any) {
           alert("載入明細失敗：" + err.message);
         } finally {
           setLoadingChildren(false);
         }
+        // 背景刷（不亮 loading、不擋使用者）
+        apiGet(`/api/staff/tasks/${task.id}/children?refresh=1`)
+          .then((fresh) => applyChildren(fresh.children || []))
+          .catch((e) => console.error("[TasksPanel] children silent refresh failed:", e?.message));
       }
     }
   };
