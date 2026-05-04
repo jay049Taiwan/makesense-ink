@@ -81,6 +81,7 @@ export default function TasksPanel({ userEmail = "" }: Props) {
   const [tree, setTree] = useState<Task[]>([]);
   const [orphanTasks, setOrphanTasks] = useState<Task[]>([]);
   const [orphanDetails, setOrphanDetails] = useState<Task[]>([]);
+  const [serverNotice, setServerNotice] = useState<string | null>(null);
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [loadingChildren, setLoadingChildren] = useState(false);
   const [detailModal, setDetailModal] = useState<Task | null>(null);
@@ -105,6 +106,7 @@ export default function TasksPanel({ userEmail = "" }: Props) {
       setTree(data.tree || []);
       setOrphanTasks(data.orphanTasks || []);
       setOrphanDetails(data.orphanDetails || []);
+      setServerNotice(typeof data.message === "string" && data.message ? data.message : null);
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -293,6 +295,11 @@ export default function TasksPanel({ userEmail = "" }: Props) {
 
       {loading && <div style={{ padding: 20, textAlign: "center", color: C.textMuted, fontSize: 13 }}>載入中...</div>}
       {error && <div style={{ padding: 20, textAlign: "center", color: "#c62828", fontSize: 13 }}>{error}</div>}
+      {!loading && !error && serverNotice && (
+        <div style={{ padding: "10px 12px", marginBottom: 10, borderRadius: 8, background: "#fff8e6", border: "1px solid #f0d784", color: "#7a5c40", fontSize: 12, lineHeight: 1.5 }}>
+          ⚠️ {serverNotice}
+        </div>
+      )}
 
       <div style={isWide ? { maxHeight: "calc(100vh - 200px)", overflowY: "auto" } : {}}>
         <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 6, background: C.primary, color: "#fff", fontSize: 13, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
