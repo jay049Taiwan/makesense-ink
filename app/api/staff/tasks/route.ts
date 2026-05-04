@@ -5,18 +5,31 @@ import { fetchTasksFromNotion } from "@/lib/staff-tasks";
 import { supabaseAdmin } from "@/lib/supabase";
 
 // SWR 模式：
-// - 預設 GET → 讀 Supabase staff_tasks_cache（~100ms 秒回）
-//   * cache miss → fallback 打 Notion + upsert + 回傳
-// - GET ?refresh=1 → 強制打 Notion + upsert + 回傳新版（前端背景叫，回來再 setState 更新畫面）
+// - Fast path（預設 GET）→ 用 email 直接查 staff_tasks_cache（~100ms 秒回）
+//   不打 getNotionUserId，避免冷啟動拉 Notion 工作區 user list 的 5-10 秒
+// - Slow path（cache miss 或 ?refresh=1）→ 才需要 getNotionUserId + fetchTasksFromNotion + upsert
 //
-// Cache 由 client 端的 SWR pattern 驅動更新，不另外開 cron。
+// 前端 SWR：mount 先打預設拿 cache 顯示，render 後背景叫 ?refresh=1 主動更新畫面。
 export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
-  const email = guard.email || "";
+  const email = (guard.email || "").toLowerCase();
   const url = new URL(req.url);
   const force = url.searchParams.get("refresh") === "1";
 
+  // Fast path：直接 email 查 cache，不碰 Notion 任何 API
+  if (!force && email) {
+    const { data: cached } = await supabaseAdmin
+      .from("staff_tasks_cache")
+      .select("data, synced_at")
+      .eq("staff_email", email)
+      .maybeSingle();
+    if (cached?.data) {
+      return NextResponse.json({ ...cached.data, source: "cache", synced_at: cached.synced_at });
+    }
+  }
+
+  // Slow path：cache miss 或強制刷新
   const notionUserId = await getNotionUserId(email);
   if (!notionUserId) {
     return NextResponse.json({
@@ -27,26 +40,17 @@ export async function GET(req: Request) {
     });
   }
 
-  // 預設：讀 Supabase cache
-  if (!force) {
-    const { data: cached } = await supabaseAdmin
-      .from("staff_tasks_cache")
-      .select("data, synced_at")
-      .eq("staff_notion_id", notionUserId)
-      .maybeSingle();
-    if (cached?.data) {
-      return NextResponse.json({ ...cached.data, source: "cache", synced_at: cached.synced_at });
-    }
-    // Cache miss：fallback 打 Notion 一次 + 寫回 cache
-  }
-
-  // refresh=1 或 cache miss → 打 Notion
   try {
     const data = await fetchTasksFromNotion(notionUserId);
-    // 背景寫回 Supabase（不擋回應）
+    // 背景寫回 cache（不擋回應）
     supabaseAdmin
       .from("staff_tasks_cache")
-      .upsert({ staff_notion_id: notionUserId, data, synced_at: new Date().toISOString() })
+      .upsert({
+        staff_notion_id: notionUserId,
+        staff_email: email,
+        data,
+        synced_at: new Date().toISOString(),
+      })
       .then(({ error }) => { if (error) console.error("[staff/tasks] cache upsert failed:", error.message); });
     return NextResponse.json({ ...data, source: "notion" });
   } catch (err: any) {
