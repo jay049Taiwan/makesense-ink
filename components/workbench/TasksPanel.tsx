@@ -49,6 +49,15 @@ const C = {
 };
 
 // ── Helpers ───────────────────────────────────────────
+// 把 Notion ISO datetime「2026-05-09T14:30:00.000+08:00」格式化成「2026-05-09 14:30」
+// 純日期（無 T 段）就只回日期。空值回空字串。
+function fmtDate(s?: string | null): string {
+  if (!s) return "";
+  const m = s.match(/^(\d{4}-\d{2}-\d{2})(?:T(\d{2}:\d{2}))?/);
+  if (!m) return s;
+  return m[2] ? `${m[1]} ${m[2]}` : m[1];
+}
+
 async function apiGet(url: string): Promise<any> {
   const res = await staffFetch(url);
   const text = await res.text();
@@ -170,11 +179,12 @@ export default function TasksPanel(_props: { userEmail?: string }) {
             </div>
           )}
           {selected && (
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
-              <section className="lg:col-span-1">
+            // 右欄縱向切：上 1/3 是 DB04 detail、下 2/3 是 DB05 列表
+            <div className="flex flex-col gap-3">
+              <section style={{ flex: "0 0 33%" }}>
                 <DB04Detail task={selected} onPatch={patchTask} />
               </section>
-              <section className="lg:col-span-2">
+              <section style={{ flex: "1 1 67%" }}>
                 <DB05List parent={selected} onPatch={patchTask} onPick={setPopupTask} />
               </section>
             </div>
@@ -194,8 +204,8 @@ function DB04Card({ task, active, onPick }: { task: Task; active: boolean; onPic
       style={{ background: active ? "#fdf6ec" : C.card, border: `1px solid ${active ? C.primary : C.border}`, color: C.text }}>
       <div className="font-medium" style={{ color: C.text }}>{task.title || "（無標題）"}</div>
       <div className="text-xs mt-1 space-y-0.5" style={{ color: C.textMuted }}>
-        {task.executionTime && <div>執行：{task.executionTime}</div>}
-        {task.deadline && <div>截止：{task.deadline}</div>}
+        {task.executionTime && <div>執行：{fmtDate(task.executionTime)}</div>}
+        {task.deadline && <div>截止：{fmtDate(task.deadline)}</div>}
         {task.assignees && task.assignees.length > 0 && (
           <div className="truncate">負責：{task.assignees.join("、")}</div>
         )}
@@ -263,8 +273,8 @@ function DB04Detail({ task, onPatch }: { task: Task; onPatch: (id: string, patch
       </label>
 
       <div className="text-xs mb-3 space-y-0.5" style={{ color: C.textMuted }}>
-        {task.executionTime && <div>執行時間：{task.executionTime}</div>}
-        {task.deadline && <div>截止時間：{task.deadline}</div>}
+        {task.executionTime && <div>執行時間：{fmtDate(task.executionTime)}</div>}
+        {task.deadline && <div>截止時間：{fmtDate(task.deadline)}</div>}
         {task.assignees && task.assignees.length > 0 && <div>責任執行：{task.assignees.join("、")}</div>}
         {task.partnerNames && task.partnerNames.length > 0 && (
           <div style={{ color: "#7a5c40", fontWeight: 500 }}>🏪 辦理單位：{task.partnerNames.join("、")}</div>
@@ -389,8 +399,8 @@ function DB05Row({ task, onPatch, onPick }: { task: Task; onPatch: (id: string, 
         <div className="flex-1 min-w-0">
           <div className="text-sm" style={{ color: C.text, textDecoration: done ? "line-through" : "none" }}>{task.title || "（無標題）"}</div>
           <div className="text-xs flex flex-wrap gap-x-3 mt-0.5" style={{ color: C.textMuted }}>
-            {task.executionTime && <span>執行：{task.executionTime}</span>}
-            {task.deadline && <span>截止：{task.deadline}</span>}
+            {task.executionTime && <span>執行：{fmtDate(task.executionTime)}</span>}
+            {task.deadline && <span>截止：{fmtDate(task.deadline)}</span>}
             {task.assignees && task.assignees.length > 0 && <span>負責：{task.assignees.join("、")}</span>}
           </div>
         </div>
