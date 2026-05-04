@@ -4,6 +4,10 @@ import { getNotionUserId } from "@/lib/notion-users";
 import { fetchVisibleTasksForStaff } from "@/lib/staff-tasks";
 import { supabaseAdmin } from "@/lib/supabase";
 
+// Vercel 預設 10s timeout 不夠 — cold cache 第一次打 Notion union 需要 30+s
+export const runtime = "nodejs";
+export const maxDuration = 60;
+
 // SWR：
 // - 預設 GET → email 直接查 staff_tasks_cache（~100ms 秒回）
 // - ?refresh=1 → 打 Notion + upsert
