@@ -314,6 +314,29 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // (d) 距離行程：走讀活動的距離（依 eventId 去重後查 events.distance_km）
+        const walkEventIds = [...new Set(
+          resolvedItems
+            .filter(({ item }) => item.type === "走讀" && item.eventId)
+            .map(({ item }) => item.eventId as string)
+        )];
+        if (walkEventIds.length > 0) {
+          const { data: walkEvents } = await supabase
+            .from("events")
+            .select("notion_id, distance_km")
+            .in("notion_id", walkEventIds);
+          const totalDistanceKm = (walkEvents || []).reduce(
+            (sum, e) => sum + (Number(e.distance_km) || 0), 0
+          );
+          if (totalDistanceKm > 0) {
+            ledgerRows.push({
+              member_id: memberId, type: "距離行程", value: totalDistanceKm,
+              source_table: "orders", source_id: order.id,
+              note: `${totalDistanceKm} km`,
+            });
+          }
+        }
+
         if (ledgerRows.length > 0) {
           const { error: ledgerErr } = await supabase.from("point_ledger").insert(ledgerRows);
           if (ledgerErr) console.warn("[checkout] 寫 point_ledger 失敗:", ledgerErr.message);

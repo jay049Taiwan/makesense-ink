@@ -503,6 +503,7 @@ async function syncEvents(wb = false, skipImages = false) {
       event_type: extractSelect(props["活動類型"]?.select) || null,
       event_date: dateInfo.start || null,
       duration_min: durationMin,
+      distance_km: extractNumber(props["距離(km)"]?.number) ?? null,
       price: extractNumber(props["單價"]?.number) || 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,

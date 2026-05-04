@@ -244,6 +244,7 @@ async function syncSingleEvent(nid: string, props: any) {
     event_type: sel(props["活動類型"]),
     event_date: dateInfo.start || null,
     duration_min: durationMin,
+    distance_km: num(props["距離(km)"]) ?? null,
     price: basePrice,
     tickets,
     capacity: num(props["數量上限"]),

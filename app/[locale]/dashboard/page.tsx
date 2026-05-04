@@ -26,13 +26,20 @@ const DEV_ORDERS = [
       { id: "oi-d005", name: "宜蘭地方誌 Vol.3", item_type: "book", quantity: 1, price: 350, reviews: [{ rating: 4, comment: "內容豐富" }] },
     ] },
 ];
-const CAT_LABELS: Record<string, string> = { event: "活動", book: "選書", goods: "選物", article: "內容", ticket: "票券" };
+const CAT_LABELS: Record<string, string> = {
+  event: "活動", book: "選書", goods: "選物", article: "內容", ticket: "票券",
+  走讀: "走讀", 市集: "市集", 商品: "商品", 講座: "講座",
+};
 const CAT_COLORS: Record<string, { bg: string; color: string }> = {
   event:   { bg: "#fff3e0", color: "#e65100" },
   book:    { bg: "#f3e5f5", color: "#6a1b9a" },
   goods:   { bg: "#e0f7f4", color: "#00695c" },
   article: { bg: "#e8eaf6", color: "#283593" },
   ticket:  { bg: "#fffde7", color: "#f57f17" },
+  走讀:    { bg: "#fff3e0", color: "#e65100" },
+  市集:    { bg: "#fce4ec", color: "#880e4f" },
+  商品:    { bg: "#e0f7f4", color: "#00695c" },
+  講座:    { bg: "#e8eaf6", color: "#283593" },
 };
 
 // ═══════════════════════════════════════════
@@ -341,6 +348,10 @@ function MemberOverview() {
             <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 12 }}>積分</span>
             <strong style={{ color: "#ffcc00", fontSize: 16 }}>{footprint.spendingPoints || stats.points}</strong>
           </span>
+          <Divider />
+          <Link href="/dashboard/profile" style={{ color: "rgba(255,255,255,0.55)", fontSize: 12, textDecoration: "none" }}>
+            個人資料 →
+          </Link>
         </div>
       </div>
 
@@ -377,6 +388,27 @@ function MemberOverview() {
           <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" hint="完成評價的次數" />
         </div>
       </div>
+
+      {/* ── 空白狀態引導（新會員 / 無購買紀錄）── */}
+      {purchases.length === 0 && (
+        <div className="rounded-xl p-6 mb-6 text-center" style={{ background: "linear-gradient(135deg, #faf8f4, #f0ebe3)", border: "1px dashed #d4c5b0" }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>🗺️</div>
+          <p className="text-base font-semibold mb-1" style={{ color: "#7a5c40" }}>開始你的文化足跡</p>
+          <p className="text-sm mb-5" style={{ color: "#aaa" }}>
+            參加走讀、購買書籍、解鎖文章，你的足跡將在這裡一筆一筆累積
+          </p>
+          <div className="flex flex-wrap justify-center gap-2">
+            <Link href="/cultureclub" className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium"
+              style={{ background: "#1a1a2e", color: "#fff", textDecoration: "none" }}>
+              🚶 探索走讀活動
+            </Link>
+            <Link href="/bookstore" className="inline-flex items-center px-4 py-2 rounded-full text-sm font-medium"
+              style={{ background: "#fff", color: "#7a5c40", border: "1px solid #d4c5b0", textDecoration: "none" }}>
+              📚 逛逛旅人書店
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* ── 我的參與分析 ── */}
       <div className="rounded-xl mb-6 overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
@@ -616,16 +648,16 @@ function MemberOverview() {
         {/* ── Tab 2：類別明細 ── */}
         {detailTab === "categories" && (
           <div>
-            {/* Filter chips */}
+            {/* Filter chips — 動態從 purchases 計算實際有資料的類別 */}
             <div className="flex flex-wrap gap-2 px-6 py-4" style={{ borderBottom: "1px solid #f0f0f0" }}>
-              {["全部", "選書", "選物", "活動", "內容"].map((cat) => {
+              {["全部", ...Array.from(new Set(purchases.map(p => CAT_LABELS[p.category] || p.category)))].map((cat) => {
                 const count = cat === "全部" ? purchases.length : purchases.filter(p => (CAT_LABELS[p.category] || p.category) === cat).length;
                 return (
                   <button key={cat} onClick={() => setActiveCategory(cat)}
                     style={{ background: activeCategory === cat ? "#1a1a2e" : "#f5f0e8",
                       color: activeCategory === cat ? "#fff" : "#7a5c40",
                       border: "none", cursor: "pointer", borderRadius: 20, padding: "6px 14px", fontSize: 13, fontWeight: 500 }}>
-                    {cat}{count > 0 ? ` (${count})` : ""}
+                    {cat} ({count})
                   </button>
                 );
               })}
