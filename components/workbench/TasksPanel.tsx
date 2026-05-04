@@ -99,8 +99,10 @@ export default function TasksPanel({ userEmail = "" }: Props) {
 
   const lowerEmail = userEmail.toLowerCase();
 
-  const fetchTasks = useCallback(async (refresh = false) => {
-    setLoading(true); setError(null);
+  // 抓資料的核心邏輯 — silent=true 時不亮 loading（給背景 revalidate 用）
+  const loadTasks = useCallback(async (opts: { refresh?: boolean; silent?: boolean } = {}) => {
+    const { refresh = false, silent = false } = opts;
+    if (!silent) { setLoading(true); setError(null); }
     try {
       const data = await getMyTasks(refresh);
       setTree(data.tree || []);
@@ -108,13 +110,28 @@ export default function TasksPanel({ userEmail = "" }: Props) {
       setOrphanDetails(data.orphanDetails || []);
       setServerNotice(typeof data.message === "string" && data.message ? data.message : null);
     } catch (err: any) {
-      setError(err.message);
+      if (!silent) setError(err.message);
+      console.error("[TasksPanel] load failed:", err.message);
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchTasks(); }, [fetchTasks]);
+  // 包一層方便 「↻ 重新整理」按鈕用
+  const fetchTasks = useCallback((refresh = false) => loadTasks({ refresh }), [loadTasks]);
+
+  // SWR pattern：
+  // 1. mount 先打預設 → 讀 Supabase cache 秒回（~100ms）→ 顯示舊資料
+  // 2. render 後背景打 ?refresh=1 → Notion 拉新版 → silent setState 更新畫面
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      await loadTasks({ refresh: false });             // 讀 Supabase cache（亮 loading）
+      if (!active) return;
+      loadTasks({ refresh: true, silent: true });      // 背景拉 Notion 更新（不亮 loading）
+    })();
+    return () => { active = false; };
+  }, [loadTasks]);
 
   const selectTask = async (task: Task) => {
     setSelectedTask(task);
