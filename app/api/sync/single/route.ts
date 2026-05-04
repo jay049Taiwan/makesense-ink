@@ -217,6 +217,31 @@ async function syncSingleEvent(nid: string, props: any) {
     [...guideRels, ...publisherRels].map(id => id.replace(/-/g, "")).filter(Boolean)
   )];
 
+  // 對應表單 relation → DB05 → 篩「表單名稱=路線腳本」= route stops
+  const formRels = rel(props["對應表單"]);
+  const stopPages = (await Promise.all(
+    formRels.map(async (id) => {
+      try {
+        const page: any = await getPage(id);
+        const title = (page.properties?.["表單名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+        if (title !== "路線腳本") return null;
+        return page;
+      } catch { return null; }
+    })
+  )).filter((x): x is any => x !== null);
+  stopPages.sort((a, b) => new Date(a.created_time).getTime() - new Date(b.created_time).getTime());
+  const route_stops: { name: string; desc: string }[] = [];
+  for (const sp of stopPages) {
+    const locId = (sp.properties?.["對應地點"]?.relation || [])[0]?.id;
+    let stopName = "未命名地點";
+    if (locId) {
+      const locName = await lookupPersonName(locId);
+      if (locName) stopName = locName;
+    }
+    const desc = (sp.properties?.["明細內容"]?.rich_text || []).map((x: any) => x.plain_text).join("");
+    route_stops.push({ name: stopName, desc });
+  }
+
   // 對應庫存 relation → DB07 票券（每個都是一種票種）
   const ticketRels = rel(props["對應庫存"]);
   const tickets = (await Promise.all(
@@ -253,6 +278,7 @@ async function syncSingleEvent(nid: string, props: any) {
     distance_km: num(props["距離km"]) ?? null,
     price: basePrice,
     tickets,
+    route_stops,
     capacity: num(props["數量上限"]),
     min_capacity: num(props["最低數量"]),
     cover_url: fileUrl(props["上傳檔案"]),

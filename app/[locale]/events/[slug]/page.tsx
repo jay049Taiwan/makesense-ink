@@ -18,6 +18,7 @@ interface EventData {
   content: string;
   keywords: string[];
   routeStops: { name: string; desc: string }[];
+  distanceKm: number | null;
   tickets: { name: string; price: string; notion_id?: string }[];
   addons: { name: string; price: string }[];
   minCapacity: number | null;
@@ -37,6 +38,7 @@ const fallbackEvent: EventData = {
   content: "",
   keywords: [],
   routeStops: [],
+  distanceKm: null,
   tickets: [],
   addons: [],
   minCapacity: null,
@@ -78,6 +80,7 @@ function mapEventData(row: any): EventData {
     content: row.description || "",
     keywords,
     routeStops,
+    distanceKm: typeof row.distance_km === "number" ? row.distance_km : (row.distance_km ? Number(row.distance_km) : null),
     tickets,
     addons,
     minCapacity: row.min_capacity ?? null,
@@ -216,9 +219,16 @@ export default function EventPage({
             {/* Route — 每個地點可點擊彈出介紹 */}
             {event.routeStops.length > 0 && (
               <section className="mb-8 relative">
-                <h2 className="text-lg font-semibold mb-3" style={{ color: "var(--color-bark)", fontFamily: "var(--font-serif)" }}>
-                  活動路線
-                </h2>
+                <div className="flex items-baseline gap-3 mb-3 flex-wrap">
+                  <h2 className="text-lg font-semibold" style={{ color: "var(--color-bark)", fontFamily: "var(--font-serif)" }}>
+                    活動路線
+                  </h2>
+                  {event.distanceKm != null && (
+                    <span className="text-sm" style={{ color: "var(--color-muted)" }}>
+                      全程約 {event.distanceKm} 公里
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center flex-wrap gap-y-2">
                   {event.routeStops.map((stop, i) => (
                     <div key={i} className="flex items-center">
