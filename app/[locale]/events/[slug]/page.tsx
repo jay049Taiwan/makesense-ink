@@ -24,6 +24,8 @@ interface EventData {
   notion_id?: string;
 }
 
+const parsePrice = (s: string) => parseInt((s || "").replace(/[^0-9]/g, "")) || 0;
+
 const fallbackEvent: EventData = {
   title: "載入中…",
   date: "",
@@ -400,7 +402,6 @@ export default function EventPage({
                   </div>
 
                   {(() => {
-                    const parsePrice = (s: string) => parseInt(s.replace(/[^0-9]/g, "")) || 0;
                     const ticketTotal = event.tickets.reduce((s, t) => s + parsePrice(t.price) * (ticketQtys[t.name] || 0), 0);
                     const addonTotal = event.addons.reduce((s, a) => s + parsePrice(a.price) * (addonQtys[a.name] || 0), 0);
                     const grandTotal = ticketTotal + addonTotal;
