@@ -24,7 +24,7 @@ export default function WorkbenchPage() {
   ];
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       {/* 分頁 tab（會員中心 / 工作台）*/}
       <nav className="flex gap-0 mb-4 overflow-x-auto" style={{ borderBottom: "2px solid #e8e8e8" }}>
         {pageTabs.map((tab) => {

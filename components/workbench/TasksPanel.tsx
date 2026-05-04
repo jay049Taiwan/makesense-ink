@@ -161,8 +161,6 @@ export default function TasksPanel({ userEmail = "" }: Props) {
     setSaving(true);
     try {
       await editTask(selectedTask.id, {
-        topicName: editTopicName,
-        executionTime: editExecTime || null,
         handoverNote: editNote,
       });
       setDb04Dirty(false);
@@ -412,7 +410,7 @@ export default function TasksPanel({ userEmail = "" }: Props) {
 
     return (
       <div>
-        {/* DB04 editable header */}
+        {/* DB04 header — 只保留勾選完成 + 執行備註 */}
         <div style={{ background: C.panelBg, borderRadius: 10, padding: 16, marginBottom: 16 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
             <button type="button" onClick={() => {
@@ -438,38 +436,7 @@ export default function TasksPanel({ userEmail = "" }: Props) {
           </div>
 
           <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>主題名稱</label>
-            <input type="text" value={editTopicName}
-              onChange={(e) => { setEditTopicName(e.target.value); setDb04Dirty(true); }}
-              style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box" }}
-            />
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 10 }}>
-            <div>
-              <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>起算日期</label>
-              <div style={{ padding: "8px 10px", borderRadius: 6, background: "#f5f5f0", fontSize: 13, color: C.textSub, minHeight: 20 }}>
-                {formatDate(task.startTime) || "—"}
-              </div>
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>執行日期</label>
-              <input type="text" value={editExecTime ? editExecTime.replace(/-/g, "/") : ""}
-                placeholder="yyyy/mm/dd"
-                onChange={(e) => { const val = e.target.value.replace(/\//g, "-"); setEditExecTime(val); setDb04Dirty(true); }}
-                style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, boxSizing: "border-box" }}
-              />
-            </div>
-            <div>
-              <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>截止日期</label>
-              <div style={{ padding: "8px 10px", borderRadius: 6, background: "#f5f5f0", fontSize: 13, color: C.textSub, minHeight: 20 }}>
-                {formatDate(task.deadline) || "—"}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>交接備註</label>
+            <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>執行備註</label>
             <textarea value={editNote}
               onChange={(e) => { setEditNote(e.target.value); setDb04Dirty(true); }}
               rows={3}
@@ -483,11 +450,6 @@ export default function TasksPanel({ userEmail = "" }: Props) {
               background: C.primary, color: "#fff", fontSize: 13, fontWeight: 600, opacity: saving ? 0.5 : 1,
             }}>{saving ? "儲存中..." : "儲存變更"}</button>
           )}
-
-          <div style={{ display: "flex", gap: 12, marginTop: 10, fontSize: 11, color: C.textMuted, flexWrap: "wrap" }}>
-            {task.assignees?.length > 0 && <span>負責：{task.assignees.join("、")}</span>}
-            {task.taskType && <span>類型：{task.taskType}</span>}
-          </div>
         </div>
 
         {/* DB05 details */}
