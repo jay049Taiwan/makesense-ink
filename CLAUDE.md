@@ -192,7 +192,7 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 |----|------|-----------------|
 | DB01 | 資源提案 | 不同步（內部管理） |
 | DB02 | 績效管考 | 不同步（內部管理） |
-| DB03 | 工作項目進度 | 工作台直接 Notion API |
+| DB03 | 項目進度 | 工作台直接 Notion API |
 | DB04 | 協作交接 | events, space_bookings |
 | DB05 | 登記表單 | articles（篩選：文案細項=官網內容）, registrations, orders |
 | DB06 | 進銷明細 | **直接更新 products.stock**（進貨+/出貨-/盤點=） |
