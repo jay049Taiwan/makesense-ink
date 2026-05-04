@@ -484,8 +484,8 @@ async function syncEvents(wb = false, skipImages = false) {
     const guideUuid = guideNid ? guideMap[guideNid] : undefined;
     const guideName = guideUuid ? (personNameMap[guideUuid] || null) : null;
 
-    // 合作夥伴關聯：對應對象 + 對應發佈單位（raw notion_id，不轉 uuid）
-    const pubRel = extractRelation(props["對應發佈單位"]?.relation);
+    // 合作夥伴關聯：對應對象 + 對應辦理單位（raw notion_id，不轉 uuid）
+    const pubRel = extractRelation(props["對應辦理單位"]?.relation);
     const relatedPartnerIds = [...new Set([
       ...guideRel.map((id: string) => id.replace(/-/g, "")),
       ...pubRel.map((id: string) => id.replace(/-/g, "")),
