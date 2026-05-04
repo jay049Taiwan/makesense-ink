@@ -55,12 +55,13 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         // 同步寫入 Supabase members（不阻擋登入）
         upsertSupabaseMember(email, user.name || "", lineUid).catch(() => {});
 
-        const person = await fetchPersonByEmail(email);
+        // 傳入 rawEmail 讓 fetchPersonByEmail 可同時 fallback 查舊的帶點 email
+        const person = await fetchPersonByEmail(rawEmail || email);
         if (!person) {
           try {
             const props: any = {
               "經營名稱": { title: [{ text: { content: displayName } }] },
-              "Email": { rich_text: [{ text: { content: email } }] },
+              "Email": { rich_text: [{ text: { content: email } }] },   // 永遠寫 normalized
               "會員狀態": { status: { name: "會員" } },
               "關係選項": { select: { name: "個人" } },
             };
@@ -72,11 +73,15 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
             console.error("Failed to create DB08 entry:", e);
           }
         } else {
-          // 已存在：確保 會員狀態=會員 + 關係選項=個人（如果為空）+ 補 LINE_UID
+          // 已存在：確保 會員狀態=會員 + 補 LINE_UID；若 rawEmail 帶點則順手 normalize Notion email
           try {
             const updates: any = {
               "會員狀態": { status: { name: "會員" } },
             };
+            // rawEmail 與 normalized 不同（如 Gmail 帶點）→ 更新 Notion 為 normalized 版本
+            if (rawEmail && rawEmail !== email) {
+              updates["Email"] = { rich_text: [{ text: { content: email } }] };
+            }
             if (lineUid) {
               updates["LINE_UID"] = { rich_text: [{ text: { content: lineUid } }] };
             }
@@ -109,14 +114,19 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     },
 
     async session({ session }) {
-      const email = normalizeEmail(session.user?.email);
+      const rawEmail = session.user?.email;           // 原始 email（可能帶點，如 Gmail）
+      const email = normalizeEmail(rawEmail);         // normalized（點已去除）
 
       if (email) {
-        // 有 email → 用 email 查角色（staff > vendor > member）
-        const person = await fetchPersonByEmail(email);
-        const isStaff = await checkIsStaff(email);
-        const isVendor = !isStaff && await checkIsVendor(email);
-        const memberStatus = await checkMemberStatus(email);
+        // 有 email → 用 rawEmail 查（函式內部會先 normalized 查，fallback 再查原始）
+        const lookupEmail = rawEmail || email;
+        // 並行拉 4 件事，省冷啟時間（4 個 query 各自有 5 分鐘 in-memory cache）
+        const [person, isStaff, isVendor, memberStatus] = await Promise.all([
+          fetchPersonByEmail(lookupEmail),
+          checkIsStaff(lookupEmail),
+          checkIsVendor(lookupEmail),
+          checkMemberStatus(lookupEmail),
+        ]);
         (session as any).role = isStaff ? "staff" : isVendor ? "vendor" : "member";
         (session as any).memberStatus = memberStatus; // "會員" | "非會員" | "無會員" | null
         (session as any).notionId = person?.id || null;

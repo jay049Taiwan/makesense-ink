@@ -1,6 +1,20 @@
 import { queryDatabase, getPage, extractTitle, extractText, extractSelect, extractNumber, extractDate, extractStatus, extractRelation, DB } from "./notion";
 import { normalizeEmail } from "./email";
 
+// ── 身份驗證查詢快取（5 分鐘）─────────────────────────────
+// 每次 NextAuth session callback 都會打 4 次 Notion API 驗身份。
+// 5 分鐘內結果幾乎不會變，加快取避免重複打。
+const _authCache = new Map<string, { value: any; expires: number }>();
+const AUTH_CACHE_TTL = 5 * 60 * 1000;
+function authCacheGet<T>(key: string): T | undefined {
+  const e = _authCache.get(key);
+  if (!e || e.expires < Date.now()) { _authCache.delete(key); return undefined; }
+  return e.value as T;
+}
+function authCacheSet<T>(key: string, value: T) {
+  _authCache.set(key, { value, expires: Date.now() + AUTH_CACHE_TTL });
+}
+
 // 批次解析 relation IDs → DB08 經營名稱
 export async function resolveRelationNames(ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
@@ -259,6 +273,10 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
 
 export async function fetchPersonByEmail(email: string): Promise<KeywordItem | null> {
   const normalEmail = normalizeEmail(email);
+  if (!normalEmail) return null;
+  const ck = `person:${normalEmail}`;
+  const hit = authCacheGet<KeywordItem | null>(ck);
+  if (hit !== undefined) return hit;
 
   const queryDB08 = async (queryEmail: string) =>
     queryDatabase(DB.DB08_RELATIONSHIP,
@@ -282,13 +300,18 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
     if (results.length === 0 && email !== normalEmail) {
       results = await queryDB08(email);
     }
-    if (results.length === 0) return null;
-    return mapPage(results[0] as any);
+    const out = results.length === 0 ? null : mapPage(results[0] as any);
+    authCacheSet(ck, out);
+    return out;
   } catch (e) { console.error("fetchPersonByEmail error:", e); return null; }
 }
 
 export async function checkMemberStatus(email: string): Promise<string | null> {
   const normalEmail = normalizeEmail(email);
+  if (!normalEmail) return null;
+  const ck = `memberStatus:${normalEmail}`;
+  const hit = authCacheGet<string | null>(ck);
+  if (hit !== undefined) return hit;
   try {
     let results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
@@ -300,9 +323,9 @@ export async function checkMemberStatus(email: string): Promise<string | null> {
         { property: "Email", rich_text: { equals: email } },
         undefined, 1);
     }
-    if (results.length === 0) return null;
-    const props = (results[0] as any).properties;
-    return extractStatus(props["會員狀態"]?.status) || null;
+    const out = results.length === 0 ? null : (extractStatus((results[0] as any).properties?.["會員狀態"]?.status) || null);
+    authCacheSet(ck, out);
+    return out;
   } catch (e) { console.error("checkMemberStatus error:", e); return null; }
 }
 
@@ -333,6 +356,9 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
 export async function checkIsVendor(email: string): Promise<boolean> {
   const normalEmail = normalizeEmail(email);
   if (!normalEmail) return false;
+  const ck = `vendor:${normalEmail}`;
+  const hit = authCacheGet<boolean>(ck);
+  if (hit !== undefined) return hit;
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
@@ -345,10 +371,12 @@ export async function checkIsVendor(email: string): Promise<boolean> {
       undefined,
       100
     );
-    return results.some((r: any) => {
+    const out = results.some((r: any) => {
       const stored = extractText(r.properties?.Email?.rich_text);
       return stored && normalizeEmail(stored) === normalEmail;
     });
+    authCacheSet(ck, out);
+    return out;
   } catch (e) { console.error("checkIsVendor error:", e); return false; }
 }
 
@@ -392,6 +420,9 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
 export async function checkIsStaff(email: string): Promise<boolean> {
   const normalEmail = normalizeEmail(email);
   if (!normalEmail) return false;
+  const ck = `staff:${normalEmail}`;
+  const hit = authCacheGet<boolean>(ck);
+  if (hit !== undefined) return hit;
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
@@ -404,10 +435,12 @@ export async function checkIsStaff(email: string): Promise<boolean> {
       undefined,
       100
     );
-    return results.some((r: any) => {
+    const out = results.some((r: any) => {
       const stored = extractText(r.properties?.Email?.rich_text);
       return stored && normalizeEmail(stored) === normalEmail;
     });
+    authCacheSet(ck, out);
+    return out;
   } catch (e) { console.error("checkIsStaff error:", e); return false; }
 }
 
