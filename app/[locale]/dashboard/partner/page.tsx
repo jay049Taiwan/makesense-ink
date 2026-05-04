@@ -369,9 +369,9 @@ function ItemStatsRow({ price, stock, isProduct }: { price?: number | ""; stock?
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5">
       {stats.map(s => (
-        <span key={s.label} style={{ fontSize: 10, color: "#bbb" }}>
+        <span key={s.label} style={{ fontSize: 10, color: "#888" }}>
           {s.label}:{" "}
-          <span style={{ color: s.value === "—" ? "#ddd" : "#777", fontWeight: s.value !== "—" ? 600 : 400 }}>
+          <span style={{ color: s.value === "—" ? "#aaa" : "#444", fontWeight: s.value !== "—" ? 600 : 400 }}>
             {s.value}
           </span>
         </span>
@@ -764,11 +764,11 @@ function VendorItems({ vendorProducts, activities, newsletters, participations }
                     <td style={{ padding: "12px 14px", fontSize: 14 }}>
                       <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#333", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
                     </td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
-                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#aaa" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#aaa" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#aaa" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#aaa" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#aaa" }}>—</td>
                     <td style={{ padding: "12px 14px" }}>
                       <span className="text-xs px-2 py-1 rounded-full"
                         style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
