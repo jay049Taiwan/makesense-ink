@@ -23,7 +23,7 @@ export default function Footer() {
       >
         <div className="mx-auto px-4 py-6" style={{ maxWidth: 1200 }}>
           {/* Main row：桌機一行，手機自動換行 */}
-          <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 text-base sm:text-lg">
+          <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 text-xs sm:text-lg">
             <Link href="/sense" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("about")}
             </Link>

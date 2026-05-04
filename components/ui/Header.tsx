@@ -145,10 +145,10 @@ export default function Header() {
       <div className="mx-auto px-4" style={{ maxWidth: 1200 }}>
         {/* Desktop */}
         <div className="flex items-center gap-4 h-16">
-          <Link href="/bookstore" className="whitespace-nowrap hover:opacity-80 transition-opacity" style={{ fontSize: 22, fontWeight: 600, color: "#7a5c40", lineHeight: "40px", textDecoration: "none" }}>
+          <Link href="/bookstore" className="whitespace-nowrap hover:opacity-80 transition-opacity text-base md:text-[22px]" style={{ fontWeight: 600, color: "#7a5c40", lineHeight: "40px", textDecoration: "none" }}>
             {t("bookstore")}
           </Link>
-          <Link href="/cultureclub" className="whitespace-nowrap hover:opacity-80 transition-opacity" style={{ fontSize: 22, fontWeight: 600, color: "#4ECDC4", lineHeight: "40px", textDecoration: "none" }}>
+          <Link href="/cultureclub" className="whitespace-nowrap hover:opacity-80 transition-opacity text-base md:text-[22px]" style={{ fontWeight: 600, color: "#4ECDC4", lineHeight: "40px", textDecoration: "none" }}>
             {t("cultureclub")}
           </Link>
 
