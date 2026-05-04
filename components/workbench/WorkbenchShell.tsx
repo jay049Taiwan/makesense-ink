@@ -183,7 +183,7 @@ function ActivityFeed() {
       </div>
 
       {loading && items.length === 0 && (
-        <p className="text-sm p-8 text-center" style={{ color: "#999" }}>掃描 DB04 / DB07 中…</p>
+        <p className="text-sm p-8 text-center" style={{ color: "#999" }}>載入中…</p>
       )}
 
       {error && (
