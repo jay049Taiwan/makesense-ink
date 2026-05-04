@@ -14,13 +14,16 @@ import { Client } from "@notionhq/client";
 import { supabaseAdmin } from "@/lib/supabase";
 import { DB } from "@/lib/notion";
 
-const notion = new Client({ auth: process.env.NOTION_API_KEY, timeoutMs: 15000 });
+const notion = new Client({ auth: process.env.NOTION_API_KEY, timeoutMs: 50000 });
 
 // ── DB04 掃描 ────────────────────────────────────────
 export async function scanDb04() {
+  // 按 last_edited_time desc 排序 + page_size 100：保證最近編輯的一定被抓到
+  // （active 可能 > 100，但變動偵測只關心「最近編輯」，舊的反正 supabase 有快取）
   const res: any = await notion.dataSources.query({
     data_source_id: DB.DB04_COLLABORATION,
     filter: { property: "執行狀態", status: { equals: "執行中" } } as any,
+    sorts: [{ timestamp: "last_edited_time", direction: "descending" }] as any,
     page_size: 100,
   });
   const pages: any[] = res.results || [];
@@ -47,6 +50,7 @@ export async function scanDb04() {
     if (!last || new Date(lastEdited) > new Date(last.event_at)) {
       const title =
         readTitle(page.properties?.["主題名稱"]) ||
+        readTitle(page.properties?.["協作名稱"]) ||
         readTitle(page.properties?.["交接名稱"]) ||
         "（未命名）";
       toInsert.push({ source_db: "DB04", notion_id, event_type: "db04_updated", event_at: lastEdited, title });
@@ -56,7 +60,14 @@ export async function scanDb04() {
     await supabaseAdmin.from("workbench_notifications").insert(toInsert);
   }
 
-  const idsToDelete = (existingEvents || []).filter(ev => !activeIds.has(ev.notion_id)).map(ev => ev.id);
+  // 注意：active 可能 > 100 但只取最近編輯的 100 筆，所以「不在 activeIds 內」可能是真的非 active 也可能只是不在 100 筆內。
+  // 為了不誤刪，只 delete 那些 event_at >= 100 筆中最舊 last_edited 的紀錄（這類才能確定真的 inactive，否則保留）。
+  const oldestInWindow = pages.length > 0
+    ? new Date(pages[pages.length - 1].last_edited_time).getTime()
+    : 0;
+  const idsToDelete = (existingEvents || [])
+    .filter(ev => !activeIds.has(ev.notion_id) && new Date(ev.event_at).getTime() >= oldestInWindow)
+    .map(ev => ev.id);
   if (idsToDelete.length > 0) {
     await supabaseAdmin.from("workbench_notifications").delete().in("id", idsToDelete);
   }

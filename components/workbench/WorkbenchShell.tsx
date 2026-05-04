@@ -21,7 +21,7 @@ import BarcodeScanner from "@/components/liff/BarcodeScanner";
 import ProductCreateModal, { type ProductDraft } from "./ProductCreateModal";
 import PagePreviewModal from "./PagePreviewModal";
 
-type StaffTab = "動態" | "交接" | "庫存" | "紀錄" | "費用";
+type StaffTab = "動態" | "交接" | "庫存" | "紀錄" | "費用" | "績效";
 
 const tabIcons: Record<StaffTab, string> = {
   "動態": "📢",
@@ -29,6 +29,7 @@ const tabIcons: Record<StaffTab, string> = {
   "庫存": "📦",
   "紀錄": "📓",
   "費用": "💰",
+  "績效": "📊",
 };
 
 interface WorkbenchShellProps {
@@ -56,6 +57,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
         {activeTab === "庫存" && <InventoryPanel />}
         {activeTab === "紀錄" && <AttendancePanel />}
         {activeTab === "費用" && <ExpensePanel />}
+        {activeTab === "績效" && <MetricsPanel />}
       </div>
 
       {/* 底部 Tab Bar */}
@@ -1538,6 +1540,86 @@ function ExpensePanel() {
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ═══════════════════════════════════════════
+// 績效 — 個人績效儀表板（per Notion 點數設計指南）
+//   個人創造營收：分潤的依據（products/events 我擔任 owner_staff 的銷售合計）
+//   完成流程次數：自主空間的依據（staff_activities 累計）
+//   點擊績效：個人影響力在外部世界的累積（products/events 的 page_views）
+//   設計意義：讓每個工作人員看到「自己的工作帶來了什麼」，不是純打工心態
+// ═══════════════════════════════════════════
+interface StaffMetrics {
+  total_revenue: number;
+  total_views: number;
+  product_count: number;
+  event_count: number;
+  activity_count: number;
+  message?: string;
+}
+
+function MetricsPanel() {
+  const [data, setData] = useState<StaffMetrics | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  useEffect(() => {
+    let abort = false;
+    setLoading(true);
+    staffFetch("/api/staff/metrics")
+      .then((r) => r.json())
+      .then((j) => { if (!abort) { if (j.error) setErr(j.error); else setData(j); } })
+      .catch((e) => { if (!abort) setErr(e.message); })
+      .finally(() => { if (!abort) setLoading(false); });
+    return () => { abort = true; };
+  }, []);
+
+  if (loading) return <p className="text-sm text-center py-12" style={{ color: "#999" }}>載入中…</p>;
+  if (err) return <div className="text-sm p-4 rounded" style={{ background: "#fdecea", color: "#c0392b" }}>{err}</div>;
+  if (!data) return null;
+
+  return (
+    <div style={{ maxWidth: 900 }}>
+      <div className="mb-6 p-4 rounded-lg" style={{ background: "#fdf6ec", border: "1px solid #e8d8b4" }}>
+        <h3 className="text-sm font-bold mb-2" style={{ color: "#7a5c40" }}>個人績效儀表板</h3>
+        <p className="text-xs leading-relaxed" style={{ color: "#666" }}>
+          這裡呈現你工作帶來的價值：個人營收是分潤依據、流程次數是自主空間依據、點擊績效是你的影響力累積。<br/>
+          不是 KPI 考核，是讓你看到「為自己的事業打拼」具體長什麼樣子。
+        </p>
+        {data.message && (
+          <p className="text-xs mt-2 p-2 rounded" style={{ background: "#fff8e6", color: "#7a5c40", border: "1px solid #f0d784" }}>
+            ⚠️ {data.message}
+          </p>
+        )}
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+        <MetricCard icon="💰" label="個人創造營收" value={`NT$${data.total_revenue.toLocaleString()}`} hint="分潤依據" color="#7a5c40" />
+        <MetricCard icon="👁️" label="點擊績效" value={data.total_views.toLocaleString()} hint="累計 page views" color="#1a6dbf" />
+        <MetricCard icon="✅" label="完成流程次數" value={data.activity_count.toLocaleString()} hint="staff_activities 累計" color="#2d5016" />
+        <MetricCard icon="📦" label="負責商品數" value={data.product_count.toLocaleString()} hint="DB07 責任執行" color="#7a5c40" />
+        <MetricCard icon="🎪" label="負責活動數" value={data.event_count.toLocaleString()} hint="DB04 責任執行" color="#2d5016" />
+      </div>
+
+      <p className="text-xs" style={{ color: "#888" }}>
+        資料來源：staff_metrics_v VIEW（即時聚合）+ staff_activities 累計。<br/>
+        owner 歸屬規則：DB04/DB07「責任執行」第一位 → owner_staff_notion_id（同步時自動寫入）。
+      </p>
+    </div>
+  );
+}
+
+function MetricCard({ icon, label, value, hint, color }: { icon: string; label: string; value: string; hint: string; color: string }) {
+  return (
+    <div className="rounded-lg p-3" style={{ background: "#fff", border: "1px solid #e8e0d4" }}>
+      <div className="flex items-center gap-1 mb-1">
+        <span className="text-base">{icon}</span>
+        <span className="text-xs" style={{ color: "#888" }}>{label}</span>
+      </div>
+      <div className="text-lg font-bold" style={{ color }}>{value}</div>
+      <div className="text-[10px] mt-0.5" style={{ color: "#aaa" }}>{hint}</div>
     </div>
   );
 }

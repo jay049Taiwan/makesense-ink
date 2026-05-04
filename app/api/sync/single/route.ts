@@ -311,6 +311,8 @@ async function syncSingleEvent(nid: string, props: any) {
     related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
     event_category: sel(props["交接類型"]) || null,   // 專案協作 / 庫存門市
     collab_type:    sel(props["協作選項"]) || null,   // 活動辦理 / 空間借用 etc
+    // owner_staff_notion_id：DB04「責任執行」第一位（用於工作台「個人營收」歸屬）
+    owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
     status: mapStatus(st(props["登記發佈"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
@@ -794,6 +796,9 @@ async function syncSingleProduct(nid: string, props: any) {
     relatedArticleIds = (articles || []).map((a: any) => a.id);
   }
 
+  // owner_staff_notion_id：DB07「責任執行」第一位使用者（Notion user id），用於工作台「個人營收」歸屬
+  const ownerStaffNotionId = (props["責任執行"]?.people || [])[0]?.id || null;
+
   const row = {
     notion_id: nid,
     sku: tx(props["商品ID"]),
@@ -807,6 +812,7 @@ async function syncSingleProduct(nid: string, props: any) {
     author_id: authorId,
     publisher_id: publisherId,
     publisher_notion_id: publisherNotionId,
+    owner_staff_notion_id: ownerStaffNotionId,
     sub_category: sub || null,
     supplier_type: sel(props["進貨屬性"]) || null,
     related_topic_ids: JSON.stringify(relatedTopicIds),

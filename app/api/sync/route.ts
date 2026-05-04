@@ -452,6 +452,7 @@ async function syncProducts(wb = false, skipImages = false) {
       author_id: aNid ? (aMap[aNid] || null) : null,
       publisher_id: pNid ? (pMap[pNid] || null) : null,
       publisher_notion_id: pNid || null,
+      owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
@@ -543,6 +544,7 @@ async function syncEvents(wb = false, skipImages = false) {
       related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
       event_category: extractSelect(props["交接類型"]?.select) || null,
       collab_type: extractSelect(props["協作選項"]?.select) || null,
+      owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
       status: ms(extractStatus(props["登記發佈"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });

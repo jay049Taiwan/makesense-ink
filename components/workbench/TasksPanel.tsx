@@ -20,6 +20,10 @@ type Task = {
   taskType?: string;
   parentRelations?: string[];
   childRelations?: string[];
+  partnerRelations?: string[];
+  partnerNames?: string[];
+  distanceKm?: number | null;
+  eventCategory?: string;
   children?: Task[];
 };
 
@@ -195,6 +199,15 @@ function DB04Card({ task, active, onPick }: { task: Task; active: boolean; onPic
         {task.assignees && task.assignees.length > 0 && (
           <div className="truncate">負責：{task.assignees.join("、")}</div>
         )}
+        {task.partnerNames && task.partnerNames.length > 0 && (
+          <div className="truncate" style={{ color: "#7a5c40" }}>🏪 {task.partnerNames.join("、")}</div>
+        )}
+        <div className="flex gap-2 flex-wrap text-[10px]">
+          {task.eventCategory && <span className="px-1.5 py-0.5 rounded" style={{ background: "#fdf6ec", color: "#7a5c40" }}>{task.eventCategory}</span>}
+          {typeof task.distanceKm === "number" && task.distanceKm > 0 && (
+            <span className="px-1.5 py-0.5 rounded" style={{ background: "#e8f4ed", color: "#2d5016" }}>{task.distanceKm} km</span>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -253,9 +266,18 @@ function DB04Detail({ task, onPatch }: { task: Task; onPatch: (id: string, patch
         {task.executionTime && <div>執行時間：{task.executionTime}</div>}
         {task.deadline && <div>截止時間：{task.deadline}</div>}
         {task.assignees && task.assignees.length > 0 && <div>責任執行：{task.assignees.join("、")}</div>}
+        {task.partnerNames && task.partnerNames.length > 0 && (
+          <div style={{ color: "#7a5c40", fontWeight: 500 }}>🏪 辦理單位：{task.partnerNames.join("、")}</div>
+        )}
+        {task.eventCategory && <div>活動細項：{task.eventCategory}</div>}
+        {typeof task.distanceKm === "number" && task.distanceKm > 0 && (
+          <div style={{ color: "#2d5016" }}>距離：{task.distanceKm} km（完成後將寫入參與者「距離行程」點數）</div>
+        )}
         {projectNames > 0 && <div>對應項目：{projectNames} 筆</div>}
         {task.topicName && <div>主題：{task.topicName}</div>}
       </div>
+
+      <PartnerMetricsInline partnerIds={task.partnerRelations || []} />
 
       <label className="text-xs block mb-1" style={{ color: C.textMuted }}>執行備註</label>
       <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4}
@@ -268,6 +290,57 @@ function DB04Detail({ task, onPatch }: { task: Task; onPatch: (id: string, patch
           style={{ background: C.primary, border: "none", cursor: savingNote ? "wait" : "pointer" }}>
           {savingNote ? "儲存中…" : "儲存備註"}
         </button>
+      </div>
+    </div>
+  );
+}
+
+// ── Partner metrics（DB04 detail 內嵌） ───────────────
+type PartnerMetric = {
+  notion_id: string;
+  product_count: number;
+  total_revenue: number;
+  reach_count: number;
+  conversion_count: number;
+  event_count: number;
+};
+
+function PartnerMetricsInline({ partnerIds }: { partnerIds: string[] }) {
+  const [data, setData] = useState<PartnerMetric[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (partnerIds.length === 0) { setData([]); return; }
+    let abort = false;
+    setLoading(true);
+    const idsParam = partnerIds.map((id) => id.replace(/-/g, "")).join(",");
+    staffFetch(`/api/staff/partner-metrics?ids=${idsParam}`)
+      .then((r) => r.json())
+      .then((j) => { if (!abort) setData(Object.values(j.metrics || {})); })
+      .catch(() => { if (!abort) setData([]); })
+      .finally(() => { if (!abort) setLoading(false); });
+    return () => { abort = true; };
+  }, [partnerIds.join(",")]);  // eslint-disable-line
+
+  if (partnerIds.length === 0) return null;
+  return (
+    <div className="mb-3 p-2 rounded text-xs" style={{ background: "#fdf6ec", border: "1px solid #e8d8b4" }}>
+      <div className="font-bold mb-1" style={{ color: "#7a5c40" }}>🏪 合作夥伴影響指標</div>
+      {loading && <div style={{ color: C.textMuted }}>載入中…</div>}
+      {!loading && data.length === 0 && <div style={{ color: C.textMuted }}>此合作夥伴尚未在 Supabase 同步</div>}
+      {data.map((m) => (
+        <div key={m.notion_id} className="flex flex-wrap gap-x-2 gap-y-0.5 py-0.5" style={{ color: "#666" }}>
+          <span>觸及 {m.reach_count?.toLocaleString() || 0}</span>
+          <span>·</span>
+          <span>成交 {m.conversion_count?.toLocaleString() || 0}</span>
+          <span>·</span>
+          <span>營收 NT${(m.total_revenue || 0).toLocaleString()}</span>
+          <span>·</span>
+          <span>商品 {m.product_count || 0}</span>
+        </div>
+      ))}
+      <div className="mt-1" style={{ color: "#aaa", fontSize: 10 }}>
+        你完成這個 task 會直接影響上面這些數字 — 這是合作夥伴在 dashboard 看到的價值。
       </div>
     </div>
   );

@@ -1,4 +1,5 @@
 import { Client } from "@notionhq/client";
+import { resolveRelationNames } from "./fetch-all";
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -33,6 +34,10 @@ export type TaskItem = {
   cash?: Record<string, number | null>;
   childRelations?: string[];
   parentRelations?: string[];
+  partnerRelations?: string[];   // DB04「對應辦理單位」→ DB08（合作夥伴）
+  partnerNames?: string[];       // resolve 後的合作夥伴名稱
+  distanceKm?: number | null;    // DB04「距離km」
+  eventCategory?: string;        // DB04「活動細項」
   children?: TaskItem[];
 };
 
@@ -64,6 +69,9 @@ export function extractDB04(page: any): TaskItem {
     taskType: getSelect(p["交接類型"]),
     childRelations: getRelationIds(p["對應明細"]),
     parentRelations: getRelationIds(p["對應項目"]),
+    partnerRelations: getRelationIds(p["對應辦理單位"]),
+    distanceKm: getNumber(p["距離km"]),
+    eventCategory: getSelect(p["活動細項"]),
   };
 }
 
@@ -296,7 +304,16 @@ export async function fetchVisibleTasksForStaff(notionUserId: string) {
     }
   }
 
-  // 4. 排序：截止日近的在前；無截止日放最後
+  // 4. 解析合作夥伴名稱（批次拉 DB08）
+  const allPartnerIds = Array.from(new Set(db04Tasks.flatMap((t) => t.partnerRelations || [])));
+  if (allPartnerIds.length > 0) {
+    const nameMap = await resolveRelationNames(allPartnerIds);
+    for (const t of db04Tasks) {
+      t.partnerNames = (t.partnerRelations || []).map((id) => nameMap[id] || "").filter(Boolean);
+    }
+  }
+
+  // 5. 排序：截止日近的在前；無截止日放最後
   db04Tasks.sort((a, b) => {
     const ad = a.deadline || "";
     const bd = b.deadline || "";
