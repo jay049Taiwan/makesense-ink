@@ -5,6 +5,7 @@ const notion = new Client({ auth: process.env.NOTION_API_KEY });
 const DS_DB03 = process.env.NOTION_DB03_PROGRESS!;       // 968b23ea-...
 const DS_DB04 = process.env.NOTION_DB04_COLLABORATION!;  // 5ad63416-...
 const DS_DB05 = process.env.NOTION_DB05_REGISTRATION!;   // 28a667a9-...
+const DS_DB06 = process.env.NOTION_DB06_TRANSACTION!;    // a809ff25-...
 
 export type TaskItem = {
   id: string;
@@ -77,6 +78,7 @@ export function extractDB05(page: any): TaskItem {
     type: getSelect(p["表單類型"]),
     assignees: getPeopleNames(p["責任執行"]),
     assigneeEmails: getPeopleEmails(p["責任執行"]),
+    executionTime: getDate(p["執行時間"]),
     deadline: getDate(p["截止時間"]),
     topicName: getRichText(p["主題名稱"]),
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
@@ -200,4 +202,119 @@ export async function fetchDB05Children(taskId: string): Promise<TaskItem[]> {
 
 export async function updatePageProperties(pageId: string, properties: Record<string, any>) {
   return notion.pages.update({ page_id: pageId, properties });
+}
+
+// ── 新版：可見任務計算 ────────────────────────────────────
+//
+// 篩選邏輯：DB04 顯示條件 = 任一條件成立
+//   1. DB04 自身「責任執行」= 我
+//   2. DB04 關聯任一 DB05 的「責任執行」= 我（透過 DB05.對應協作 反查 DB04）
+//   3. DB04 關聯的 DB05 → DB06 鏈條中，任一 DB06 的「責任執行」= 我
+//
+// 然後抓出每個 DB04 的 **全部** DB05 子明細（不再篩責任執行，跨人員都顯示）。
+export async function fetchVisibleTasksForStaff(notionUserId: string) {
+  const myFilter = { property: "責任執行", people: { contains: notionUserId } };
+
+  // 1. 抓三層直接被指派給我的紀錄
+  const [db04Mine, db05Mine, db06Mine] = await Promise.all([
+    queryDS(DS_DB04, myFilter, 100),
+    queryDS(DS_DB05, myFilter, 100),
+    queryDS(DS_DB06, myFilter, 100),
+  ]);
+
+  const visibleDB04Ids = new Set<string>();
+  for (const p of db04Mine.results) visibleDB04Ids.add(p.id);
+
+  // DB05 → DB04（透過 DB05.對應協作）
+  for (const p of db05Mine.results) {
+    const parents = (p.properties?.["對應協作"]?.relation || []).map((r: any) => r.id);
+    for (const id of parents) visibleDB04Ids.add(id);
+  }
+
+  // DB06 → DB05 → DB04（透過 DB05.對應明細 contains <db06_id>）
+  if (db06Mine.results.length > 0) {
+    const orClauses = db06Mine.results.slice(0, 90).map((db06: any) => ({
+      property: "對應明細",
+      relation: { contains: db06.id },
+    }));
+    const db05ViaDB06 = await queryDS(DS_DB05, { or: orClauses }, 100);
+    for (const p of db05ViaDB06.results) {
+      const parents = (p.properties?.["對應協作"]?.relation || []).map((r: any) => r.id);
+      for (const id of parents) visibleDB04Ids.add(id);
+    }
+  }
+
+  if (visibleDB04Ids.size === 0) {
+    return { items: [], counts: { pending: 0, done: 0 }, notionUserId };
+  }
+
+  // 2. 把所有可見 DB04 撈完整 page
+  const db04Pages = await Promise.all(
+    Array.from(visibleDB04Ids).map((id) =>
+      notion.pages.retrieve({ page_id: id }).catch((e: any) => {
+        console.warn("[staff-tasks] retrieve DB04 failed:", id, e.message);
+        return null;
+      })
+    )
+  );
+  const db04Tasks = db04Pages.filter(Boolean).map(extractDB04);
+
+  // 3. 一次性 OR 查所有 DB05 children（一次 query 拉完，避免 N 次 round trip）
+  if (db04Tasks.length > 0) {
+    const orClauses = db04Tasks.slice(0, 90).map((t) => ({
+      property: "對應協作",
+      relation: { contains: t.id },
+    }));
+    const allChildren: any[] = [];
+    let cursor: string | undefined = undefined;
+    do {
+      const res: any = await notion.dataSources.query({
+        data_source_id: DS_DB05,
+        filter: { or: orClauses },
+        page_size: 100,
+        ...(cursor ? { start_cursor: cursor } : {}),
+      } as any).catch((e: any) => {
+        console.warn("[staff-tasks] DB05 children batch query error:", e.message);
+        return { results: [], has_more: false };
+      });
+      allChildren.push(...(res.results || []));
+      cursor = res.has_more ? res.next_cursor : undefined;
+    } while (cursor);
+
+    // 按 DB04 id group
+    const childrenByDB04 = new Map<string, TaskItem[]>();
+    for (const child of allChildren) {
+      const childItem = extractDB05(child);
+      const parents = (child.properties?.["對應協作"]?.relation || []).map((r: any) => r.id);
+      for (const pid of parents) {
+        if (!childrenByDB04.has(pid)) childrenByDB04.set(pid, []);
+        childrenByDB04.get(pid)!.push(childItem);
+      }
+    }
+    for (const t of db04Tasks) {
+      t.children = childrenByDB04.get(t.id) || [];
+    }
+  }
+
+  // 4. 排序：截止日近的在前；無截止日放最後
+  db04Tasks.sort((a, b) => {
+    const ad = a.deadline || "";
+    const bd = b.deadline || "";
+    if (!ad && !bd) return 0;
+    if (!ad) return 1;
+    if (!bd) return -1;
+    return ad.localeCompare(bd);
+  });
+
+  let pending = 0, done = 0;
+  for (const t of db04Tasks) {
+    if (t.executionStatus === "已完成") done++;
+    else pending++;
+  }
+
+  return {
+    items: db04Tasks,
+    counts: { pending, done },
+    notionUserId,
+  };
 }

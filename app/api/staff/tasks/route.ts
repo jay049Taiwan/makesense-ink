@@ -1,15 +1,13 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "../_guard";
 import { getNotionUserId } from "@/lib/notion-users";
-import { fetchTasksFromNotion } from "@/lib/staff-tasks";
+import { fetchVisibleTasksForStaff } from "@/lib/staff-tasks";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// SWR 模式：
-// - Fast path（預設 GET）→ 用 email 直接查 staff_tasks_cache（~100ms 秒回）
-//   不打 getNotionUserId，避免冷啟動拉 Notion 工作區 user list 的 5-10 秒
-// - Slow path（cache miss 或 ?refresh=1）→ 才需要 getNotionUserId + fetchTasksFromNotion + upsert
-//
-// 前端 SWR：mount 先打預設拿 cache 顯示，render 後背景叫 ?refresh=1 主動更新畫面。
+// SWR：
+// - 預設 GET → email 直接查 staff_tasks_cache（~100ms 秒回）
+// - ?refresh=1 → 打 Notion + upsert
+// - cache miss → fallback 打 Notion + upsert + 回傳
 export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
@@ -17,7 +15,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const force = url.searchParams.get("refresh") === "1";
 
-  // Fast path：直接 email 查 cache，不碰 Notion 任何 API
+  // Fast path
   if (!force && email) {
     const { data: cached } = await supabaseAdmin
       .from("staff_tasks_cache")
@@ -29,20 +27,18 @@ export async function GET(req: Request) {
     }
   }
 
-  // Slow path：cache miss 或強制刷新
+  // Slow path
   const notionUserId = await getNotionUserId(email);
   if (!notionUserId) {
     return NextResponse.json({
-      tree: [], orphanTasks: [], orphanDetails: [],
-      counts: { db03: 0, db04: 0, db05: 0 },
+      items: [], counts: { pending: 0, done: 0 },
       message: "此帳號尚未在 Notion 中被指派任務",
       source: "empty",
     });
   }
 
   try {
-    const data = await fetchTasksFromNotion(notionUserId);
-    // 背景寫回 cache（不擋回應）
+    const data = await fetchVisibleTasksForStaff(notionUserId);
     supabaseAdmin
       .from("staff_tasks_cache")
       .upsert({

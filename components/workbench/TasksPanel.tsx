@@ -1,113 +1,89 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { staffFetch } from "@/lib/staff-fetch";
 
-// 色票（取代 staff-portal 的 CSS variables）
-const C = {
-  card: "#fff",
-  border: "#e8e0d4",
-  primary: "#7a5c40",
-  text: "#333",
-  textSub: "#555",
-  textMuted: "#888",
-  danger: "#e53e3e",
-  selectedBg: "#F5F0E8",
-  panelBg: "#FAFAF7",
-  done: "#4caf50",
-  doneTrack: "#ccc",
-  notePrimary: "#2E6B8A",
+// ── 型別 ───────────────────────────────────────────────
+type Task = {
+  id: string;
+  db: "DB03" | "DB04" | "DB05";
+  title: string;
+  executionStatus?: string;
+  reviewStatus?: string;
+  assignees?: string[];
+  startTime?: string;
+  deadline?: string;
+  executionTime?: string;
+  topicName?: string;
+  crossSummary?: string;
+  handoverNote?: string;
+  taskType?: string;
+  parentRelations?: string[];
+  childRelations?: string[];
+  children?: Task[];
 };
 
-const CASH_DENOMS = [
-  { key: "1000", label: "仟元" },
-  { key: "500", label: "五百" },
-  { key: "100", label: "一百" },
-  { key: "50", label: "五十" },
-  { key: "10", label: "拾元" },
-  { key: "5", label: "五元" },
-  { key: "1", label: "壹元" },
-];
+type ApiResponse = {
+  items?: Task[];
+  counts?: { pending: number; done: number };
+  message?: string;
+  source?: string;
+  synced_at?: string;
+  error?: string;
+};
 
-type Task = any;
+// ── 設計 token ────────────────────────────────────────
+const C = {
+  primary: "#7a5c40",
+  card: "#fff",
+  bg: "#faf8f4",
+  border: "#e8e0d4",
+  text: "#333",
+  textMuted: "#888",
+  done: "#666",
+  warn: "#c0392b",
+};
 
-function useIsWide() {
-  const [wide, setWide] = useState(typeof window !== "undefined" && window.innerWidth >= 768);
-  useEffect(() => {
-    const handler = () => setWide(window.innerWidth >= 768);
-    window.addEventListener("resize", handler);
-    return () => window.removeEventListener("resize", handler);
-  }, []);
-  return wide;
+// ── Helpers ───────────────────────────────────────────
+async function apiGet(url: string): Promise<any> {
+  const res = await staffFetch(url);
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error(`回應非 JSON：${text.slice(0, 100)}`); }
+  if (!res.ok) throw new Error(json.error || "讀取失敗");
+  return json;
 }
 
-// ── API helpers ─────────────────────────────────────────────────────────
-// 用 staffFetch 自動帶 Telegram WebApp initData header（mini-app 必須）
-async function apiGet(url: string) {
-  const r = await staffFetch(url, { credentials: "include" });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error || "查詢失敗");
-  return j;
-}
-async function apiPut(url: string, body: any) {
-  const r = await staffFetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    credentials: "include",
-    body: JSON.stringify(body),
-  });
-  const j = await r.json();
-  if (!r.ok) throw new Error(j.error || "更新失敗");
-  return j;
+async function apiPut(url: string, body: any): Promise<any> {
+  const res = await staffFetch(url, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  const text = await res.text();
+  let json: any;
+  try { json = JSON.parse(text); } catch { throw new Error(`回應非 JSON：${text.slice(0, 100)}`); }
+  if (!res.ok) throw new Error(json.error || "更新失敗");
+  return json;
 }
 
-const getMyTasks = (refresh = false) => apiGet(`/api/staff/tasks${refresh ? "?refresh=1" : ""}`);
-const getTaskChildren = (id: string) => apiGet(`/api/staff/tasks/${id}/children`);
-const updateTaskStatus = (id: string, field: string, value: string) =>
-  apiPut(`/api/staff/tasks/${id}/status`, { field, value });
-const editTask = (id: string, fields: any) => apiPut(`/api/staff/tasks/${id}/edit`, fields);
-const editDetailNote = (id: string, note: string) => apiPut(`/api/staff/details/${id}/note`, { note });
-const editDetailCash = (id: string, period: string, values: any) =>
-  apiPut(`/api/staff/details/${id}/cash`, { period, values });
+const toggleStatus = (id: string, value: "已完成" | "執行中") =>
+  apiPut(`/api/staff/tasks/${id}/status`, { field: "execution", value });
+const saveDB04 = (id: string, fields: { topicName?: string; executionTime?: string; handoverNote?: string }) =>
+  apiPut(`/api/staff/tasks/${id}/edit`, fields);
 
-interface Props {
-  userEmail?: string;
-}
-
-export default function TasksPanel({ userEmail = "" }: Props) {
-  const isWide = useIsWide();
+// ── 主元件 ────────────────────────────────────────────
+export default function TasksPanel(_props: { userEmail?: string }) {
+  const [items, setItems] = useState<Task[]>([]);
+  const [serverNotice, setServerNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [tree, setTree] = useState<Task[]>([]);
-  const [orphanTasks, setOrphanTasks] = useState<Task[]>([]);
-  const [orphanDetails, setOrphanDetails] = useState<Task[]>([]);
-  const [serverNotice, setServerNotice] = useState<string | null>(null);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [loadingChildren, setLoadingChildren] = useState(false);
-  const [detailModal, setDetailModal] = useState<Task | null>(null);
-  const [updating] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [showDone, setShowDone] = useState(false);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [popupTask, setPopupTask] = useState<Task | null>(null);
 
-  const [editTopicName, setEditTopicName] = useState("");
-  const [editExecTime, setEditExecTime] = useState("");
-  const [editNote, setEditNote] = useState("");
-  const [db04Dirty, setDb04Dirty] = useState(false);
-
-  const [modalNote, setModalNote] = useState("");
-  const [modalCash, setModalCash] = useState<Record<string, any>>({});
-  const [modalCashPeriod, setModalCashPeriod] = useState<"open" | "close">("open");
-
-  const lowerEmail = userEmail.toLowerCase();
-
-  // 抓資料的核心邏輯 — silent=true 時不亮 loading（給背景 revalidate 用）
   const loadTasks = useCallback(async (opts: { refresh?: boolean; silent?: boolean } = {}) => {
     const { refresh = false, silent = false } = opts;
     if (!silent) { setLoading(true); setError(null); }
     try {
-      const data = await getMyTasks(refresh);
-      setTree(data.tree || []);
-      setOrphanTasks(data.orphanTasks || []);
-      setOrphanDetails(data.orphanDetails || []);
+      const data: ApiResponse = await apiGet(`/api/staff/tasks${refresh ? "?refresh=1" : ""}`);
+      setItems(data.items || []);
       setServerNotice(typeof data.message === "string" && data.message ? data.message : null);
     } catch (err: any) {
       if (!silent) setError(err.message);
@@ -117,509 +93,378 @@ export default function TasksPanel({ userEmail = "" }: Props) {
     }
   }, []);
 
-  // 包一層方便 「↻ 重新整理」按鈕用
-  const fetchTasks = useCallback((refresh = false) => loadTasks({ refresh }), [loadTasks]);
-
-  // SWR pattern：
-  // 1. mount 先打預設 → 讀 Supabase cache 秒回（~100ms）→ 顯示舊資料
-  // 2. render 後背景打 ?refresh=1 → Notion 拉新版 → silent setState 更新畫面
   useEffect(() => {
     let active = true;
     (async () => {
-      await loadTasks({ refresh: false });             // 讀 Supabase cache（亮 loading）
+      await loadTasks({ refresh: false });
       if (!active) return;
-      loadTasks({ refresh: true, silent: true });      // 背景拉 Notion 更新（不亮 loading）
+      loadTasks({ refresh: true, silent: true });
     })();
     return () => { active = false; };
   }, [loadTasks]);
 
-  const selectTask = async (task: Task) => {
-    setSelectedTask(task);
-    if (task?.db === "DB04") {
-      setEditTopicName(task.topicName || "");
-      setEditExecTime(task.executionTime || "");
-      setEditNote(task.handoverNote || "");
-      setDb04Dirty(false);
+  const pending = items.filter((t) => t.executionStatus !== "已完成");
+  const done = items.filter((t) => t.executionStatus === "已完成");
+  const selected = items.find((t) => t.id === selectedId) || null;
 
-      if (!task.children || task.children.length === 0) {
-        // applyChildren：把回來的 children 寫進 selectedTask / tree / orphanTasks
-        const applyChildren = (children: any[]) => {
-          setSelectedTask((prev) => prev?.id === task.id ? { ...prev, children } : prev);
-          setTree((prev) => prev.map((p) => ({
-            ...p,
-            children: (p.children || []).map((t: Task) => t.id === task.id ? { ...t, children } : t),
-          })));
-          setOrphanTasks((prev) => prev.map((t) => t.id === task.id ? { ...t, children } : t));
-        };
-
-        // SWR：先讀 cache（亮 loading）→ 顯示 → 背景叫 ?refresh=1 → 主動更新
-        setLoadingChildren(true);
-        try {
-          const data = await getTaskChildren(task.id);
-          applyChildren(data.children || []);
-        } catch (err: any) {
-          alert("載入明細失敗：" + err.message);
-        } finally {
-          setLoadingChildren(false);
-        }
-        // 背景刷（不亮 loading、不擋使用者）
-        apiGet(`/api/staff/tasks/${task.id}/children?refresh=1`)
-          .then((fresh) => applyChildren(fresh.children || []))
-          .catch((e) => console.error("[TasksPanel] children silent refresh failed:", e?.message));
-      }
-    }
+  // 樂觀更新某筆 DB04/DB05 狀態
+  const patchTask = (id: string, patch: Partial<Task>) => {
+    setItems((prev) => prev.map((t) => {
+      if (t.id === id) return { ...t, ...patch };
+      return {
+        ...t,
+        children: (t.children || []).map((c) => c.id === id ? { ...c, ...patch } : c),
+      };
+    }));
   };
 
-  const allDb04 = [...tree.flatMap((p) => p.children || []), ...orphanTasks];
-  const [showDone, setShowDone] = useState(false);
-
-  const isFullyClosed = (item: Task) => item.executionStatus === "已完成" && item.reviewStatus === "檢核ok";
-  const isDone = (item: Task) => item.executionStatus === "已完成";
-  const visibleDb04 = allDb04.filter((t) => !isFullyClosed(t));
-  const visibleOrphanDb05 = orphanDetails.filter((t) => !isFullyClosed(t));
-  const pendingDb04 = visibleDb04.filter((t) => !isDone(t));
-  const doneDb04 = visibleDb04.filter((t) => isDone(t));
-  const pendingOrphanDb05 = visibleOrphanDb05.filter((t) => !isDone(t));
-  const doneOrphanDb05 = visibleOrphanDb05.filter((t) => isDone(t));
-
-  const saveDb04Edit = async () => {
-    if (!selectedTask || selectedTask.db !== "DB04") return;
-    setSaving(true);
-    try {
-      await editTask(selectedTask.id, {
-        handoverNote: editNote,
-      });
-      setDb04Dirty(false);
-      await fetchTasks();
-    } catch (err: any) {
-      alert("儲存失敗：" + err.message);
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const toggleDb05Status = (e: React.MouseEvent, detail: Task) => {
-    e.stopPropagation();
-    const newStatus = detail.executionStatus === "已完成" ? "執行中" : "已完成";
-    setSelectedTask((prev) => {
-      if (!prev || prev.db !== "DB04") return prev;
-      return { ...prev, children: (prev.children || []).map((c: Task) => c.id === detail.id ? { ...c, executionStatus: newStatus } : c) };
-    });
-    updateTaskStatus(detail.id, "execution", newStatus).catch((err) => console.error("Sync failed:", err.message));
-  };
-
-  const isCashDetail = (d: Task) => d.checkOption === "點交現金" || d.title?.includes("零錢") || d.title?.includes("盤點");
-
-  const openDetailModal = (detail: Task) => {
-    setDetailModal(detail);
-    setModalNote(detail.handoverReply || "");
-    if (isCashDetail(detail)) {
-      setModalCash({
-        1000: detail.cash?.open1000 ?? "", 500: detail.cash?.open500 ?? "",
-        100: detail.cash?.open100 ?? "", 50: detail.cash?.open50 ?? "",
-        10: detail.cash?.open10 ?? "", 5: detail.cash?.open5 ?? "",
-        1: detail.cash?.open1 ?? "",
-      });
-      setModalCashPeriod("open");
-    }
-  };
-
-  const saveDetailNote = async () => {
-    if (!detailModal) return;
-    setSaving(true);
-    try {
-      await editDetailNote(detailModal.id, modalNote);
-      setDetailModal(null);
-      await fetchTasks();
-    } catch (err: any) {
-      alert("儲存失敗：" + err.message);
-    } finally { setSaving(false); }
-  };
-
-  const saveDetailCash = async () => {
-    if (!detailModal) return;
-    setSaving(true);
-    try {
-      await editDetailCash(detailModal.id, modalCashPeriod, modalCash);
-      setDetailModal(null);
-      await fetchTasks();
-    } catch (err: any) {
-      alert("儲存失敗：" + err.message);
-    } finally { setSaving(false); }
-  };
-
-  const formatDate = (d?: string) => d ? d.slice(0, 10).replace(/-/g, "/") : "";
-  const formatDeadlineMmDd = (d?: string) => {
-    if (!d) return "";
-    const date = new Date(d);
-    return `${(date.getMonth() + 1).toString().padStart(2, "0")}/${date.getDate().toString().padStart(2, "0")}`;
-  };
-  const isOverdue = (d?: string) => {
-    if (!d) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return d.slice(0, 10) < today;
-  };
-  const sortByDeadline = (items: Task[]) => {
-    const today = new Date().toISOString().slice(0, 10);
-    return [...items].sort((a, b) => {
-      const aD = a.deadline?.slice(0, 10) || "";
-      const bD = b.deadline?.slice(0, 10) || "";
-      if (!aD && !bD) return 0;
-      if (!aD) return 1;
-      if (!bD) return -1;
-      const aOver = aD < today, bOver = bD < today;
-      if (aOver && !bOver) return -1;
-      if (!aOver && bOver) return 1;
-      return aD < bD ? -1 : aD > bD ? 1 : 0;
-    });
-  };
-
-  // ── Task card ─────────────────────────────────────────────
-  const renderTaskCard = (task: Task, isDoneStyle = false) => {
-    const isSelected = selectedTask?.id === task.id;
-    const isOrphanDb05 = task.db === "DB05";
-    const overdue = !isDoneStyle && isOverdue(task.deadline);
-    const deadlineMmDd = formatDeadlineMmDd(task.deadline);
-    const assigneesStr = task.assignees?.length > 0 ? task.assignees.join("、") : "";
-    const line2Parts = [task.crossSummary, task.topicName, assigneesStr].filter(Boolean);
-
-    return (
-      <div key={task.id} onClick={() => selectTask(task)} style={{
-        padding: "8px 12px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
-        background: isSelected ? C.selectedBg : C.card,
-        border: isOrphanDb05 ? `2px dashed ${isSelected ? "#E6A817" : "#D4C5A0"}` : `1px solid ${isSelected ? C.primary : C.border}`,
-        opacity: isDoneStyle ? 0.6 : 1,
-        borderLeft: overdue ? `3px solid ${C.danger}` : undefined,
-      }}>
-        <div style={{ fontSize: 13, fontWeight: 600, textDecoration: isDoneStyle ? "line-through" : "none", display: "flex", alignItems: "center", gap: 6 }}>
-          {deadlineMmDd && (
-            <span style={{ fontSize: 12, fontWeight: 700, flexShrink: 0, color: overdue ? C.danger : C.textSub }}>{deadlineMmDd}</span>
-          )}
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.title}</span>
-        </div>
-        {line2Parts.length > 0 && (
-          <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-            {line2Parts.join("，")}
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  // ── Left panel ─────────────────────────────────────────────
-  const renderLeftPanel = () => (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-        <div style={{ fontSize: 15, fontWeight: 700 }}>交接事項</div>
-        <button onClick={() => fetchTasks(true)} disabled={loading} title="重新整理"
-          style={{ background: "none", border: "none", cursor: loading ? "wait" : "pointer", fontSize: 15, color: C.textMuted, padding: 4 }}>
-          {loading ? "整理中" : "↻"}
+  return (
+    <div style={{ minHeight: 500 }}>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-3">
+        <div className="text-sm font-bold" style={{ color: C.text }}>交接事項</div>
+        <button onClick={() => loadTasks({ refresh: true })} disabled={loading}
+          title="強制從 Notion 重抓" className="text-xs"
+          style={{ background: "none", border: "none", cursor: loading ? "wait" : "pointer", color: C.textMuted, padding: 4 }}>
+          {loading ? "整理中…" : "↻ 重整"}
         </button>
       </div>
 
-      {loading && <div style={{ padding: 20, textAlign: "center", color: C.textMuted, fontSize: 13 }}>載入中...</div>}
-      {error && <div style={{ padding: 20, textAlign: "center", color: "#c62828", fontSize: 13 }}>{error}</div>}
-      {!loading && !error && serverNotice && (
-        <div style={{ padding: "10px 12px", marginBottom: 10, borderRadius: 8, background: "#fff8e6", border: "1px solid #f0d784", color: "#7a5c40", fontSize: 12, lineHeight: 1.5 }}>
-          ⚠️ {serverNotice}
-        </div>
+      {error && <div className="p-3 mb-3 rounded text-sm" style={{ background: "#fdecea", color: C.warn, border: `1px solid ${C.warn}` }}>{error}</div>}
+      {!error && serverNotice && (
+        <div className="p-3 mb-3 rounded text-xs" style={{ background: "#fff8e6", border: "1px solid #f0d784", color: "#7a5c40" }}>⚠️ {serverNotice}</div>
       )}
 
-      <div style={isWide ? { maxHeight: "calc(100vh - 200px)", overflowY: "auto" } : {}}>
-        <div style={{ padding: "8px 12px", borderRadius: 8, marginBottom: 6, background: C.primary, color: "#fff", fontSize: 13, fontWeight: 700, display: "flex", justifyContent: "space-between" }}>
-          <span>未完成</span>
-          <span>{pendingDb04.length + pendingOrphanDb05.length}</span>
-        </div>
+      <div className="grid grid-cols-1 lg:grid-cols-[300px_1fr] gap-3">
+        {/* ── 左欄 DB04 list ─────────────────────────────── */}
+        <aside>
+          <div className="px-3 py-2 rounded mb-2 text-sm font-bold flex justify-between" style={{ background: C.primary, color: "#fff" }}>
+            <span>未完成</span><span>{pending.length}</span>
+          </div>
+          {!loading && pending.length === 0 && (
+            <div className="text-xs text-center py-3" style={{ color: C.textMuted }}>沒有待處理的項目</div>
+          )}
+          {pending.map((t) => (
+            <DB04Card key={t.id} task={t} active={t.id === selectedId} onPick={() => setSelectedId(t.id)} />
+          ))}
 
-        {!loading && sortByDeadline([...pendingDb04, ...pendingOrphanDb05]).map((t) => renderTaskCard(t))}
-        {!loading && pendingDb04.length === 0 && pendingOrphanDb05.length === 0 && (
-          <div style={{ textAlign: "center", padding: "16px 10px", color: C.textMuted, fontSize: 12 }}>沒有待處理的項目</div>
-        )}
+          <div onClick={() => setShowDone(!showDone)} className="px-3 py-2 rounded mt-3 mb-2 text-sm font-bold flex justify-between cursor-pointer"
+            style={{ background: showDone ? C.done : C.card, color: showDone ? "#fff" : C.textMuted, border: `1px solid ${showDone ? C.done : C.border}` }}>
+            <span>已完成 {showDone ? "▾" : "▸"}</span><span>{done.length}</span>
+          </div>
+          {showDone && done.map((t) => (
+            <DB04Card key={t.id} task={t} active={t.id === selectedId} onPick={() => setSelectedId(t.id)} />
+          ))}
+        </aside>
 
-        <div onClick={() => setShowDone(!showDone)} style={{
-          padding: "8px 12px", borderRadius: 8, marginTop: 10, marginBottom: 6, cursor: "pointer",
-          background: showDone ? "#666" : C.card,
-          color: showDone ? "#fff" : C.textMuted,
-          border: `1px solid ${showDone ? "#666" : C.border}`,
-          fontSize: 13, fontWeight: 700, display: "flex", justifyContent: "space-between",
-        }}>
-          <span>已完成</span>
-          <span>{doneDb04.length + doneOrphanDb05.length}</span>
-        </div>
+        {/* ── 右欄 ──────────────────────────────────────── */}
+        <main>
+          {!selected && (
+            <div className="text-center py-16" style={{ color: C.textMuted }}>
+              <p className="text-3xl mb-2">👈</p>
+              <p className="text-xs">點選左側交接項目</p>
+            </div>
+          )}
+          {selected && (
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-3">
+              <section className="lg:col-span-1">
+                <DB04Detail task={selected} onPatch={patchTask} />
+              </section>
+              <section className="lg:col-span-2">
+                <DB05List parent={selected} onPatch={patchTask} onPick={setPopupTask} />
+              </section>
+            </div>
+          )}
+        </main>
+      </div>
 
-        {showDone && (
-          <>
-            {sortByDeadline([...doneDb04, ...doneOrphanDb05]).map((t) => renderTaskCard(t, true))}
-            {doneDb04.length === 0 && doneOrphanDb05.length === 0 && (
-              <div style={{ textAlign: "center", padding: "16px 10px", color: C.textMuted, fontSize: 12 }}>沒有已完成的項目</div>
-            )}
-          </>
+      {popupTask && <DB05Popup task={popupTask} onClose={() => setPopupTask(null)} />}
+    </div>
+  );
+}
+
+// ── DB04 卡片（左欄） ─────────────────────────────────
+function DB04Card({ task, active, onPick }: { task: Task; active: boolean; onPick: () => void }) {
+  return (
+    <div onClick={onPick} className="px-3 py-2 rounded mb-1.5 cursor-pointer text-sm transition-colors"
+      style={{ background: active ? "#fdf6ec" : C.card, border: `1px solid ${active ? C.primary : C.border}`, color: C.text }}>
+      <div className="font-medium" style={{ color: C.text }}>{task.title || "（無標題）"}</div>
+      <div className="text-xs mt-1 space-y-0.5" style={{ color: C.textMuted }}>
+        {task.executionTime && <div>執行：{task.executionTime}</div>}
+        {task.deadline && <div>截止：{task.deadline}</div>}
+        {task.assignees && task.assignees.length > 0 && (
+          <div className="truncate">負責：{task.assignees.join("、")}</div>
         )}
       </div>
     </div>
   );
+}
 
-  // ── Right panel ─────────────────────────────────────────────
-  const renderRightPanel = () => {
-    if (!selectedTask) {
-      return (
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", minHeight: 400, color: C.textMuted }}>
-          <div style={{ fontSize: 40, marginBottom: 12 }}>👈</div>
-          <div style={{ fontSize: 14 }}>點選左側交接項目</div>
-        </div>
-      );
-    }
+// ── DB04 detail（右上 1/3） ────────────────────────────
+function DB04Detail({ task, onPatch }: { task: Task; onPatch: (id: string, patch: Partial<Task>) => void }) {
+  const [done, setDone] = useState(task.executionStatus === "已完成");
+  const [note, setNote] = useState(task.handoverNote || "");
+  const [savingDone, setSavingDone] = useState(false);
+  const [savingNote, setSavingNote] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
 
-    if (selectedTask.db === "DB05") {
-      const d = selectedTask;
-      const canCheck = d.assigneeEmails?.some((e: string) => e.toLowerCase() === lowerEmail);
-      const done = d.executionStatus === "已完成";
-      return (
-        <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 16 }}>
-            {canCheck && (
-              <button onClick={(e) => toggleDb05Status(e, d)} style={{
-                width: 32, height: 32, borderRadius: 8, border: `2px solid ${done ? C.done : C.doneTrack}`,
-                background: done ? C.done : "transparent", color: "#fff", fontSize: 16,
-                cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center",
-              }}>{done ? "✓" : ""}</button>
-            )}
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700 }}>{d.title}</h3>
-          </div>
-          {d.content && <p style={{ fontSize: 14, color: C.text, lineHeight: 1.6, whiteSpace: "pre-wrap" }}>{d.content}</p>}
-          {d.type && <div style={{ fontSize: 12, color: C.textMuted }}>類型：{d.type}</div>}
-          {d.assignees?.length > 0 && <div style={{ fontSize: 12, color: C.textMuted, marginTop: 4 }}>負責：{d.assignees.join("、")}</div>}
-        </div>
-      );
-    }
+  // task 換時同步本地 state
+  useEffect(() => {
+    setDone(task.executionStatus === "已完成");
+    setNote(task.handoverNote || "");
+  }, [task.id]);  // eslint-disable-line
 
-    const task = selectedTask;
-    const details = task.children || [];
-    const pendingDetails = details.filter((d: Task) => d.executionStatus !== "已完成");
-    const doneDetails = details.filter((d: Task) => d.executionStatus === "已完成");
-    const allDetails = [...pendingDetails, ...doneDetails];
-
-    const renderDb05Row = (detail: Task) => {
-      const done = detail.executionStatus === "已完成";
-      return (
-        <div key={detail.id} onClick={() => openDetailModal(detail)} style={{
-          display: "flex", alignItems: "center", gap: 10, padding: "10px 12px", marginBottom: 4, borderRadius: 8, cursor: "pointer",
-          background: C.card, border: `1px solid ${C.border}`, opacity: done ? 0.6 : 1,
-        }}>
-          <button onClick={(e) => toggleDb05Status(e, detail)} style={{
-            width: 26, height: 26, borderRadius: 6, flexShrink: 0,
-            border: `2px solid ${done ? C.done : C.doneTrack}`,
-            background: done ? C.done : "transparent", color: "#fff", fontSize: 13, cursor: "pointer",
-            display: "flex", alignItems: "center", justifyContent: "center",
-          }}>{done ? "✓" : ""}</button>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, textDecoration: done ? "line-through" : "none" }}>{detail.title}</div>
-            <div style={{ fontSize: 11, color: C.textMuted, marginTop: 2, display: "flex", gap: 4, flexWrap: "wrap", alignItems: "center" }}>
-              {detail.quantity != null && <span style={{ fontWeight: 600 }}>×{detail.quantity}</span>}
-              {detail.unitPrice != null && <span>NT${detail.unitPrice}</span>}
-              {detail.subtotal != null && <span style={{ fontWeight: 600, color: C.textSub }}>= NT${detail.subtotal}</span>}
-              {detail.assignees?.length > 0 && (
-                <span style={{ padding: "1px 6px", borderRadius: 3, background: "#E3F2FD", color: "#1565C0", fontWeight: 600 }}>
-                  {detail.assignees.join("、")}
-                </span>
-              )}
-              {detail.attrSummary && <span style={{ padding: "1px 5px", borderRadius: 3, background: "#F0EDE8" }}>{detail.attrSummary}</span>}
-              {detail.type && <span>・{detail.type}</span>}
-            </div>
-          </div>
-          {isCashDetail(detail) && (
-            <span style={{ fontSize: 10, padding: "2px 6px", borderRadius: 4, background: "#FFF3E0", color: "#E65100", flexShrink: 0 }}>零錢</span>
-          )}
-        </div>
-      );
-    };
-
-    return (
-      <div>
-        {/* DB04 header — 只保留勾選完成 + 執行備註 */}
-        <div style={{ background: C.panelBg, borderRadius: 10, padding: 16, marginBottom: 16 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 12 }}>
-            <button type="button" onClick={() => {
-              const newStatus = task.executionStatus === "已完成" ? "執行中" : "已完成";
-              const taskId = task.id;
-              setSelectedTask((prev) => prev ? { ...prev, executionStatus: newStatus } : null);
-              const updateItem = (items: Task[]) => items.map((t) => t.id === taskId ? { ...t, executionStatus: newStatus } : t);
-              setOrphanTasks(updateItem);
-              setTree((prev) => prev.map((p) => ({ ...p, children: updateItem(p.children || []) })));
-              updateTaskStatus(taskId, "execution", newStatus).catch((err) => console.error("Sync failed:", err.message));
-            }} style={{
-              width: 32, height: 32, borderRadius: 8, flexShrink: 0, cursor: updating ? "wait" : "pointer",
-              border: `2px solid ${task.executionStatus === "已完成" ? C.done : C.doneTrack}`,
-              background: task.executionStatus === "已完成" ? C.done : "transparent",
-              color: "#fff", fontSize: 16, display: "flex", alignItems: "center", justifyContent: "center",
-            }}>{task.executionStatus === "已完成" ? "✓" : ""}</button>
-            <div>
-              <div style={{ fontSize: 15, fontWeight: 700 }}>{task.title}</div>
-              <div style={{ fontSize: 12, color: task.executionStatus === "已完成" ? C.done : C.textMuted }}>
-                {task.executionStatus || "未開始"}
-              </div>
-            </div>
-          </div>
-
-          <div style={{ marginBottom: 10 }}>
-            <label style={{ fontSize: 11, color: C.textMuted, display: "block", marginBottom: 4 }}>執行備註</label>
-            <textarea value={editNote}
-              onChange={(e) => { setEditNote(e.target.value); setDb04Dirty(true); }}
-              rows={3}
-              style={{ width: "100%", padding: "8px 10px", borderRadius: 6, border: `1px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
-            />
-          </div>
-
-          {db04Dirty && (
-            <button onClick={saveDb04Edit} disabled={saving} style={{
-              padding: "8px 20px", borderRadius: 8, border: "none", cursor: "pointer",
-              background: C.primary, color: "#fff", fontSize: 13, fontWeight: 600, opacity: saving ? 0.5 : 1,
-            }}>{saving ? "儲存中..." : "儲存變更"}</button>
-          )}
-        </div>
-
-        {/* DB05 details */}
-        <div style={{ fontSize: 14, fontWeight: 700, marginBottom: 10 }}>
-          明細（{loadingChildren ? "載入中..." : `${pendingDetails.length} 筆待辦 / ${allDetails.length} 筆`}）
-        </div>
-
-        {loadingChildren && (
-          <div style={{ padding: 20, textAlign: "center", color: C.textMuted, fontSize: 13 }}>載入明細中...</div>
-        )}
-
-        {!loadingChildren && allDetails.length === 0 && (
-          <div style={{ padding: 20, textAlign: "center", color: C.textMuted, fontSize: 13 }}>沒有關聯明細</div>
-        )}
-
-        <div style={{ maxHeight: isWide ? "calc(100vh - 500px)" : "auto", overflowY: isWide ? "auto" : "visible" }}>
-          {allDetails.map((detail: Task) => renderDb05Row(detail))}
-
-          {(() => {
-            const itemsWithPrice = allDetails.filter((d: Task) => d.subtotal != null || (d.quantity != null && d.unitPrice != null));
-            if (itemsWithPrice.length === 0) return null;
-            const totalQty = allDetails.reduce((s: number, d: Task) => s + (d.quantity || 0), 0);
-            const totalAmt = allDetails.reduce((s: number, d: Task) => s + (d.subtotal ?? (d.quantity || 0) * (d.unitPrice || 0)), 0);
-            return (
-              <div style={{ padding: "10px 12px", marginTop: 8, borderRadius: 8, background: C.panelBg, border: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 700 }}>
-                <span>合計 {allDetails.length} 品 / {totalQty} 件</span>
-                {totalAmt > 0 && <span>NT$ {totalAmt.toLocaleString()}</span>}
-              </div>
-            );
-          })()}
-        </div>
-      </div>
-    );
+  const onToggleDone = async (next: boolean) => {
+    setDone(next);
+    setSavingDone(true);
+    try {
+      await toggleStatus(task.id, next ? "已完成" : "執行中");
+      onPatch(task.id, { executionStatus: next ? "已完成" : "執行中" });
+      setMsg("已儲存");
+      setTimeout(() => setMsg(null), 1500);
+    } catch (e: any) {
+      setDone(!next); setMsg("失敗：" + e.message);
+    } finally { setSavingDone(false); }
   };
 
-  // ── Detail modal ─────────────────────────────────────────────
-  const renderDetailModal = () => {
-    if (!detailModal) return null;
-    const d = detailModal;
-    const isCash = isCashDetail(d);
-    return (
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 600, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center" }}
-        onClick={() => setDetailModal(null)}>
-        <div style={{ background: "#fff", borderRadius: 16, padding: 24, width: "90%", maxWidth: 480, maxHeight: "80vh", overflowY: "auto" }}
-          onClick={(e) => e.stopPropagation()}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700 }}>{d.title}</h3>
-            <button onClick={() => setDetailModal(null)} style={{ background: "none", border: "none", fontSize: 20, cursor: "pointer", color: C.textMuted }}>✕</button>
-          </div>
-
-          {d.content && <p style={{ fontSize: 13, color: C.text, marginBottom: 12, lineHeight: 1.5, whiteSpace: "pre-wrap" }}>{d.content}</p>}
-
-          {isCash && (
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
-                {(["open", "close"] as const).map((p) => (
-                  <button key={p} onClick={() => {
-                    setModalCashPeriod(p);
-                    const prefix = p;
-                    setModalCash({
-                      1000: d.cash?.[`${prefix}1000`] ?? "", 500: d.cash?.[`${prefix}500`] ?? "",
-                      100: d.cash?.[`${prefix}100`] ?? "", 50: d.cash?.[`${prefix}50`] ?? "",
-                      10: d.cash?.[`${prefix}10`] ?? "", 5: d.cash?.[`${prefix}5`] ?? "",
-                      1: d.cash?.[`${prefix}1`] ?? "",
-                    });
-                  }} style={{
-                    flex: 1, padding: 8, borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: "pointer",
-                    border: `2px solid ${modalCashPeriod === p ? C.primary : C.border}`,
-                    background: modalCashPeriod === p ? C.primary : C.card,
-                    color: modalCashPeriod === p ? "#fff" : C.text,
-                  }}>{p === "open" ? "開店" : "打烊"}</button>
-                ))}
-              </div>
-
-              <div style={{ display: "grid", gridTemplateColumns: "60px 1fr", gap: "8px 10px", alignItems: "center" }}>
-                {CASH_DENOMS.map(({ key, label }) => (
-                  <React.Fragment key={key}>
-                    <label style={{ fontSize: 13, fontWeight: 600, textAlign: "right" }}>{label}</label>
-                    <input type="number" inputMode="numeric" min="0"
-                      value={modalCash[key] ?? ""}
-                      onChange={(e) => setModalCash((prev) => ({ ...prev, [key]: e.target.value }))}
-                      placeholder="0"
-                      style={{ padding: "10px 12px", borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 16, width: "100%", boxSizing: "border-box", textAlign: "center" }}
-                    />
-                  </React.Fragment>
-                ))}
-              </div>
-
-              <button onClick={saveDetailCash} disabled={saving} style={{
-                marginTop: 12, width: "100%", padding: 10, borderRadius: 8, border: "none",
-                background: C.primary, color: "#fff", fontSize: 14, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.5 : 1,
-              }}>{saving ? "儲存中..." : "儲存零錢盤點"}</button>
-            </div>
-          )}
-
-          <div>
-            <label style={{ fontSize: 12, color: C.textMuted, display: "block", marginBottom: 6 }}>備註回覆</label>
-            <textarea value={modalNote}
-              onChange={(e) => setModalNote(e.target.value)}
-              rows={4} placeholder="輸入備註或回覆..."
-              style={{ width: "100%", padding: 10, borderRadius: 8, border: `1px solid ${C.border}`, fontSize: 13, resize: "vertical", boxSizing: "border-box" }}
-            />
-            <button onClick={saveDetailNote} disabled={saving} style={{
-              marginTop: 8, padding: "8px 20px", borderRadius: 8, border: "none",
-              background: C.notePrimary, color: "#fff", fontSize: 13, fontWeight: 600, cursor: "pointer", opacity: saving ? 0.5 : 1,
-            }}>{saving ? "儲存中..." : "儲存備註"}</button>
-          </div>
-        </div>
-      </div>
-    );
+  const onSaveNote = async () => {
+    setSavingNote(true);
+    try {
+      await saveDB04(task.id, { handoverNote: note });
+      onPatch(task.id, { handoverNote: note });
+      setMsg("已儲存"); setTimeout(() => setMsg(null), 1500);
+    } catch (e: any) {
+      setMsg("失敗：" + e.message);
+    } finally { setSavingNote(false); }
   };
 
-  if (isWide) {
-    return (
-      <>
-        <div style={{ display: "flex", gap: 20, alignItems: "flex-start" }}>
-          <div style={{ flex: "0 0 30%", maxWidth: "30%", position: "sticky", top: 70 }}>
-            {renderLeftPanel()}
-          </div>
-          <div style={{ flex: "0 0 calc(70% - 20px)", maxWidth: "calc(70% - 20px)" }}>
-            {renderRightPanel()}
-          </div>
-        </div>
-        {renderDetailModal()}
-      </>
-    );
-  }
+  const projectNames = (task.parentRelations || []).length;
 
   return (
-    <div>
-      {renderLeftPanel()}
-      {selectedTask && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: 500, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "flex-end" }}
-          onClick={() => setSelectedTask(null)}>
-          <div style={{ width: "100%", maxHeight: "85vh", overflowY: "auto", background: "#fff", borderRadius: "16px 16px 0 0", padding: 20 }}
-            onClick={(e) => e.stopPropagation()}>
-            <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: 8 }}>
-              <button onClick={() => setSelectedTask(null)} style={{ background: "none", border: "none", fontSize: 22, color: C.textMuted, cursor: "pointer" }}>✕</button>
-            </div>
-            {renderRightPanel()}
-          </div>
-        </div>
-      )}
-      {renderDetailModal()}
+    <div className="rounded p-3" style={{ background: "#fdfbf7", border: `1px solid ${C.border}` }}>
+      <label className="flex items-start gap-2 mb-3 cursor-pointer">
+        <input type="checkbox" checked={done} disabled={savingDone}
+          onChange={(e) => onToggleDone(e.target.checked)}
+          style={{ marginTop: 4 }} />
+        <span className="text-sm font-bold" style={{ color: C.text }}>{task.title || "（無標題）"}</span>
+      </label>
+
+      <div className="text-xs mb-3 space-y-0.5" style={{ color: C.textMuted }}>
+        {task.executionTime && <div>執行時間：{task.executionTime}</div>}
+        {task.deadline && <div>截止時間：{task.deadline}</div>}
+        {task.assignees && task.assignees.length > 0 && <div>責任執行：{task.assignees.join("、")}</div>}
+        {projectNames > 0 && <div>對應項目：{projectNames} 筆</div>}
+        {task.topicName && <div>主題：{task.topicName}</div>}
+      </div>
+
+      <label className="text-xs block mb-1" style={{ color: C.textMuted }}>執行備註</label>
+      <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={4}
+        className="w-full px-2 py-1.5 rounded border text-xs outline-none mb-2"
+        style={{ borderColor: C.border, background: "#fff" }} />
+      <div className="flex items-center justify-between">
+        {msg ? <span className="text-xs" style={{ color: msg.startsWith("失敗") ? C.warn : "#2d5016" }}>{msg}</span> : <span />}
+        <button onClick={onSaveNote} disabled={savingNote || note === (task.handoverNote || "")}
+          className="text-xs px-3 py-1 rounded text-white disabled:opacity-50"
+          style={{ background: C.primary, border: "none", cursor: savingNote ? "wait" : "pointer" }}>
+          {savingNote ? "儲存中…" : "儲存備註"}
+        </button>
+      </div>
     </div>
   );
+}
+
+// ── DB05 list（右下 2/3） ──────────────────────────────
+function DB05List({ parent, onPatch, onPick }: { parent: Task; onPatch: (id: string, patch: Partial<Task>) => void; onPick: (t: Task) => void }) {
+  const children = parent.children || [];
+  return (
+    <div>
+      <div className="text-sm font-bold mb-2" style={{ color: C.text }}>明細（{children.length} 筆）</div>
+      {children.length === 0 && <div className="text-xs text-center py-4" style={{ color: C.textMuted }}>此交接尚無相關 DB05 明細</div>}
+      <div className="space-y-1.5">
+        {children.map((c) => (
+          <DB05Row key={c.id} task={c} onPatch={onPatch} onPick={() => onPick(c)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DB05Row({ task, onPatch, onPick }: { task: Task; onPatch: (id: string, patch: Partial<Task>) => void; onPick: () => void }) {
+  const [done, setDone] = useState(task.executionStatus === "已完成");
+  const [busy, setBusy] = useState(false);
+  useEffect(() => { setDone(task.executionStatus === "已完成"); }, [task.id, task.executionStatus]);
+
+  const onToggle = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    e.stopPropagation();
+    const next = e.target.checked;
+    setDone(next); setBusy(true);
+    try {
+      await toggleStatus(task.id, next ? "已完成" : "執行中");
+      onPatch(task.id, { executionStatus: next ? "已完成" : "執行中" });
+    } catch (err: any) {
+      setDone(!next); alert("儲存失敗：" + err.message);
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <div className="rounded px-3 py-2 cursor-pointer hover:shadow-sm transition-shadow"
+      style={{ background: C.card, border: `1px solid ${C.border}` }}
+      onClick={onPick}>
+      <div className="flex items-start gap-2">
+        <input type="checkbox" checked={done} disabled={busy} onChange={onToggle} onClick={(e) => e.stopPropagation()}
+          style={{ marginTop: 4 }} />
+        <div className="flex-1 min-w-0">
+          <div className="text-sm" style={{ color: C.text, textDecoration: done ? "line-through" : "none" }}>{task.title || "（無標題）"}</div>
+          <div className="text-xs flex flex-wrap gap-x-3 mt-0.5" style={{ color: C.textMuted }}>
+            {task.executionTime && <span>執行：{task.executionTime}</span>}
+            {task.deadline && <span>截止：{task.deadline}</span>}
+            {task.assignees && task.assignees.length > 0 && <span>負責：{task.assignees.join("、")}</span>}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── DB05 popup（內容 + 上傳） ──────────────────────────
+type Block = {
+  id: string;
+  type: string;
+  text: string;
+  url: string | null;
+  fileType: string | null;
+  caption: string;
+};
+
+function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
+  const [blocks, setBlocks] = useState<Block[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+  const [draft, setDraft] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [uploading, setUploading] = useState(false);
+
+  const load = useCallback(async () => {
+    setLoading(true); setErr(null);
+    try {
+      const data = await apiGet(`/api/staff/page/${task.id}/content`);
+      setBlocks(data.blocks || []);
+    } catch (e: any) { setErr(e.message); }
+    finally { setLoading(false); }
+  }, [task.id]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const onAppend = async () => {
+    if (!draft.trim() || busy) return;
+    setBusy(true);
+    try {
+      const res = await staffFetch(`/api/staff/page/${task.id}/content`, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: draft.trim() }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "送出失敗");
+      setDraft("");
+      await load();
+    } catch (e: any) { alert(e.message); }
+    finally { setBusy(false); }
+  };
+
+  const onUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || uploading) return;
+    setUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await staffFetch(`/api/staff/page/${task.id}/upload`, { method: "POST", body: fd });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "上傳失敗");
+      await load();
+    } catch (e: any) { alert(e.message); }
+    finally { setUploading(false); e.target.value = ""; }
+  };
+
+  return (
+    <div onClick={onClose} className="fixed inset-0 z-50 flex items-center justify-center p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}>
+      <div onClick={(e) => e.stopPropagation()} className="rounded-lg shadow-xl flex flex-col"
+        style={{ background: "#fff", maxWidth: 700, width: "100%", maxHeight: "90vh" }}>
+        <header className="flex items-center justify-between p-4 border-b" style={{ borderColor: C.border }}>
+          <div className="text-sm font-bold" style={{ color: C.text }}>{task.title || "（無標題）"}</div>
+          <button onClick={onClose} className="text-lg" style={{ background: "none", border: "none", cursor: "pointer", color: C.textMuted }}>×</button>
+        </header>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-2">
+          {loading && <div className="text-xs text-center py-4" style={{ color: C.textMuted }}>載入中…</div>}
+          {err && <div className="text-xs p-2 rounded" style={{ background: "#fdecea", color: C.warn }}>{err}</div>}
+          {!loading && !err && blocks.length === 0 && (
+            <div className="text-xs text-center py-4" style={{ color: C.textMuted }}>此頁尚無內容</div>
+          )}
+          {blocks.map((b) => <BlockView key={b.id} b={b} />)}
+        </div>
+
+        <footer className="border-t p-4 space-y-2" style={{ borderColor: C.border }}>
+          <textarea value={draft} onChange={(e) => setDraft(e.target.value)} rows={3} placeholder="新增內容…"
+            className="w-full px-2 py-1.5 rounded border text-xs outline-none"
+            style={{ borderColor: C.border }} />
+          <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={onAppend} disabled={!draft.trim() || busy}
+              className="text-xs px-3 py-1.5 rounded text-white disabled:opacity-50"
+              style={{ background: C.primary, border: "none", cursor: busy ? "wait" : "pointer" }}>
+              {busy ? "送出中…" : "附加文字"}
+            </button>
+            <label className="text-xs px-3 py-1.5 rounded cursor-pointer"
+              style={{ background: "#fff", border: `1px solid ${C.primary}`, color: C.primary, cursor: uploading ? "wait" : "pointer" }}>
+              {uploading ? "上傳中…" : "📎 上傳檔案"}
+              <input type="file" hidden disabled={uploading} onChange={onUpload}
+                accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip" />
+            </label>
+            <span className="text-xs" style={{ color: C.textMuted }}>支援 docx/PDF/圖片/影音，最大 50MB</span>
+          </div>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+function BlockView({ b }: { b: Block }) {
+  if (b.fileType === "image" && b.url) {
+    return (
+      <div>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={b.url} alt={b.caption || ""} className="rounded max-w-full" style={{ border: `1px solid ${C.border}` }} />
+        {b.caption && <div className="text-xs mt-0.5" style={{ color: C.textMuted }}>{b.caption}</div>}
+      </div>
+    );
+  }
+  if (b.fileType === "video" && b.url) {
+    return (
+      <div>
+        <video src={b.url} controls className="rounded max-w-full" />
+        {b.caption && <div className="text-xs mt-0.5" style={{ color: C.textMuted }}>{b.caption}</div>}
+      </div>
+    );
+  }
+  if (b.fileType === "audio" && b.url) {
+    return (
+      <div>
+        <audio src={b.url} controls />
+        {b.caption && <div className="text-xs mt-0.5" style={{ color: C.textMuted }}>{b.caption}</div>}
+      </div>
+    );
+  }
+  if (b.fileType === "file" && b.url) {
+    return (
+      <a href={b.url} target="_blank" rel="noopener noreferrer" className="text-xs inline-block px-2 py-1 rounded"
+        style={{ background: "#faf8f4", border: `1px solid ${C.border}`, color: C.primary }}>
+        📎 {b.caption || b.url.split("/").pop() || "檔案"}
+      </a>
+    );
+  }
+  if (b.text) {
+    return <div className="text-sm whitespace-pre-wrap" style={{ color: C.text }}>{b.text}</div>;
+  }
+  return null;
 }
