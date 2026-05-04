@@ -9,10 +9,10 @@ import { activityProductConfig } from "@/lib/vendor-page-config";
 import { supabase } from "@/lib/supabase";
 import QrScanModal from "@/components/partner/QrScanModal";
 
-type PartnerTab = "概覽" | "資訊" | "項目" | "金流" | "設定";
+type PartnerTab = "概覽" | "項目" | "金流" | "設定";
 
 const tabIcons: Record<PartnerTab, string> = {
-  概覽: "📊", 資訊: "🏪", 項目: "📦", 金流: "💰", 設定: "⚙️",
+  概覽: "📊", 項目: "📦", 金流: "💰", 設定: "⚙️",
 };
 
 export interface VendorProduct {
@@ -23,9 +23,10 @@ export interface VendorProduct {
 interface VendorStats {
   totalProducts: number; totalSold: number; totalRevenue: number;
   avgRating: string; totalActivities: number; totalRegistrations: number; outOfStock: number;
+  reviewCount: number;
 }
 
-const emptyStats: VendorStats = { totalProducts: 0, totalSold: 0, totalRevenue: 0, avgRating: "—", totalActivities: 0, totalRegistrations: 0, outOfStock: 0 };
+const emptyStats: VendorStats = { totalProducts: 0, totalSold: 0, totalRevenue: 0, avgRating: "—", totalActivities: 0, totalRegistrations: 0, outOfStock: 0, reviewCount: 0 };
 
 export default function PartnerPage() {
   const { data: session } = useSession();
@@ -130,16 +131,18 @@ export default function PartnerPage() {
       if (notionId) {
         const { data: metrics } = await (supabase as any)
           .from("partner_metrics_v")
-          .select("reach_count, conversion_count, total_revenue, product_count, out_of_stock_count, event_count, newsletter_count")
+          .select("reach_count, conversion_count, total_revenue, product_count, out_of_stock_count, event_count, newsletter_count, avg_rating, review_count")
           .eq("notion_id", notionId)
           .maybeSingle() as {
             data: {
               reach_count: number; conversion_count: number; total_revenue: number;
               product_count: number; out_of_stock_count: number; event_count: number; newsletter_count: number;
+              avg_rating: number; review_count: number;
             } | null;
           };
 
         if (metrics) {
+          const avgR = Number(metrics.avg_rating) || 0;
           setStats(prev => ({
             ...prev,
             totalProducts: Number(metrics.product_count) || prev.totalProducts,
@@ -148,6 +151,8 @@ export default function PartnerPage() {
             totalSold: Number(metrics.conversion_count) || 0,
             totalActivities: Number(metrics.event_count) || 0,
             totalRegistrations: Number(metrics.reach_count) || 0,
+            avgRating: avgR > 0 ? avgR.toFixed(1) : "—",
+            reviewCount: Number(metrics.review_count) || 0,
           }));
         }
       }
@@ -160,7 +165,7 @@ export default function PartnerPage() {
   ];
 
   return (
-    <div className="px-3 sm:px-0" style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div className="px-3 sm:px-0" style={{ maxWidth: 1200, margin: "0 auto" }}>
       <div className="rounded-xl p-4 sm:p-5 mb-4" style={{ background: "#1a1a2e", color: "#fff" }}>
         <p className="text-xl font-bold mb-1">{displayName} <span className="font-normal">您好</span></p>
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.65)" }}>
@@ -185,7 +190,6 @@ export default function PartnerPage() {
 
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} onOpenScanner={() => setShowScanner(true)} />}
-        {activeTab === "資訊" && <VendorInfo products={products} />}
         {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
         {activeTab === "金流" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings notionId={notionId} />}
@@ -217,6 +221,15 @@ export default function PartnerPage() {
 // 概覽
 // ════════════════════════════════════════════
 function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenScanner: () => void }) {
+  // 敘事語句：「平台幫你做了什麼」
+  const avgPrice = stats.totalSold > 0 ? Math.round(stats.totalRevenue / stats.totalSold) : 0;
+  const narrativeParts: string[] = [];
+  if (stats.totalRegistrations > 0) narrativeParts.push(`你的商品與活動被 ${stats.totalRegistrations.toLocaleString()} 人看過`);
+  if (stats.totalSold > 0) narrativeParts.push(`帶來 ${stats.totalSold} 件成交／次報名`);
+  if (avgPrice > 0) narrativeParts.push(`平均客單 NT$${avgPrice.toLocaleString()}`);
+  if (stats.totalRevenue > 0) narrativeParts.push(`累計營收 NT$${stats.totalRevenue.toLocaleString()}`);
+  const narrative = narrativeParts.length > 0 ? narrativeParts.join("，") + "。" : null;
+
   return (
     <div>
       {/* 統計標題列 + 掃碼按鈕 */}
@@ -233,109 +246,35 @@ function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenSc
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
         <StatCard label="上架商品" value={stats.totalProducts} unit="件" color="#7a5c40" />
-        <StatCard label="總銷售量" value={stats.totalSold} unit="件" color="#4ECDC4" />
-        <StatCard label="總營收" value={`NT$${stats.totalRevenue.toLocaleString()}`} unit="" color="#e8935a" />
-        <StatCard label="平均評分" value={stats.avgRating} unit="" color="#f5a623" />
+        <StatCard label="有效參與" value={stats.totalSold} unit="件／次" color="#4ECDC4" />
+        <StatCard label="累計營收" value={`NT$${stats.totalRevenue.toLocaleString()}`} unit="" color="#e8935a" />
+        <StatCard label="評價評分" value={stats.avgRating} unit={stats.reviewCount > 0 ? `(${stats.reviewCount}則)` : ""} color="#f5a623" />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-        <StatCard label="活動數" value={stats.totalActivities} unit="場" color="#1a1a2e" />
-        <StatCard label="觸及人次" value={stats.totalRegistrations} unit="次" color="#4CAF50" />
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-4">
+        <StatCard label="合作活動" value={stats.totalActivities} unit="場" color="#1a1a2e" />
+        <StatCard label="曝光觸及" value={stats.totalRegistrations} unit="人次" color="#4CAF50" />
         <StatCard label="缺貨商品" value={stats.outOfStock} unit="項" color="#e53e3e" />
       </div>
+
+      {/* 敘事摘要句 */}
+      {narrative && (
+        <div className="rounded-xl px-4 py-3 mb-6 text-sm" style={{ background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", color: "#1a1a2e", lineHeight: 1.7 }}>
+          📊 {narrative}
+        </div>
+      )}
+      {!narrative && (
+        <div className="rounded-xl px-4 py-3 mb-6 text-sm" style={{ background: "#faf8f4", border: "1px dashed #c8b89a", color: "#aaa" }}>
+          資料累積中，成交或瀏覽紀錄出現後即會顯示摘要。
+        </div>
+      )}
+
       <PartnerReviews />
     </div>
   );
 }
 
 // ════════════════════════════════════════════
-// 資訊 — 商品唯讀展示（商品由 Notion DB07 管理，Noah 審核後同步）
-// ════════════════════════════════════════════
-function VendorInfo({ products }: { products: VendorProduct[] }) {
-  const active = products.filter(p => p.active);
-  const inactive = products.filter(p => !p.active);
-
-  return (
-    <div>
-      <div className="mb-4">
-        <h2 className="text-base font-semibold" style={{ color: "#1a1a2e" }}>商品資訊</h2>
-        <p className="text-xs mt-0.5" style={{ color: "#999" }}>顯示在官網及市集預購頁面的商品清單</p>
-      </div>
-
-      {/* 聯絡提示 */}
-      <div className="rounded-xl p-4 mb-5 flex items-start gap-3"
-        style={{ background: "rgba(78,205,196,0.08)", border: "1px solid rgba(78,205,196,0.3)" }}>
-        <span className="text-lg flex-shrink-0">💬</span>
-        <div>
-          <p className="text-sm font-medium" style={{ color: "#1a1a2e" }}>想新增或修改商品？</p>
-          <p className="text-xs mt-1" style={{ color: "#555" }}>
-            商品資料由管理員統一維護，確保品牌一致性。請透過以下方式聯繫：
-          </p>
-          <div className="flex flex-wrap gap-3 mt-2">
-            <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
-              className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold"
-              style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
-              LINE 官方帳號
-            </a>
-            <a href="mailto:hello@makesense.ink"
-              className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold"
-              style={{ background: "#fff", color: "#7a5c40", border: "1px solid #c8b89a", textDecoration: "none" }}>
-              ✉ 寄信聯絡
-            </a>
-          </div>
-        </div>
-      </div>
-
-      {active.length === 0 ? (
-        <div className="rounded-xl py-12 text-center mb-6" style={{ background: "#faf8f4", border: "1px dashed #c8b89a" }}>
-          <p className="text-2xl mb-2">🏪</p>
-          <p className="text-sm font-medium" style={{ color: "#7a5c40" }}>尚無上架商品</p>
-          <p className="text-xs mt-1" style={{ color: "#aaa" }}>聯繫管理員即可新增商品</p>
-        </div>
-      ) : (
-        <div className="grid gap-3 mb-6" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-          {active.map(p => <ProductCard key={p.id} product={p} />)}
-        </div>
-      )}
-      {inactive.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold mb-2" style={{ color: "#aaa" }}>已下架（{inactive.length} 項）</p>
-          <div className="grid gap-3" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-            {inactive.map(p => <ProductCard key={p.id} product={p} />)}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-}
-
-function ProductCard({ product: p }: { product: VendorProduct }) {
-  const stock = typeof p.stock === "number" ? p.stock : 0;
-  return (
-    <div className="rounded-xl p-4 flex flex-col gap-2"
-      style={{ background: p.active ? "#fff" : "#fafafa", border: `1px solid ${p.active ? "#e8e0d4" : "#eee"}`, opacity: p.active ? 1 : 0.6 }}>
-      {p.photo && <img src={p.photo} alt={p.name} className="w-full h-32 object-cover rounded-lg mb-1" />}
-      <div className="flex items-start justify-between gap-2">
-        <p className="text-sm font-semibold" style={{ color: "#1a1a2e" }}>{p.name}</p>
-        <span className="text-xs px-2 py-0.5 rounded-full flex-shrink-0"
-          style={{ background: p.active ? "rgba(78,205,196,0.12)" : "#f5f5f5", color: p.active ? "#3aa89f" : "#aaa" }}>
-          {p.active ? "上架中" : "已下架"}
-        </span>
-      </div>
-      <div className="flex items-center gap-3 text-xs" style={{ color: "#888" }}>
-        {p.price !== "" && <span style={{ color: "#e8935a", fontWeight: 600 }}>NT$ {Number(p.price).toLocaleString()}</span>}
-        {p.stock !== "" && (
-          <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#C4864A" : "#666" }}>
-            庫存 {stock === 0 ? "缺貨" : `${stock} 件`}
-          </span>
-        )}
-      </div>
-      {p.note && <p className="text-xs" style={{ color: "#999" }}>{p.note}</p>}
-    </div>
-  );
-}
-
-// ════════════════════════════════════════════
-// 項目（合作活動 + 商品列表）
+// 項目（合作活動 + 地方通訊文章 + 上架商品）
 // ════════════════════════════════════════════
 const TODAY = new Date("2026-04-13");
 
@@ -465,7 +404,7 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
                           選擇要加入此活動預購的商品（可不選，純報名頁）：
                         </p>
                         {vendorProducts.length === 0 ? (
-                          <p className="text-xs py-3" style={{ color: "#aaa" }}>尚無上架商品，請先到「資訊」Tab 新增商品</p>
+                          <p className="text-xs py-3" style={{ color: "#aaa" }}>尚無上架商品，請聯繫管理員新增</p>
                         ) : (
                           <div className="space-y-2 mb-4">
                             {vendorProducts.map(p => (
@@ -530,7 +469,16 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
       {/* 上架商品 */}
       <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
         <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📚 上架商品</h3>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📚 上架商品</h3>
+            <div className="flex items-center gap-2">
+              <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
+                className="flex items-center gap-1 px-2.5 h-8 rounded-lg text-xs font-semibold"
+                style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
+                💬 聯繫新增／修改
+              </a>
+            </div>
+          </div>
         </div>
         {/* Mobile card list */}
         <div className="sm:hidden">

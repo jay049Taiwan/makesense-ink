@@ -58,7 +58,7 @@ export default function MyPointsPage() {
   }, []);
 
   return (
-    <div className="mx-auto px-4 py-8" style={{ maxWidth: 1000 }}>
+    <div className="mx-auto px-4 py-8" style={{ maxWidth: 1200 }}>
       <div className="mb-6">
         <Link href="/dashboard" className="text-sm" style={{ color: "var(--color-teal)" }}>
           ← 回會員中心
