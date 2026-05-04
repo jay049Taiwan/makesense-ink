@@ -258,15 +258,14 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
 }
 
 export async function fetchPersonByEmail(email: string): Promise<KeywordItem | null> {
-  try {
-    const results = await queryDatabase(
-      DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
-      undefined,
-      1
-    );
-    if (results.length === 0) return null;
-    const page = results[0] as any;
+  const normalEmail = normalizeEmail(email);
+
+  const queryDB08 = async (queryEmail: string) =>
+    queryDatabase(DB.DB08_RELATIONSHIP,
+      { property: "Email", rich_text: { equals: queryEmail } },
+      undefined, 1);
+
+  const mapPage = (page: any): KeywordItem => {
     const props = page.properties;
     return {
       id: page.id,
@@ -275,17 +274,32 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };
+  };
+
+  try {
+    let results = await queryDB08(normalEmail);
+    // Fallback：若 normalized 查無此人，改用原始 email（相容 Notion 尚未正規化的舊資料）
+    if (results.length === 0 && email !== normalEmail) {
+      results = await queryDB08(email);
+    }
+    if (results.length === 0) return null;
+    return mapPage(results[0] as any);
   } catch (e) { console.error("fetchPersonByEmail error:", e); return null; }
 }
 
 export async function checkMemberStatus(email: string): Promise<string | null> {
+  const normalEmail = normalizeEmail(email);
   try {
-    const results = await queryDatabase(
+    let results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
-      undefined,
-      1
-    );
+      { property: "Email", rich_text: { equals: normalEmail } },
+      undefined, 1);
+    if (results.length === 0 && email !== normalEmail) {
+      results = await queryDatabase(
+        DB.DB08_RELATIONSHIP,
+        { property: "Email", rich_text: { equals: email } },
+        undefined, 1);
+    }
     if (results.length === 0) return null;
     const props = (results[0] as any).properties;
     return extractStatus(props["會員狀態"]?.status) || null;
@@ -314,21 +328,27 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
 }
 
 // 判斷是否為合作夥伴（DB08 會員狀態=會員 AND 關係選項=合作夥伴）
+// 用 fetch-all + post-filter 確保 Gmail 點號變體都能對到
+// （否則「Notion 存帶點 jay.049 / 程式碼比對去點 jay049」會永遠 mismatch）
 export async function checkIsVendor(email: string): Promise<boolean> {
+  const normalEmail = normalizeEmail(email);
+  if (!normalEmail) return false;
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
       {
         and: [
-          { property: "Email", rich_text: { equals: normalizeEmail(email) } },
           { property: "會員狀態", status: { equals: "會員" } },
           { property: "關係選項", select: { equals: "合作夥伴" } },
         ],
       },
       undefined,
-      1
+      100
     );
-    return results.length > 0;
+    return results.some((r: any) => {
+      const stored = extractText(r.properties?.Email?.rich_text);
+      return stored && normalizeEmail(stored) === normalEmail;
+    });
   } catch (e) { console.error("checkIsVendor error:", e); return false; }
 }
 
@@ -343,15 +363,8 @@ export interface VendorProfile {
 
 // 取得合作單位完整資料（DB08）
 export async function fetchVendorProfile(email: string): Promise<VendorProfile | null> {
-  try {
-    const results = await queryDatabase(
-      DB.DB08_RELATIONSHIP,
-      { property: "Email", rich_text: { equals: normalizeEmail(email) } },
-      undefined,
-      1
-    );
-    if (results.length === 0) return null;
-    const page = results[0] as any;
+  const normalEmail = normalizeEmail(email);
+  const mapPage = (page: any): VendorProfile => {
     const props = page.properties;
     return {
       id: page.id,
@@ -361,25 +374,40 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
       phone: extractText(props["電話"]?.rich_text) || "",  // 2026/04/17：「聯繫電話」不存在，統一用「電話」
       summary: extractText(props["簡介摘要"]?.rich_text),
     };
+  };
+  try {
+    let results = await queryDatabase(
+      DB.DB08_RELATIONSHIP, { property: "Email", rich_text: { equals: normalEmail } }, undefined, 1);
+    if (results.length === 0 && email !== normalEmail) {
+      results = await queryDatabase(
+        DB.DB08_RELATIONSHIP, { property: "Email", rich_text: { equals: email } }, undefined, 1);
+    }
+    if (results.length === 0) return null;
+    return mapPage(results[0] as any);
   } catch (e) { console.error("fetchVendorProfile error:", e); return null; }
 }
 
 // 判斷是否為工作人員（DB08 會員狀態=會員 AND 關係選項=工作團隊）
+// 同 checkIsVendor — fetch-all + post-filter 容忍 Gmail 點號變體
 export async function checkIsStaff(email: string): Promise<boolean> {
+  const normalEmail = normalizeEmail(email);
+  if (!normalEmail) return false;
   try {
     const results = await queryDatabase(
       DB.DB08_RELATIONSHIP,
       {
         and: [
-          { property: "Email", rich_text: { equals: normalizeEmail(email) } },
           { property: "會員狀態", status: { equals: "會員" } },
           { property: "關係選項", select: { equals: "工作團隊" } },
         ],
       },
       undefined,
-      1
+      100
     );
-    return results.length > 0;
+    return results.some((r: any) => {
+      const stored = extractText(r.properties?.Email?.rich_text);
+      return stored && normalizeEmail(stored) === normalEmail;
+    });
   } catch (e) { console.error("checkIsStaff error:", e); return false; }
 }
 
