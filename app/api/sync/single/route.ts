@@ -203,7 +203,7 @@ async function lookupPersonName(notionId: string): Promise<string | null> {
 
 /**
  * 查 DB08 entry 的顯示名稱：先 persons，沒有就 topics，再沒有就 partners。
- * 用於 route stops 等情境（地點可能是觀點、標籤、合作夥伴而不是人物）。
+ * 全都沒有就直接從 Notion 抓 page 的「經營名稱」title（DB08 還沒同步到 Supabase 也能拿到）。
  */
 async function lookupDb08Name(notionId: string): Promise<string | null> {
   if (!notionId) return null;
@@ -214,7 +214,14 @@ async function lookupDb08Name(notionId: string): Promise<string | null> {
   if (topicsRes.data?.name) return topicsRes.data.name;
   const partnersRes = await supabase.from("partners").select("name").eq("notion_id", clean).maybeSingle();
   if (partnersRes.data?.name) return partnersRes.data.name;
-  return null;
+  // Fallback: 直接從 Notion 抓 DB08 page 的 title「經營名稱」
+  try {
+    const page: any = await getPage(notionId);
+    const title = (page.properties?.["經營名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+    return title || null;
+  } catch {
+    return null;
+  }
 }
 
 // ── DB04 → events ──
