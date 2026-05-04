@@ -446,6 +446,81 @@ async function syncSingleReservation(nid: string, props: any) {
   }
   await supabase.from("orders").update(orderUpdates).eq("id", order.id);
 
+  // 錄取時補寫事件型點數（距離行程 + 簽到退）
+  // reservation 模式在 checkout 時不寫點數，等錄取確認後才算數
+  if (result === "accepted" && order.member_id) {
+    try {
+      // 冪等保護：若已存在相同訂單的事件型點數則跳過
+      const { data: existingLedger } = await supabase
+        .from("point_ledger")
+        .select("type")
+        .eq("source_table", "orders")
+        .eq("source_id", order.id)
+        .in("type", ["距離行程", "簽到退"]);
+      const existingTypes = new Set((existingLedger || []).map((l: any) => l.type));
+
+      const { data: orderItems } = await supabase
+        .from("order_items")
+        .select("item_type, item_id, quantity")
+        .eq("order_id", order.id);
+
+      if (orderItems && orderItems.length > 0) {
+        const eventLedgerRows: Array<{
+          member_id: string; type: string; value: number;
+          source_table: string; source_id: string; note: string;
+        }> = [];
+
+        // 距離行程：走讀類活動（item_type = '走讀'）
+        if (!existingTypes.has("距離行程")) {
+          const walkIds = [...new Set(
+            orderItems.filter((i: any) => i.item_type === "走讀" && i.item_id).map((i: any) => i.item_id)
+          )];
+          if (walkIds.length > 0) {
+            const { data: walkEvents } = await supabase
+              .from("events")
+              .select("id, distance_km")
+              .in("id", walkIds);
+            const totalDist = (walkEvents || []).reduce(
+              (s: number, e: any) => s + (Number(e.distance_km) || 0), 0
+            );
+            if (totalDist > 0) {
+              eventLedgerRows.push({
+                member_id: order.member_id,
+                type: "距離行程",
+                value: totalDist,
+                source_table: "orders",
+                source_id: order.id,
+                note: `${totalDist} km（走讀行旅錄取）`,
+              });
+            }
+          }
+        }
+
+        // 簽到退：講座課程類活動（item_type = '講座'）
+        if (!existingTypes.has("簽到退")) {
+          const lectureItems = orderItems.filter((i: any) => i.item_type === "講座" && i.item_id);
+          const uniqueLectureCount = new Set(lectureItems.map((i: any) => i.item_id)).size;
+          if (uniqueLectureCount > 0) {
+            eventLedgerRows.push({
+              member_id: order.member_id,
+              type: "簽到退",
+              value: uniqueLectureCount,
+              source_table: "orders",
+              source_id: order.id,
+              note: `${uniqueLectureCount} 場講座課程（錄取）`,
+            });
+          }
+        }
+
+        if (eventLedgerRows.length > 0) {
+          await supabase.from("point_ledger").insert(eventLedgerRows);
+        }
+      }
+    } catch (e: any) {
+      console.warn("[syncReservation] 事件型點數寫入失敗:", e?.message);
+    }
+  }
+
   return {
     table: "reservation",
     orderId: order.id,
@@ -761,6 +836,23 @@ async function syncSingleRelation(nid: string, props: any) {
   const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
 
   const results: any[] = [];
+
+  // ── 寫入 db08_places（不限經營類型，只要「地點」property 有座標就 upsert）──
+  // 這張表是全工作區的地點權威，給走讀路線、地圖功能用
+  const placeProp = props["地點"];
+  if (placeProp?.type === "place" && placeProp.place?.lat != null && placeProp.place?.lon != null) {
+    const placeRow = {
+      notion_id: nid,
+      name: t(props["經營名稱"]) || "未命名",
+      place: placeProp.place,  // { lat, lon, name, address, aws_place_id, google_place_id }
+      region: extractSelect(props["行政區域"]?.select) || null,
+      category: category || null,
+      updated_at: new Date().toISOString(),
+    };
+    const { error } = await supabase.from("db08_places").upsert(placeRow, { onConflict: "notion_id" });
+    if (error) console.warn(`db08_places upsert: ${error.message}`);
+    else results.push({ table: "db08_places", title: placeRow.name });
+  }
 
   // ── 寫入 topics（經營類型 IN 觀點, 標籤）──
   if (category === "觀點" || category === "標籤") {

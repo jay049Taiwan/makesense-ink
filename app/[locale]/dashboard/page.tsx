@@ -129,7 +129,7 @@ function MemberOverview() {
     }
   };
   const [stats, setStats] = useState({ points: 0, level: "Lv.1" as string, totalSpent: 0, totalItems: 0, totalEvents: 0 });
-  const [footprint, setFootprint] = useState({ distanceKm: 0, cultureHours: 0, spendingPoints: 0 });
+  const [footprint, setFootprint] = useState({ distanceKm: 0, cultureHours: 0, spendingPoints: 0, checkinCount: 0 });
 
   const [purchases, setPurchases] = useState<any[]>([]);
   const [orders, setOrders] = useState<any[]>([]);
@@ -190,6 +190,7 @@ function MemberOverview() {
           distanceKm: data.balance.distance_km ?? 0,
           spendingPoints: data.balance.spending_points ?? 0,
           cultureHours: data.cultureHours ?? 0,
+          checkinCount: data.balance.checkin_count ?? 0,
         }));
       }
     } catch {}
@@ -214,7 +215,7 @@ function MemberOverview() {
 
   // Dev: mock 文化足跡數值
   useEffect(() => {
-    if (isDev) setFootprint({ distanceKm: 12.5, cultureHours: 8.5, spendingPoints: 185 });
+    if (isDev) setFootprint({ distanceKm: 12.5, cultureHours: 8.5, spendingPoints: 185, checkinCount: 3 });
   }, [isDev]);
 
   const [showQR, setShowQR] = useState(false);
@@ -277,7 +278,7 @@ function MemberOverview() {
   const filteredItems = activeCategory === "全部" ? purchases : purchases.filter(p => (CAT_LABELS[p.category] || p.category) === activeCategory);
 
   return (
-    <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+    <div style={{ maxWidth: 1200, margin: "0 auto" }}>
       {/* ── 綁定訊息 toast ── */}
       {bindMsg && (
         <div className="rounded-lg px-4 py-2 mb-3 text-sm" style={{ background: bindMsg.type === "success" ? "#d1f5e0" : "#fde2e2", color: bindMsg.type === "success" ? "#0f5132" : "#842029" }}>
@@ -384,7 +385,7 @@ function MemberOverview() {
           <FootprintCard icon="🗺️" value={footprint.distanceKm} unit="km" label="走讀里程" color="#4ECDC4" hint="走讀活動累積距離" />
           <FootprintCard icon="⏱️" value={footprint.cultureHours} unit="hr" label="文化時數" color="#b89e7a" hint="走讀 / 市集活動時長" />
           <FootprintCard icon="✨" value={footprint.spendingPoints || stats.points} unit="pt" label="文化積分" color="#ffcc00" hint="消費 10 元 = 1 點" />
-          <FootprintCard icon="💡" value={Object.keys(topicCount).length} unit="個" label="觸及觀點" color="#e8935a" hint="購買涵蓋的議題數" />
+          <FootprintCard icon="🎯" value={footprint.checkinCount} unit="次" label="活動參與" color="#7c6ef9" hint="講座課程錄取場次" />
           <FootprintCard icon="⭐" value={ratedCount} unit="筆" label="意見貢獻" color="#7ec8e3" hint="完成評價的次數" />
         </div>
       </div>
