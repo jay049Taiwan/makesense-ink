@@ -21,13 +21,10 @@ function fmtDate(d: Date) {
 
 // POST /api/staff/attendance — 寫入打卡 / 日誌 / 請假 / 加班
 //
-// Body:
-//   sub_type: '打卡' | '日誌' | '請假' | '加班'
-//   payload : sub_type 對應的彈性資料
-//     打卡: { action: '上班' | '下班' }
-//     日誌: { content: string }
-//     請假: { leave_type: string, start_date: string, end_date: string, reason?: string }
-//     加班: { date: string, hours: number, reason?: string }
+// 寫入順序（Supabase 是真相來源 / Notion 是鏡射）：
+//   1. 寫 Supabase staff_activities（必須成功，失敗整筆失敗）
+//   2. best-effort 寫 Notion DB05 鏡射；成功 → 回填 notion_db05_id + notion_synced_at
+//      失敗 → notion_sync_error 留訊息，但 API 仍回 success（資料在 Supabase）
 export async function POST(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
@@ -47,7 +44,6 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "員工 email 缺失，無法寫入紀錄" }, { status: 400 });
   }
 
-  // 解析員工 staff_id（用於 Supabase 同步）+ DB08 page id（給 helper）
   const staffId = await getStaffIdByEmail(email);
   if (!staffId) {
     return NextResponse.json({ error: "員工資料未同步，請聯繫管理員" }, { status: 409 });
@@ -88,41 +84,47 @@ export async function POST(req: Request) {
     hours = hrs;
   }
 
-  // Step 1: 寫入 Notion DB05
-  let notionId: string | null = null;
-  try {
-    const result = await writeStaffDB05Record({
-      type: "attendance",
-      detail,
-      title,
-      staffEmail: email,
-      content,
-    });
-    notionId = result.id;
-  } catch (err: any) {
-    console.error("[attendance] Notion write failed:", err.message);
-    return NextResponse.json({ error: "寫入 Notion 失敗：" + err.message }, { status: 500 });
-  }
-
-  // Step 2: 同步到 Supabase staff_activities（讀取走 Supabase）
-  try {
-    await supabaseAdmin.from("staff_activities").insert({
+  // Step 1（必須成功）：Supabase staff_activities — Supabase 是真相來源
+  const { data: activity, error: insertErr } = await supabaseAdmin
+    .from("staff_activities")
+    .insert({
       staff_id: staffId,
       task_type: sub_type,
-      notion_db05_id: notionId,
-      detail: payload || {},
+      detail: { ...payload, _title: title, _content: content },
       activity_date: activityDate,
       hours,
-    });
-  } catch (err: any) {
-    console.error("[attendance] Supabase sync failed:", err.message);
-    // 不擋使用者，Notion 已寫入；同步失敗只記錄
+    })
+    .select("id")
+    .single();
+  if (insertErr || !activity) {
+    console.error("[attendance] Supabase insert failed:", insertErr?.message);
+    return NextResponse.json({ error: "儲存失敗：" + (insertErr?.message || "unknown") }, { status: 500 });
   }
 
-  return NextResponse.json({ success: true, db05_id: notionId });
+  // Step 2（best-effort）：Notion DB05 鏡射
+  try {
+    const result = await writeStaffDB05Record({
+      type: "attendance", detail, title, staffEmail: email, content,
+    });
+    await supabaseAdmin
+      .from("staff_activities")
+      .update({ notion_db05_id: result.id, notion_synced_at: new Date().toISOString(), notion_sync_error: null })
+      .eq("id", activity.id);
+    return NextResponse.json({ success: true, id: activity.id, notion_db05_id: result.id });
+  } catch (err: any) {
+    console.error("[attendance] Notion mirror failed:", err.message);
+    await supabaseAdmin
+      .from("staff_activities")
+      .update({ notion_sync_error: err.message?.slice(0, 500) || "unknown" })
+      .eq("id", activity.id);
+    return NextResponse.json({
+      success: true, id: activity.id, notion_db05_id: null,
+      warning: "資料已存入 Supabase，但 Notion 鏡射暫時失敗（可後續補同步）",
+    });
+  }
 }
 
-// GET /api/staff/attendance?sub_type=打卡&limit=30 — 讀取歷史紀錄
+// GET /api/staff/attendance?sub_type=打卡&limit=30 — 讀歷史（純 Supabase）
 export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
@@ -142,7 +144,7 @@ export async function GET(req: Request) {
 
   let q = supabaseAdmin
     .from("staff_activities")
-    .select("id, task_type, detail, activity_date, hours, notion_db05_id, created_at")
+    .select("id, task_type, detail, activity_date, hours, notion_db05_id, notion_synced_at, notion_sync_error, created_at")
     .eq("staff_id", staffId)
     .not("task_type", "is", null)
     .order("created_at", { ascending: false })

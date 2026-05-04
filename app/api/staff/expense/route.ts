@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { requireStaff } from "../_guard";
-import { writeStaffDB05Record } from "@/lib/staff-helper";
+import { writeStaffDB05Record, getStaffIdByEmail } from "@/lib/staff-helper";
+import { supabaseAdmin } from "@/lib/supabase";
 
-// 子類型 → DB05 請款請購 option 值
 const SUB_TYPE_TO_DETAIL: Record<string, string> = {
   請款: "請款轉交",
   請購: "請購直匯",
@@ -13,21 +13,10 @@ function fmtDate(d: Date) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 }
 
-interface Item {
-  name: string;
-  price: number;
-  qty: number;
-  note?: string;
-  url?: string;
-}
+interface Item { name: string; price: number; qty: number; note?: string; url?: string; }
 
-// POST /api/staff/expense — 寫入請款 / 請購
-//
-// Body:
-//   sub_type    : '請款' | '請購'
-//   items       : Item[]
-//   has_receipt : boolean (僅請款)
-//   note        : string (僅請款)
+// POST /api/staff/expense — 請款 / 請購
+//   寫入順序：Supabase staff_activities（真相來源）→ Notion DB05（鏡射，best-effort）
 export async function POST(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
@@ -43,11 +32,11 @@ export async function POST(req: Request) {
   }
 
   const email = guard.email;
-  if (!email) {
-    return NextResponse.json({ error: "員工 email 缺失，無法寫入紀錄" }, { status: 400 });
-  }
+  if (!email) return NextResponse.json({ error: "員工 email 缺失" }, { status: 400 });
 
-  // 過濾無效品項
+  const staffId = await getStaffIdByEmail(email);
+  if (!staffId) return NextResponse.json({ error: "員工資料未同步" }, { status: 409 });
+
   const validItems: Item[] = (items as Item[]).filter(
     (i) => i && i.name && Number(i.price) > 0 && Number(i.qty) > 0
   );
@@ -56,12 +45,9 @@ export async function POST(req: Request) {
   }
 
   const total = validItems.reduce((s, i) => s + Number(i.price) * Number(i.qty), 0);
-
-  // 標題：請款 2026-05-04 NT$1,234（3 筆）
   const today = fmtDate(new Date());
   const title = `${sub_type} ${today} NT$${total.toLocaleString()}（${validItems.length} 筆）`;
 
-  // 內容：列出所有品項
   const lines = validItems.map((i, idx) => {
     const sub = `${idx + 1}. ${i.name} ｜ NT$${i.price} × ${i.qty} = NT$${Number(i.price) * Number(i.qty)}`;
     const extras: string[] = [];
@@ -75,18 +61,41 @@ export async function POST(req: Request) {
   }
   const content = lines.join("\n");
 
+  // Step 1（必須成功）：Supabase
+  const { data: activity, error: insertErr } = await supabaseAdmin
+    .from("staff_activities")
+    .insert({
+      staff_id: staffId,
+      task_type: sub_type,
+      detail: { items: validItems, has_receipt: !!has_receipt, note: note || null, total, _title: title, _content: content },
+      activity_date: today,
+    })
+    .select("id")
+    .single();
+  if (insertErr || !activity) {
+    console.error("[expense] Supabase insert failed:", insertErr?.message);
+    return NextResponse.json({ error: "儲存失敗：" + (insertErr?.message || "unknown") }, { status: 500 });
+  }
+
+  // Step 2（best-effort）：Notion 鏡射
   try {
     const result = await writeStaffDB05Record({
-      type: "expense",
-      detail,
-      title,
-      staffEmail: email,
-      amount: total,
-      content,
+      type: "expense", detail, title, staffEmail: email, amount: total, content,
     });
-    return NextResponse.json({ success: true, db05_id: result.id, total });
+    await supabaseAdmin
+      .from("staff_activities")
+      .update({ notion_db05_id: result.id, notion_synced_at: new Date().toISOString(), notion_sync_error: null })
+      .eq("id", activity.id);
+    return NextResponse.json({ success: true, id: activity.id, notion_db05_id: result.id, total });
   } catch (err: any) {
-    console.error("[expense] Notion write failed:", err.message);
-    return NextResponse.json({ error: "寫入 Notion 失敗：" + err.message }, { status: 500 });
+    console.error("[expense] Notion mirror failed:", err.message);
+    await supabaseAdmin
+      .from("staff_activities")
+      .update({ notion_sync_error: err.message?.slice(0, 500) || "unknown" })
+      .eq("id", activity.id);
+    return NextResponse.json({
+      success: true, id: activity.id, notion_db05_id: null, total,
+      warning: "資料已存入 Supabase，但 Notion 鏡射暫時失敗",
+    });
   }
 }
