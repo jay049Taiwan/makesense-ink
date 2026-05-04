@@ -71,16 +71,17 @@ export async function POST(req: NextRequest) {
         topics: `${SITE_URL}/viewpoint/${cleanId}`,
       };
       const table = result.table;
+      const statusField = statusFieldFor(table);
       // 話題推薦用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
       const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題推薦");
       if (urlMap[table] && result.status !== "draft" && result.status !== null) {
         if (isShowcaseOnly) {
-          await writebackPublishNoUrl(cleanId);
+          await writebackPublishNoUrl(cleanId, statusField);
         } else {
-          await writebackPublish(cleanId, urlMap[table]);
+          await writebackPublish(cleanId, urlMap[table], statusField);
         }
       } else if (result.status === "draft") {
-        await writebackUnpublish(cleanId);
+        await writebackUnpublish(cleanId, statusField);
       }
 
       // AI 翻譯（非阻塞，背景做就好）
@@ -130,8 +131,13 @@ function mapStatus(val: string | null, map: Record<string, string>): string | nu
   return map[val] || "draft";
 }
 
+/** DB04 用「登記發佈」，其他 DB 用「發佈狀態」 */
+function statusFieldFor(table: string): string {
+  return table === "events" ? "登記發佈" : "發佈狀態";
+}
+
 /** 回寫 Notion：上架 → 狀態改「已發佈」+ 寫入 URL */
-async function writebackPublish(pageId: string, url: string) {
+async function writebackPublish(pageId: string, url: string, statusField: string = "發佈狀態") {
   const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
   const NOTION_KEY = process.env.NOTION_API_KEY;
 
@@ -146,7 +152,7 @@ async function writebackPublish(pageId: string, url: string) {
       },
       body: JSON.stringify({
         properties: {
-          "發佈狀態": { status: { name: "已發佈" } },
+          [statusField]: { status: { name: "已發佈" } },
           "對應連結": { url },
         },
       }),
@@ -163,11 +169,11 @@ async function writebackPublish(pageId: string, url: string) {
 }
 
 /** 回寫 Notion：話題推薦上架 → 狀態「已發佈」+ 對應連結指向旅人書店首頁（方便 Noah 辨識/點擊確認） */
-async function writebackPublishNoUrl(pageId: string) {
+async function writebackPublishNoUrl(pageId: string, statusField: string = "發佈狀態") {
   try {
     const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
     await updatePage(uuid, {
-      "發佈狀態": { status: { name: "已發佈" } },
+      [statusField]: { status: { name: "已發佈" } },
       "對應連結": { url: `${SITE_URL}/bookstore` },
     });
   } catch (err: any) {
@@ -176,11 +182,11 @@ async function writebackPublishNoUrl(pageId: string) {
 }
 
 /** 回寫 Notion：下架 → 狀態改「待發佈」+ 清空對應連結（方便辨識該頁已不在官網） */
-async function writebackUnpublish(pageId: string) {
+async function writebackUnpublish(pageId: string, statusField: string = "發佈狀態") {
   try {
     const uuid = pageId.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
     await updatePage(uuid, {
-      "發佈狀態": { status: { name: "待發佈" } },
+      [statusField]: { status: { name: "待發佈" } },
       "對應連結": { url: null },
     });
   } catch (err: any) {
@@ -227,10 +233,10 @@ async function syncSingleEvent(nid: string, props: any) {
     })
   )).filter((x): x is { name: string; price: string; notion_id: string } => x !== null);
 
-  // 基本票價 = 最低票種價；沒票種就看 DB04 單價 fallback
+  // 基本票價 = 最低票種價；沒票種就看 DB04 單價 fallback（實際單價優先，無則預計單價）
   const basePrice = tickets.length > 0
     ? Math.min(...tickets.map(t => Number(t.price) || 0))
-    : (num(props["單價"]) || 0);
+    : (num(props["實際單價"]) ?? num(props["預計單價"]) ?? 0);
 
   // 計算活動時長：end - start（分鐘）；只有單一日期時預設 120 分鐘（2小時）
   const durationMin = dateInfo.start && dateInfo.end
@@ -239,12 +245,12 @@ async function syncSingleEvent(nid: string, props: any) {
 
   const row = {
     notion_id: nid,
-    title: tx(props["主題名稱"]) || t(props["交接名稱"]) || "未命名活動",
-    theme: sel(props["活動類型"]),
-    event_type: sel(props["活動類型"]),
+    title: tx(props["主題名稱"]) || t(props["協作名稱"]) || "未命名活動",
+    theme: sel(props["活動細項"]),
+    event_type: sel(props["活動細項"]),
     event_date: dateInfo.start || null,
     duration_min: durationMin,
-    distance_km: num(props["距離(km)"]) ?? null,
+    distance_km: num(props["距離km"]) ?? null,
     price: basePrice,
     tickets,
     capacity: num(props["數量上限"]),
@@ -254,9 +260,9 @@ async function syncSingleEvent(nid: string, props: any) {
     location: locationName,
     guide: guideName,
     related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
-    event_category: sel(props["交接類型"]) || null,   // 專案協作 / 常規活動 etc
+    event_category: sel(props["交接類型"]) || null,   // 專案協作 / 庫存門市
     collab_type:    sel(props["協作選項"]) || null,   // 活動辦理 / 空間借用 etc
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
+    status: mapStatus(st(props["登記發佈"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });

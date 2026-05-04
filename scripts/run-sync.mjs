@@ -143,17 +143,19 @@ async function syncEvents() {
 
         return {
           notion_id: nid(page),
-          title: extractTitle(props["交接名稱"]?.title) || "未命名活動",
-          theme: extractSelect(props["活動類型"]?.select) || null,
-          event_type: extractSelect(props["活動類型"]?.select) || null,
+          title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title) || "未命名活動",
+          theme: extractSelect(props["活動細項"]?.select) || null,
+          event_type: extractSelect(props["活動細項"]?.select) || null,
           event_date: dateInfo.start || null,
-          price: extractNumber(props["單價"]?.number) || 0,
+          distance_km: extractNumber(props["距離km"]?.number) ?? null,
+          price: extractNumber(props["實際單價"]?.number) ?? extractNumber(props["預計單價"]?.number) ?? 0,
           capacity: extractNumber(props["數量上限"]?.number) || null,
+          min_capacity: extractNumber(props["最低數量"]?.number) || null,
           cover_url: fileUrl(props["上傳檔案"]) || null,
           description: extractText(props["簡介摘要"]?.rich_text) || null,
           location: locationName,
           guide: guideName,
-          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "inactive" }),
+          status: ms(extractStatus(props["登記發佈"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "inactive" }),
         };
       });
 

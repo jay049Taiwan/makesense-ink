@@ -141,8 +141,12 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 
 ## 合作後台（/dashboard/partner）
 5 個 Tab：📊 概覽 | 🏪 資訊 | 📦 項目 | 💰 金流 | ⚙️ 設定
-- 掃碼簽到功能（待加入）
+- **概覽統計**：查 `partner_metrics_v` VIEW，用 `session.notionId`（DB08 notion_id）直接 match，不再走 partner_performance 兩步查詢
+- **QrScanModal**（`components/partner/QrScanModal.tsx`）：掃描顧客 QR Code → 三步驟 Supabase 驗證 → orders 確認存在 → order_items 取商品清單 → products.publisher_notion_id 比對 notionId → 確認取貨時 UPDATE orders.checkin_status = 'checked_in'
+- **取貨 QR Code**：結帳成功頁（/checkout/success）+ 訂單詳情頁（/dashboard/orders/[id]）均顯示 QRCodeSVG（qrcode.react），value = orderId（UUID）；checked_in 時 QR Code 半透明 + 覆蓋「✅ 已取貨」badge
+- **VendorSettings**：從 `partners` 表動態讀取 name / contact（JSONB）/ created_at，不再寫死假資料
 - 近期顧客評價（從 Supabase reviews 讀取）
+- **partner session notionId**：`session.notionId` = DB08 page ID（32 碼無 dash），用於所有廠商識別查詢
 
 ## 結帳頁面（/checkout）
 - 付款方式：到門市現場付現
@@ -175,8 +179,13 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 ## Supabase 資料庫
 - 專案 ID：zgwdomvauuxaxtgqqvrn
 - URL：https://zgwdomvauuxaxtgqqvrn.supabase.co
-- 主要表：members, orders, order_items, registrations, reviews, products, events, articles, persons, topics, partners, staff, space_bookings, uploads, page_views, search_logs, wishlist, partner_applications, partner_performance, staff_activities, staff_uploads, social_metrics, translations, line_message_log
+- 主要表：members, orders, order_items, registrations, reviews, products, events, articles, persons, topics, partners, staff, space_bookings, uploads, page_views, search_logs, wishlist, partner_applications, partner_performance, staff_activities, staff_uploads, social_metrics, translations, line_message_log, encore_requests, vendor_preorders, vendor_preorder_items, workbench_notifications
+- 補充說明：market_applications, point_ledger, vendor_photos（詳見補充更新區）
+- VIEW：partner_metrics_v, point_balance（詳見補充更新區）
 - orders.checkin_status：pending(未簽到) / in_progress(進行中) / checked_in(已簽到)
+- encore_requests：敲碗再辦請求（event_slug, event_title, name, email, phone, member_id）
+- vendor_preorders：市集預購訂單（vendor_db05_notion_id, market_db04_notion_id, status）+ vendor_preorder_items（明細）
+- workbench_notifications：工作台動態通知（source_db, notion_id, event_type, event_at, title, metadata jsonb）
 
 ## Notion 資料庫
 | DB | 名稱 | 對應 Supabase 表 |
@@ -192,12 +201,24 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | DB09 | 日期紀錄 | 不同步（SQL 聚合即可） |
 
 ### 重要欄位名稱
-- DB04 的 title 欄位叫「交接名稱」，但**官網顯示標題用「主題名稱」（rich_text）**
+- DB04 的 title 欄位叫「協作名稱」，但**官網顯示標題用「主題名稱」（rich_text）**
 - DB05 的 title 欄位叫「表單名稱」，但**官網顯示標題用「主題名稱」（rich_text）**
 - DB08 的 title 欄位叫「經營名稱」
 - DB05 連 DB08：「對應對象」relation
 - DB06 連 DB08：「對應標籤對象」relation
-- 同步優先級：主題名稱 > title 欄位（交接名稱/表單名稱）→ Supabase .title
+- 同步優先級：主題名稱 > title 欄位（協作名稱/表單名稱）→ Supabase .title
+
+### DB04 重要欄位（2026/04/29 schema 校正）
+- title：**協作名稱**（不是交接名稱）
+- 主題名稱（rich_text）：官網顯示用
+- 活動細項（select，10 項）：工坊手作/陳列展售/數位活動/典禮儀式/文化冊展/講座課程/園遊市集/走讀行旅/藝文表演/其他 — 對應 events.event_type / theme
+- 實際單價 / 預計單價（number）：實際優先 fallback 預計 → events.price
+- 數量上限 / 最低數量（number）→ events.capacity / min_capacity
+- 距離km（number，無括號）→ events.distance_km
+- 簡介摘要（rich_text）→ events.description
+- 登記發佈（status：待發佈/已發佈/不發佈）→ events.status（**DB04 專屬**，其他 DB 仍叫「發佈狀態」）
+- 對應辦理單位（relation→DB08）：承辦廠商
+- 對應對象（relation→DB08）：講師/帶路人
 
 ### DB08 同步篩選規則
 DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
@@ -477,9 +498,10 @@ npm run lint   # ESLint
 - 已停用：order_items.points_earned / points_status / members.points_balance（中途加錯，已 drop）
 
 ### Supabase 新欄位（2026/04/29 partner session 補完 sync route）
-- products: `publisher_notion_id`（廠商識別，避免繞 persons 表）
-- events: `related_partner_ids` (jsonb[]) / `event_category` / `collab_type`
-- articles: `related_partner_ids` (jsonb[])
+- products: `publisher_notion_id` text — 廠商識別（DB08 notion_id，32 碼無 dash），避免繞 persons 表；`partner_metrics_v` VIEW 用此欄 join
+- events: `related_partner_ids` **text[]** / `event_category` text / `collab_type` text
+- articles: `related_partner_ids` **text[]**
+- ⚠️ `related_partner_ids` 實際型別是 `text[]`（PostgreSQL ARRAY），**不是** jsonb[]；寫入時用 `{id1,id2}` 格式或 JS 陣列
 
 ### 元件異動
 - 新增：
@@ -514,3 +536,80 @@ npm run lint   # ESLint
 - **Partner session** — /dashboard/partner（5 tab）、QrScanModal 接 Supabase、partner_metrics_v
 - **Staff session** — /dashboard/workbench、components/workbench/WorkbenchShell.tsx（兩入口共用）
 - 共用資源（components/ui/、lib/、providers/）動之前先群組告知
+
+### 會員中心功能完工（2026/05 Member session）
+
+#### 積分制度
+- 換算率：**10 元 = 1 點**（舊「1元=1點」已廢棄）
+- 消費積點：`Math.floor(total / 10)`，checkout 時寫入 point_ledger
+- /dashboard/points 顯示說明「每消費10元累積1點」
+
+#### 文化足跡 FootprintCard
+- 元件：`components/ui/FootprintCard.tsx`
+- props：`icon / value / unit / label / color / hint`（value=0 顯示「—」）
+- 5 維度：走讀里程(km) / 文化時數(hr) / 消費積點(點) / 書籍本數(本) / 付費文章(篇)
+- 暗色卡片（背景 #1a1a2e），每卡有 9px hint 說明文字
+
+#### events 表新欄位（2026/05）
+- `duration_min` integer — 活動時長（分鐘，從 DB04「執行時間」end-start 計算，無 end 預設 120）
+- `distance_km` numeric — 走讀里程（從 DB04「距離(km)」number 欄位同步）
+- sync/route.ts + sync/single/route.ts 均已補上這兩個欄位
+
+#### 走讀里程 & 文化時數串接邏輯
+- 走讀里程：checkout 購走讀商品時查 events.distance_km → 寫 point_ledger(type=距離行程)
+- 文化時數：走讀/市集訂單 distinct eventIds → JOIN duration_min → SUM/60 → cultureHours
+
+#### 已廢棄欄位（2026/05 drop）
+- `order_items.points_earned` / `order_items.points_status`
+- `members.points_balance`
+- 以上全改用 `point_ledger` 流水 + `point_balance` VIEW 聚合
+
+#### 訂單頁顯示優化（/dashboard/orders）
+- 折疊列：商品類型 chip + 名稱（最多 3 件）+「✨ +X 點」
+- item 名稱取法：`item.name || item.meta?.name || "—"`（真實資料在 meta.name）
+- 類型篩選 chip 動態生成，不再硬編碼英文字串
+
+#### 新頁面（2026/05）
+- `/dashboard/profile` — Email（唯讀/重綁 Google）、LINE 綁定、電話（可編輯）；API: /api/user/profile GET+PATCH
+- `/dashboard/orders` — 補「← 回會員中心」返回按鈕
+- 訂單空狀態引導卡片（走讀/書店）
+
+### 合作後台功能完工（2026/04/29 ~ 05/04 Partner session）
+
+#### partner_metrics_v VIEW
+- 用途：合作後台概覽統計（商品數/缺貨/營收/售出/活動/觸及）
+- 查詢方式：`.from("partner_metrics_v").eq("notion_id", notionId).maybeSingle()`
+- 欄位：`notion_id, product_count, out_of_stock_count, total_revenue, conversion_count, reach_count, event_count, newsletter_count`
+- 前提：`products.publisher_notion_id` 必須正確設為廠商 DB08 notion_id
+
+#### QrScanModal（components/partner/QrScanModal.tsx）
+- Props：`onClose: () => void`、`notionId?: string | null`
+- QR 格式支援：純 UUID / `order:UUID` / JSON `{ order_id }` / 32 碼無 dash（自動補格式）
+- 驗證流程：
+  1. orders：確認存在且 status ≠ cancelled
+  2. 若 checkin_status = 'checked_in' → 顯示「已取貨」狀態
+  3. order_items：取 item_type = 'product' 的品項
+  4. products：用 publisher_notion_id = notionId 過濾，確認此廠商擁有商品
+  5. 若無匹配商品 → 顯示「非本攤商品」
+  6. 確認取貨 → UPDATE orders SET checkin_status = 'checked_in'
+- 狀態機：scanning → loading → found / not_found / already_checked_in / wrong_vendor / completed
+- `showScanner` state 提升到 PartnerPage 層，透過 `onOpenScanner` callback 傳給 VendorOverview（確保 notionId 可存取）
+
+#### 取貨 QR Code
+- 位置：`/checkout/success`（新訂單完成後）、`/dashboard/orders/[id]`（訂單詳情）
+- 套件：`qrcode.react` — `<QRCodeSVG value={orderId} size={200} level="M" />`
+- value = 純 UUID（order id）
+- 已取貨狀態：QR opacity 0.25 + 覆蓋綠色「✅ 已取貨」圓角 badge
+- orders API 兩端均已補上 `checkin_status` 欄位（/api/orders、/api/orders/[id]）
+
+#### sync API 更新
+- `?skip-images=true` 參數：跳過 migrateCoverUrls / migrateProductImages，僅同步欄位資料（避免 Vercel 5 分鐘逾時）
+- 新欄位已加入全量同步（/api/sync/route.ts）：
+  - products：`publisher_notion_id`（從 DB07「對應發行」relation → DB08 notion_id）
+  - events：`related_partner_ids`、`event_category`、`collab_type`
+  - articles：`related_partner_ids`
+
+#### RWD 行動版（合作後台）
+- 表格全部改為 `sm:hidden` card list + `hidden sm:block` 桌面版 table 雙版本
+- 按鈕最小高度 40px
+- 容器 padding 行動版縮小

@@ -399,15 +399,15 @@ export async function fetchTimeline(limit = 100): Promise<DateRangeItem[]> {
     const results = await queryDatabase(
       DB.DB09_DATE_RANGE,
       undefined,
-      [{ property: "起算日期", direction: "ascending" as const }],
+      [{ property: "範圍日期", direction: "ascending" as const }],
       limit
     );
     return results.map((page: any) => {
       const props = page.properties;
-      const dateRange = props["起算日期"]?.date || props["範圍日期"]?.date;
+      const dateRange = props["範圍日期"]?.date;
       return {
         id: page.id,
-        title: extractTitle(props["日期名稱"]?.title || props["範圍名稱"]?.title),
+        title: extractTitle(props["紀錄名稱"]?.title),
         start: dateRange?.start || null,
         end: dateRange?.end || null,
         description: extractText(props["簡介摘要"]?.rich_text),

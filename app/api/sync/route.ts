@@ -498,14 +498,15 @@ async function syncEvents(wb = false, skipImages = false) {
 
     return {
       notion_id: nid(page),
-      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["交接名稱"]?.title) || "未命名活動",
-      theme: extractSelect(props["活動類型"]?.select) || null,
-      event_type: extractSelect(props["活動類型"]?.select) || null,
+      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title) || "未命名活動",
+      theme: extractSelect(props["活動細項"]?.select) || null,
+      event_type: extractSelect(props["活動細項"]?.select) || null,
       event_date: dateInfo.start || null,
       duration_min: durationMin,
-      distance_km: extractNumber(props["距離(km)"]?.number) ?? null,
-      price: extractNumber(props["單價"]?.number) || 0,
+      distance_km: extractNumber(props["距離km"]?.number) ?? null,
+      price: extractNumber(props["實際單價"]?.number) ?? extractNumber(props["預計單價"]?.number) ?? 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
+      min_capacity: extractNumber(props["最低數量"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       description: extractText(props["簡介摘要"]?.rich_text) || null,
       location: locationName,
@@ -513,7 +514,7 @@ async function syncEvents(wb = false, skipImages = false) {
       related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
       event_category: extractSelect(props["交接類型"]?.select) || null,
       collab_type: extractSelect(props["協作選項"]?.select) || null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      status: ms(extractStatus(props["登記發佈"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
 
@@ -526,7 +527,7 @@ async function syncEvents(wb = false, skipImages = false) {
 
   if (wb) {
     for (const page of pages) {
-      await writeback(page, `${SITE_URL}/events/${nid(page)}`, "發佈狀態", "已發佈", "對應連結");
+      await writeback(page, `${SITE_URL}/events/${nid(page)}`, "登記發佈", "已發佈", "對應連結");
     }
   }
   return result;

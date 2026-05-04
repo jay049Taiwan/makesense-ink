@@ -61,8 +61,8 @@ export async function generateMetadata(
       const id = slug.slice("market-".length);
       const page: any = await getPage(id);
       const props = page?.properties || {};
-      const title = t(props["主題名稱"]) || t(props["交接名稱"]) || "市集";
-      const dateProp = props["執行時間"]?.date || props["活動日期"]?.date;
+      const title = t(props["主題名稱"]) || t(props["協作名稱"]) || "市集";
+      const dateProp = props["執行時間"]?.date;
       const dateStr = dateProp?.start
         ? new Date(dateProp.start).toLocaleDateString("zh-TW", { year: "numeric", month: "long", day: "numeric" })
         : "";

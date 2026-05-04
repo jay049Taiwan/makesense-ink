@@ -90,10 +90,10 @@ export async function fetchActivities(limit = 5): Promise<Activity[]> {
     const props = page.properties;
     return {
       id: page.id,
-      title: extractTitle(props["交接名稱"]?.title),
+      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title),
       date: props["執行時間"]?.date?.start || null,
       endDate: props["執行時間"]?.date?.end || null,
-      type: extractSelect(props["活動類型"]?.select) || "",
+      type: extractSelect(props["活動細項"]?.select) || "",
       slug: page.id.replace(/-/g, ""),
     };
   });
