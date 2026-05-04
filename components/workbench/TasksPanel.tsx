@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState, useRef } from "react";
 import { staffFetch } from "@/lib/staff-fetch";
 
 // ── 型別 ───────────────────────────────────────────────
@@ -426,6 +426,9 @@ function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
   const [draft, setDraft] = useState("");
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiMsg, setAiMsg] = useState<string | null>(null);
+  const aiPollRef = useRef<number | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true); setErr(null);
@@ -437,6 +440,54 @@ function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
   }, [task.id]);
 
   useEffect(() => { load(); }, [load]);
+  useEffect(() => () => { if (aiPollRef.current) window.clearInterval(aiPollRef.current); }, []);
+
+  const onAiHelp = async () => {
+    if (aiBusy) return;
+    if (!confirm("請 Notion AI Agent 幫你生成此頁文案？\n（會把「AI 狀態」設為「請求協助」，AI 完成後會直接寫進此頁。）")) return;
+    setAiBusy(true);
+    setAiMsg("已通知 AI Agent，等待生成…（最多 3 分鐘）");
+    try {
+      const res = await staffFetch(`/api/staff/page/${task.id}/ai-trigger`, { method: "POST" });
+      const j = await res.json();
+      if (!res.ok) {
+        const hint = j.hint ? `\n→ ${j.hint}` : "";
+        throw new Error((j.error || "觸發失敗") + hint);
+      }
+      // 開始輪詢頁面 blocks，等到 blocks 增加就視為 AI 完成
+      const beforeCount = blocks.length;
+      const startedAt = Date.now();
+      const TIMEOUT_MS = 3 * 60 * 1000;
+      const POLL_MS = 5000;
+      aiPollRef.current = window.setInterval(async () => {
+        try {
+          const data = await apiGet(`/api/staff/page/${task.id}/content`);
+          const fresh = data.blocks || [];
+          if (fresh.length > beforeCount) {
+            // AI 寫入新 blocks 了
+            setBlocks(fresh);
+            setAiBusy(false);
+            setAiMsg(`AI 已生成 ${fresh.length - beforeCount} 個新區塊，請往上滑查看`);
+            window.setTimeout(() => setAiMsg(null), 8000);
+            if (aiPollRef.current) { window.clearInterval(aiPollRef.current); aiPollRef.current = null; }
+            return;
+          }
+          if (Date.now() - startedAt > TIMEOUT_MS) {
+            setAiBusy(false);
+            setAiMsg("AI 還沒完成（已等 3 分鐘）。可關掉視窗稍後再開回來看。");
+            if (aiPollRef.current) { window.clearInterval(aiPollRef.current); aiPollRef.current = null; }
+          }
+        } catch (e: any) {
+          // polling 失敗一次不立即放棄，下次再試
+          console.warn("[ai poll] failed:", e.message);
+        }
+      }, POLL_MS);
+    } catch (e: any) {
+      setAiBusy(false);
+      setAiMsg(null);
+      alert(e.message);
+    }
+  };
 
   const onAppend = async () => {
     if (!draft.trim() || busy) return;
@@ -493,6 +544,11 @@ function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
             className="w-full px-2 py-1.5 rounded border text-xs outline-none"
             style={{ borderColor: C.border }} />
           <div className="flex items-center gap-2 flex-wrap">
+            <button onClick={onAiHelp} disabled={aiBusy}
+              className="text-xs px-3 py-1.5 rounded text-white disabled:opacity-50"
+              style={{ background: "#1a6dbf", border: "none", cursor: aiBusy ? "wait" : "pointer" }}>
+              {aiBusy ? "🤖 生成中…" : "🤖 AI協助"}
+            </button>
             <button onClick={onAppend} disabled={!draft.trim() || busy}
               className="text-xs px-3 py-1.5 rounded text-white disabled:opacity-50"
               style={{ background: C.primary, border: "none", cursor: busy ? "wait" : "pointer" }}>
@@ -506,6 +562,11 @@ function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
             </label>
             <span className="text-xs" style={{ color: C.textMuted }}>支援 docx/PDF/圖片/影音，最大 50MB</span>
           </div>
+          {aiMsg && (
+            <div className="text-xs px-2 py-1 rounded" style={{ background: "#e8f0fa", color: "#1a6dbf", border: "1px solid #b9d4ec" }}>
+              {aiMsg}
+            </div>
+          )}
         </footer>
       </div>
     </div>
