@@ -26,7 +26,35 @@ interface VendorStats {
   reviewCount: number;
 }
 
-const emptyStats: VendorStats = { totalProducts: 0, totalSold: 0, totalRevenue: 0, avgRating: "—", totalActivities: 0, totalRegistrations: 0, outOfStock: 0, reviewCount: 0 };
+interface VendorActivity {
+  id: string; title: string; date: string; type: string; registered: number; capacity: number;
+}
+
+interface Participation {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  eventDate: string;
+  eventType: string;
+  vendorName: string;
+  status: "pending" | "approved";
+  createdAt: string;
+}
+
+const emptyStats: VendorStats = {
+  totalProducts: 0, totalSold: 0, totalRevenue: 0, avgRating: "—",
+  totalActivities: 0, totalRegistrations: 0, outOfStock: 0, reviewCount: 0,
+};
+
+// Gmail strips dots from local part — normalize before querying members table
+function normalizeEmailClient(email: string): string {
+  const [local, domain] = email.split("@");
+  if (!domain) return email.toLowerCase();
+  if (domain.toLowerCase() === "gmail.com") {
+    return local.replace(/\./g, "").toLowerCase() + "@gmail.com";
+  }
+  return email.toLowerCase();
+}
 
 export default function PartnerPage() {
   const { data: session } = useSession();
@@ -36,20 +64,16 @@ export default function PartnerPage() {
 
   const displayName = isDev ? devRole.displayName : ((session as any)?.displayName || "合作單位");
   const email = isDev ? devRole.email : (session?.user?.email || "—");
-  // notionId：DB08 page ID（session callback 已設定），去 dash 轉 32 碼
   const notionId = isDev ? null : ((session as any)?.notionId?.replace(/-/g, "") || null);
 
   const [activeTab, setActiveTab] = useState<PartnerTab>("概覽");
   const [products, setProducts] = useState<VendorProduct[]>([]);
-  const [activities, setActivities] = useState<{ id: string; title: string; date: string; type: string; registered: number; capacity: number }[]>([]);
+  const [activities, setActivities] = useState<VendorActivity[]>([]);
   const [newsletters, setNewsletters] = useState<{ id: string; title: string; date: string; summary: string }[]>([]);
+  const [participations, setParticipations] = useState<Participation[]>([]);
   const [stats, setStats] = useState<VendorStats>(emptyStats);
   const [showScanner, setShowScanner] = useState(false);
 
-  // Load products + activities + newsletters + stats from Supabase
-  // 商品：DB07「對應發行」含此廠商 + 庫存類型=商品 → products.publisher_notion_id + category like '商品%'
-  // 活動：DB04「對應對象/對應辦理單位」含此廠商 + 交接類型=專案協作 + 協作選項=活動辦理
-  // 地方通訊：DB05「對應對象」含此廠商 + 官網備項=地方通訊 → articles.related_partner_ids + web_tag
   useEffect(() => {
     if (!notionId && !isDev) return;
     (async () => {
@@ -57,13 +81,13 @@ export default function PartnerPage() {
       let prodsQuery = supabase
         .from("products")
         .select("id, name, price, stock, description, images, status, publisher_notion_id")
-        .like("category", "商品%")   // 庫存類型=商品
+        .like("category", "商品%")
         .order("created_at", { ascending: false });
 
       if (notionId) {
         prodsQuery = prodsQuery.eq("publisher_notion_id", notionId);
       } else {
-        prodsQuery = prodsQuery.limit(20); // dev mode fallback
+        prodsQuery = prodsQuery.limit(20);
       }
 
       const { data: prods } = await prodsQuery;
@@ -86,7 +110,7 @@ export default function PartnerPage() {
       }
 
       if (notionId) {
-        // ── 活動（交接類型=專案協作 + 協作選項=活動辦理 + 含此廠商）──
+        // ── 合作活動（交接類型=專案協作 + 協作選項=活動辦理 + 含此廠商）──
         const { data: evts } = await supabase
           .from("events")
           .select("id, notion_id, title, event_date, theme, capacity, status")
@@ -107,7 +131,7 @@ export default function PartnerPage() {
           })));
         }
 
-        // ── 地方通訊文章（官網備項=地方通訊 + 對應對象=此廠商）──
+        // ── 收費內容（官網備項=地方通訊 + 對應對象=此廠商）──
         const { data: arts } = await supabase
           .from("articles")
           .select("id, notion_id, title, published_at, summary")
@@ -125,10 +149,8 @@ export default function PartnerPage() {
             summary: a.summary || "",
           })));
         }
-      }
 
-      // ── 績效數據（partner_metrics_v VIEW，直接用 notionId）──
-      if (notionId) {
+        // ── 績效數據（partner_metrics_v VIEW）──
         const { data: metrics } = await (supabase as any)
           .from("partner_metrics_v")
           .select("reach_count, conversion_count, total_revenue, product_count, out_of_stock_count, event_count, newsletter_count, avg_rating, review_count")
@@ -136,8 +158,8 @@ export default function PartnerPage() {
           .maybeSingle() as {
             data: {
               reach_count: number; conversion_count: number; total_revenue: number;
-              product_count: number; out_of_stock_count: number; event_count: number; newsletter_count: number;
-              avg_rating: number; review_count: number;
+              product_count: number; out_of_stock_count: number; event_count: number;
+              newsletter_count: number; avg_rating: number; review_count: number;
             } | null;
           };
 
@@ -156,8 +178,53 @@ export default function PartnerPage() {
           }));
         }
       }
+
+      // ── 參與活動（market_applications，透過 email 查 member_id）──
+      if (email && email !== "—") {
+        const normEmail = normalizeEmailClient(email);
+        const { data: memberRow } = await supabase
+          .from("members")
+          .select("id")
+          .eq("email", normEmail)
+          .maybeSingle();
+
+        if (memberRow) {
+          const { data: apps } = await supabase
+            .from("market_applications")
+            .select("id, event_id, vendor_name, status, created_at")
+            .eq("member_id", memberRow.id)
+            .neq("status", "rejected")
+            .order("created_at", { ascending: false });
+
+          if (apps && apps.length > 0) {
+            const eventIds = (apps as any[]).map(a => a.event_id).filter(Boolean);
+            let evtMap = new Map<string, any>();
+            if (eventIds.length > 0) {
+              const { data: appEvts } = await supabase
+                .from("events")
+                .select("id, title, event_date, theme")
+                .in("id", eventIds);
+              if (appEvts) evtMap = new Map(appEvts.map(e => [e.id, e]));
+            }
+
+            setParticipations((apps as any[]).map(app => {
+              const evt = evtMap.get(app.event_id);
+              return {
+                id: app.id,
+                eventId: app.event_id,
+                eventTitle: evt?.title || "活動",
+                eventDate: evt?.event_date ? new Date(evt.event_date).toLocaleDateString("zh-TW") : "",
+                eventType: evt?.theme || "",
+                vendorName: app.vendor_name || "",
+                status: app.status as "pending" | "approved",
+                createdAt: new Date(app.created_at).toLocaleDateString("zh-TW"),
+              };
+            }));
+          }
+        }
+      }
     })();
-  }, [notionId, isDev]);
+  }, [notionId, isDev, email]);
 
   const pageTabs = [
     { href: "/dashboard", label: "個人紀錄", exact: true },
@@ -190,7 +257,14 @@ export default function PartnerPage() {
 
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} onOpenScanner={() => setShowScanner(true)} />}
-        {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
+        {activeTab === "項目" && (
+          <VendorItems
+            vendorProducts={products.filter(p => p.active)}
+            activities={activities}
+            newsletters={newsletters}
+            participations={participations}
+          />
+        )}
         {activeTab === "收益" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings notionId={notionId} />}
       </div>
@@ -211,7 +285,6 @@ export default function PartnerPage() {
         </div>
       </div>
 
-      {/* QR 掃碼簽到 Modal（Portal 層，掛在 PartnerPage 確保 notionId 可用）*/}
       {showScanner && <QrScanModal onClose={() => setShowScanner(false)} notionId={notionId} />}
     </div>
   );
@@ -221,7 +294,6 @@ export default function PartnerPage() {
 // 概覽
 // ════════════════════════════════════════════
 function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenScanner: () => void }) {
-  // 敘事語句：「平台幫你做了什麼」
   const avgPrice = stats.totalSold > 0 ? Math.round(stats.totalRevenue / stats.totalSold) : 0;
   const narrativeParts: string[] = [];
   if (stats.totalRegistrations > 0) narrativeParts.push(`你的商品與活動被 ${stats.totalRegistrations.toLocaleString()} 人看過`);
@@ -232,14 +304,12 @@ function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenSc
 
   return (
     <div>
-      {/* 統計標題列 + 掃碼按鈕 */}
       <div className="flex items-center justify-between mb-3">
         <p className="text-xs font-semibold" style={{ color: "#aaa" }}>本期數據概覽</p>
         <button
           onClick={onOpenScanner}
           className="flex items-center gap-1.5 px-3 h-10 rounded-lg text-xs font-semibold transition-colors"
-          style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}
-        >
+          style={{ background: "#1a1a2e", color: "#fff", border: "none", cursor: "pointer" }}>
           📷 掃碼簽到
         </button>
       </div>
@@ -256,13 +326,11 @@ function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenSc
         <StatCard label="缺貨商品" value={stats.outOfStock} unit="項" color="#e53e3e" />
       </div>
 
-      {/* 敘事摘要句 */}
-      {narrative && (
+      {narrative ? (
         <div className="rounded-xl px-4 py-3 mb-6 text-sm" style={{ background: "rgba(78,205,196,0.07)", border: "1px solid rgba(78,205,196,0.2)", color: "#1a1a2e", lineHeight: 1.7 }}>
           📊 {narrative}
         </div>
-      )}
-      {!narrative && (
+      ) : (
         <div className="rounded-xl px-4 py-3 mb-6 text-sm" style={{ background: "#faf8f4", border: "1px dashed #c8b89a", color: "#aaa" }}>
           資料累積中，成交或瀏覽紀錄出現後即會顯示摘要。
         </div>
@@ -274,7 +342,7 @@ function VendorOverview({ stats, onOpenScanner }: { stats: VendorStats; onOpenSc
 }
 
 // ════════════════════════════════════════════
-// 項目（合作活動 + 地方通訊文章 + 上架商品）
+// 項目 — 共用小元件
 // ════════════════════════════════════════════
 const TODAY = new Date("2026-04-13");
 
@@ -283,223 +351,390 @@ function isExpired(dateStr: string) {
   return new Date(y, m - 1, d) < TODAY;
 }
 
-interface VendorActivity { id: string; title: string; date: string; type: string; registered: number; capacity: number }
+/** 每筆資料下方的統計微字列（觸及率…售價，商品加庫存）*/
+function ItemStatsRow({ price, stock, isProduct }: { price?: number | ""; stock?: number | ""; isProduct?: boolean }) {
+  const fmtPrice = price !== "" && price !== undefined ? `NT$${Number(price).toLocaleString()}` : "—";
+  const fmtStock = stock !== "" && stock !== undefined ? String(stock) : "—";
 
-function VendorItems({ vendorProducts, activities, newsletters }: {
-  vendorProducts: VendorProduct[];
-  activities: VendorActivity[];
-  newsletters: { id: string; title: string; date: string; summary: string }[];
+  const stats = [
+    { label: "觸及率", value: "—" },
+    { label: "開啟率", value: "—" },
+    { label: "購買率", value: "—" },
+    { label: "售出件數", value: "—" },
+    { label: "平均評分", value: "—" },
+    { label: "售價", value: fmtPrice },
+    ...(isProduct ? [{ label: "庫存", value: fmtStock }] : []),
+  ];
+
+  return (
+    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 mt-1.5">
+      {stats.map(s => (
+        <span key={s.label} style={{ fontSize: 10, color: "#bbb" }}>
+          {s.label}:{" "}
+          <span style={{ color: s.value === "—" ? "#ddd" : "#777", fontWeight: s.value !== "—" ? 600 : 400 }}>
+            {s.value}
+          </span>
+        </span>
+      ))}
+    </div>
+  );
+}
+
+/** Section 容器：empty=true 時整個不渲染 */
+function ItemSection({ emoji, title, subtitle, headerRight, empty, children }: {
+  emoji: string;
+  title: string;
+  subtitle?: string;
+  headerRight?: React.ReactNode;
+  empty: boolean;
+  children: React.ReactNode;
 }) {
-  const [expanded, setExpanded] = useState<string | null>(null);
-  const [selected, setSelected] = useState<Record<string, string[]>>({}); // activityId → productIds
-  const [generated, setGenerated] = useState<Record<string, boolean>>({}); // activityId → done
+  if (empty) return null;
+  return (
+    <div className="rounded-xl overflow-hidden mb-5" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
+      <div className="px-5 py-3 flex items-start justify-between gap-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
+        <div>
+          <h3 className="text-sm font-semibold" style={{ color: "#333" }}>{emoji} {title}</h3>
+          {subtitle && <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>{subtitle}</p>}
+        </div>
+        {headerRight}
+      </div>
+      <div>{children}</div>
+    </div>
+  );
+}
 
-  function toggleProduct(activityId: string, productId: string) {
+/** Info key/value pair inside modal */
+function InfoCell({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs mb-0.5" style={{ color: "#aaa" }}>{label}</p>
+      <p className="text-sm font-medium" style={{ color: "#333" }}>{value}</p>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════
+// 詳情 Modal
+// ════════════════════════════════════════════
+type ModalItemType = "activity" | "participation" | "newsletter" | "product";
+type ModalItem = { type: ModalItemType; data: any };
+
+function ItemDetailModal({ item, onClose, vendorProducts, selected, setSelected, generated, setGenerated }: {
+  item: ModalItem;
+  onClose: () => void;
+  vendorProducts: VendorProduct[];
+  selected: Record<string, string[]>;
+  setSelected: React.Dispatch<React.SetStateAction<Record<string, string[]>>>;
+  generated: Record<string, boolean>;
+  setGenerated: React.Dispatch<React.SetStateAction<Record<string, boolean>>>;
+}) {
+  const { type, data } = item;
+  const baseUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const activityId = data.id;
+  const isGen = !!generated[activityId];
+  const selectedIds = selected[activityId] || [];
+  const expired = type === "activity" ? isExpired(data.date) : false;
+
+  function toggleProduct(productId: string) {
     setSelected(prev => {
       const cur = prev[activityId] || [];
-      return {
-        ...prev,
-        [activityId]: cur.includes(productId) ? cur.filter(id => id !== productId) : [...cur, productId],
-      };
+      return { ...prev, [activityId]: cur.includes(productId) ? cur.filter(id => id !== productId) : [...cur, productId] };
     });
   }
 
-  function generate(activityId: string) {
-    const ids = selected[activityId] || [];
-    activityProductConfig[activityId] = ids;
-    setGenerated(prev => ({ ...prev, [activityId]: true }));
-  }
+  const title =
+    type === "activity" ? data.title :
+    type === "participation" ? data.eventTitle :
+    type === "newsletter" ? data.title :
+    data.name;
 
-  const baseUrl = typeof window !== "undefined" ? window.location.origin : "http://localhost:3000";
+  const tagLabel =
+    type === "activity" ? "合作活動" :
+    type === "participation" ? (data.status === "pending" ? "受理中" : "已通過") :
+    type === "newsletter" ? "收費內容" :
+    "上架商品";
+
+  const tagStyle: React.CSSProperties =
+    type === "activity" ? { background: "#1a1a2e", color: "#fff" } :
+    type === "participation" ? (data.status === "pending"
+      ? { background: "#fff3cd", color: "#856404" }
+      : { background: "rgba(78,205,196,0.15)", color: "#3aa89f" }) :
+    type === "newsletter" ? { background: "#f0f0f0", color: "#666" } :
+    { background: "#7a5c40", color: "#fff" };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-4"
+      style={{ background: "rgba(0,0,0,0.5)" }}
+      onClick={onClose}>
+      <div className="w-full sm:rounded-2xl rounded-t-2xl overflow-hidden"
+        style={{ maxWidth: 520, background: "#fff", maxHeight: "90vh", overflowY: "auto" }}
+        onClick={e => e.stopPropagation()}>
+
+        {/* Handle bar (mobile only) */}
+        <div className="sm:hidden flex justify-center pt-3 pb-1">
+          <div style={{ width: 36, height: 4, background: "#e0e0e0", borderRadius: 2 }} />
+        </div>
+
+        {/* Header */}
+        <div className="px-5 py-4 flex items-start justify-between gap-3" style={{ borderBottom: "1px solid #f0f0f0" }}>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 flex-wrap mb-1.5">
+              <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={tagStyle}>{tagLabel}</span>
+              {type === "activity" && expired && (
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f5f5f5", color: "#aaa" }}>已結束</span>
+              )}
+            </div>
+            <p className="text-base font-semibold leading-snug" style={{ color: "#1a1a2e" }}>{title}</p>
+          </div>
+          <button onClick={onClose}
+            style={{ background: "none", border: "none", cursor: "pointer", fontSize: 18, color: "#bbb", flexShrink: 0, lineHeight: 1 }}>
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="px-5 py-4 space-y-4">
+          {/* Basic info grid */}
+          <div className="grid grid-cols-2 gap-4">
+            {type === "activity" && (
+              <>
+                <InfoCell label="活動日期" value={data.date} />
+                <InfoCell label="活動類型" value={data.type} />
+                <InfoCell label="報名人數" value={`${data.registered} / ${data.capacity} 人`} />
+              </>
+            )}
+            {type === "participation" && (
+              <>
+                <InfoCell label="活動日期" value={data.eventDate || "日期待定"} />
+                <InfoCell label="活動類型" value={data.eventType || "—"} />
+                <InfoCell label="申請狀態" value={data.status === "pending" ? "受理中" : "已通過"} />
+                <InfoCell label="申請時間" value={data.createdAt} />
+              </>
+            )}
+            {type === "newsletter" && (
+              <>
+                <InfoCell label="發佈日期" value={data.date} />
+                {data.summary && <div className="col-span-2"><InfoCell label="摘要" value={data.summary} /></div>}
+              </>
+            )}
+            {type === "product" && (
+              <>
+                <InfoCell label="售價" value={data.price !== "" ? `NT$${Number(data.price).toLocaleString()}` : "—"} />
+                <InfoCell label="庫存" value={data.stock !== "" ? String(data.stock) : "—"} />
+              </>
+            )}
+          </div>
+
+          {/* 合作活動：預購設定 */}
+          {type === "activity" && !expired && (
+            <div className="pt-3" style={{ borderTop: "1px solid #f0f0f0" }}>
+              <p className="text-xs font-semibold mb-3" style={{ color: "#666" }}>🛒 預購商品設定</p>
+              {isGen ? (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-sm font-semibold" style={{ color: "#3aa89f" }}>✅ 預購頁面已就緒</span>
+                  </div>
+                  <div className="rounded-lg p-3 mb-3" style={{ background: "#f0faf9", border: "1px solid #b2e8e4" }}>
+                    <span className="text-xs break-all" style={{ color: "#1a1a2e", fontFamily: "monospace" }}>
+                      {baseUrl}/buy/{activityId}
+                    </span>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => navigator.clipboard?.writeText(`${baseUrl}/buy/${activityId}`)}
+                      className="flex-1 h-10 rounded-lg text-xs font-semibold"
+                      style={{ border: "1px solid #4ECDC4", background: "#fff", color: "#3aa89f", cursor: "pointer" }}>
+                      複製連結
+                    </button>
+                    <a href={`${baseUrl}/buy/${activityId}`} target="_blank" rel="noreferrer"
+                      className="flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center"
+                      style={{ background: "#7a5c40", color: "#fff", textDecoration: "none" }}>
+                      開啟預覽 ↗
+                    </a>
+                    <button onClick={() => setGenerated(prev => ({ ...prev, [activityId]: false }))}
+                      className="h-10 px-3 rounded-lg text-xs"
+                      style={{ border: "1px solid #eee", background: "#fff", color: "#aaa", cursor: "pointer" }}>
+                      重設
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  <p className="text-xs mb-2" style={{ color: "#aaa" }}>
+                    選擇要加入此活動預購的商品（可不選，純報名頁）：
+                  </p>
+                  {vendorProducts.length === 0 ? (
+                    <p className="text-xs py-3" style={{ color: "#aaa" }}>尚無上架商品</p>
+                  ) : (
+                    <div className="space-y-2 mb-3">
+                      {vendorProducts.map(p => {
+                        const sel = selectedIds.includes(p.id);
+                        return (
+                          <label key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer"
+                            style={{ background: sel ? "rgba(122,92,64,0.06)" : "#fafafa", border: `1px solid ${sel ? "#c8b89a" : "#eee"}` }}>
+                            <input type="checkbox" checked={sel} onChange={() => toggleProduct(p.id)}
+                              style={{ accentColor: "#7a5c40", width: 16, height: 16 }} />
+                            <span className="flex-1 text-sm" style={{ color: "#333" }}>{p.name}</span>
+                            <span className="text-xs font-semibold" style={{ color: "#e8935a" }}>
+                              NT$ {Number(p.price).toLocaleString()}
+                            </span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <button
+                    onClick={() => {
+                      activityProductConfig[activityId] = selectedIds;
+                      setGenerated(prev => ({ ...prev, [activityId]: true }));
+                    }}
+                    className="w-full h-10 rounded-lg text-xs font-semibold"
+                    style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}>
+                    產生預購頁面 →
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* 其他類型：功能開發中 placeholder */}
+          {(type === "newsletter" || type === "product" || type === "participation") && (
+            <div className="rounded-lg p-4 text-center" style={{ background: "#fafafa", border: "1px dashed #e8e8e8" }}>
+              <p className="text-xs" style={{ color: "#ccc" }}>詳細功能開發中</p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════
+// 項目（4 區塊 + 空則隱藏 + 統計列 + 點擊 Modal）
+// ════════════════════════════════════════════
+function VendorItems({ vendorProducts, activities, newsletters, participations }: {
+  vendorProducts: VendorProduct[];
+  activities: VendorActivity[];
+  newsletters: { id: string; title: string; date: string; summary: string }[];
+  participations: Participation[];
+}) {
+  const [modal, setModal] = useState<ModalItem | null>(null);
+  const [selected, setSelected] = useState<Record<string, string[]>>({});
+  const [generated, setGenerated] = useState<Record<string, boolean>>({});
+
+  const rowStyle = (i: number, len: number): React.CSSProperties => ({
+    borderBottom: i < len - 1 ? "1px solid #f5f5f5" : "none",
+    cursor: "pointer",
+  });
 
   return (
     <div>
-      {/* 合作活動 */}
-      <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
-        <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "#333" }}>🎪 合作活動</h3>
-          <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>由主辦單位指定加入的活動才會在此顯示，未加入的活動請聯繫管理員</p>
-        </div>
-        <div>
-          {activities.length === 0 && (
-            <div className="py-10 text-center" style={{ color: "#aaa" }}>
-              <p className="text-2xl mb-2">🎪</p>
-              <p className="text-sm">尚未加入任何活動</p>
-              <p className="text-xs mt-1">由管理員指定活動後，即可在此設定預購商品</p>
-            </div>
-          )}
-          {activities.map(a => {
-            const expired = isExpired(a.date);
-            const isOpen = expanded === a.id;
-            const isGenerated = generated[a.id];
-            const selectedIds = selected[a.id] || [];
-            const pct = a.capacity > 0 ? Math.round((a.registered / a.capacity) * 100) : 0;
-            const buyUrl = `${baseUrl}/buy/${a.id}`;
-
-            return (
-              <div key={a.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                {/* 活動列 */}
-                <div className="flex items-center gap-3 px-5 py-3"
-                  style={{ cursor: expired ? "default" : "pointer", opacity: expired ? 0.5 : 1 }}
-                  onClick={() => !expired && setExpanded(isOpen ? null : a.id)}>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-medium" style={{ color: "#333" }}>{a.title}</span>
-                      {expired && <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f5f5f5", color: "#aaa" }}>已結束</span>}
-                      {isGenerated && !expired && (
-                        <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(78,205,196,0.15)", color: "#3aa89f" }}>✓ 預購頁已產生</span>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 mt-1 text-xs" style={{ color: "#999" }}>
-                      <span>{a.date}</span>
-                      <span>{a.type}</span>
-                      <span>{a.registered}/{a.capacity} 人</span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 flex-shrink-0">
-                    <div className="h-1.5 rounded-full overflow-hidden" style={{ width: 60, background: "#f0f0f0" }}>
-                      <div style={{ width: `${pct}%`, height: "100%", background: pct >= 80 ? "#4CAF50" : "#e8935a", borderRadius: 999 }} />
-                    </div>
-                    <span className="text-xs font-bold" style={{ color: "#666" }}>{pct}%</span>
-                    {!expired && (
-                      <span style={{ color: "#bbb", fontSize: 12, transition: "transform 0.2s", transform: isOpen ? "rotate(180deg)" : "none", display: "inline-block" }}>▼</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* 展開：設定預購商品 */}
-                {isOpen && (
-                  <div className="px-3 sm:px-5 pb-4 sm:pb-5" style={{ background: "#fafcff", borderTop: "1px solid #f0f0f0" }}>
-                    {isGenerated ? (
-                      // 已產生狀態
-                      <div className="pt-4">
-                        <div className="flex items-center gap-2 mb-3">
-                          <span className="text-sm font-semibold" style={{ color: "#3aa89f" }}>✅ 預購頁面已就緒</span>
-                        </div>
-                        <div className="rounded-lg p-3 mb-3 flex items-center gap-2" style={{ background: "#f0faf9", border: "1px solid #b2e8e4" }}>
-                          <span className="text-xs flex-1 break-all" style={{ color: "#1a1a2e", fontFamily: "monospace" }}>{buyUrl}</span>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => navigator.clipboard?.writeText(buyUrl)}
-                            className="flex-1 h-10 rounded-lg text-xs font-semibold"
-                            style={{ border: "1px solid #4ECDC4", background: "#fff", color: "#3aa89f", cursor: "pointer" }}>
-                            複製連結
-                          </button>
-                          <a href={buyUrl} target="_blank" rel="noreferrer"
-                            className="flex-1 h-10 rounded-lg text-xs font-semibold flex items-center justify-center"
-                            style={{ background: "#7a5c40", color: "#fff", textDecoration: "none" }}>
-                            開啟預覽 ↗
-                          </a>
-                          <button onClick={() => setGenerated(prev => ({ ...prev, [a.id]: false }))}
-                            className="h-10 px-3 rounded-lg text-xs"
-                            style={{ border: "1px solid #eee", background: "#fff", color: "#aaa", cursor: "pointer" }}>
-                            重新設定
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      // 設定狀態
-                      <div className="pt-4">
-                        <p className="text-xs font-semibold mb-3" style={{ color: "#666" }}>
-                          選擇要加入此活動預購的商品（可不選，純報名頁）：
-                        </p>
-                        {vendorProducts.length === 0 ? (
-                          <p className="text-xs py-3" style={{ color: "#aaa" }}>尚無上架商品，請聯繫管理員新增</p>
-                        ) : (
-                          <div className="space-y-2 mb-4">
-                            {vendorProducts.map(p => (
-                              <label key={p.id} className="flex items-center gap-3 p-2.5 rounded-lg cursor-pointer"
-                                style={{ background: selectedIds.includes(p.id) ? "rgba(122,92,64,0.06)" : "#fff", border: `1px solid ${selectedIds.includes(p.id) ? "#c8b89a" : "#eee"}` }}>
-                                <input type="checkbox" checked={selectedIds.includes(p.id)}
-                                  onChange={() => toggleProduct(a.id, p.id)}
-                                  style={{ accentColor: "#7a5c40", width: 16, height: 16 }} />
-                                <span className="flex-1 text-sm" style={{ color: "#333" }}>{p.name}</span>
-                                <span className="text-xs font-semibold" style={{ color: "#e8935a" }}>NT$ {Number(p.price).toLocaleString()}</span>
-                              </label>
-                            ))}
-                          </div>
-                        )}
-                        <div className="flex gap-2">
-                          <button onClick={() => setExpanded(null)}
-                            className="h-10 px-4 rounded-lg text-xs"
-                            style={{ border: "1px solid #ddd", background: "#fff", color: "#888", cursor: "pointer" }}>取消</button>
-                          <button onClick={() => generate(a.id)}
-                            className="flex-1 h-10 rounded-lg text-xs font-semibold"
-                            style={{ background: "#7a5c40", color: "#fff", border: "none", cursor: "pointer" }}>
-                            產生預購頁面 →
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
+      {/* ── 合作活動 ── */}
+      <ItemSection
+        emoji="🎪" title="合作活動"
+        subtitle="主辦單位指定加入的活動"
+        empty={activities.length === 0}>
+        {activities.map((a, i) => {
+          const expired = isExpired(a.date);
+          const isGen = !!generated[a.id];
+          return (
+            <div key={a.id}
+              className="px-5 py-3 hover:bg-gray-50 transition-colors"
+              style={{ ...rowStyle(i, activities.length), opacity: expired ? 0.6 : 1 }}
+              onClick={() => setModal({ type: "activity", data: a })}>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-sm font-medium" style={{ color: "#333" }}>{a.title}</span>
+                {expired && (
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#f5f5f5", color: "#aaa" }}>已結束</span>
+                )}
+                {isGen && !expired && (
+                  <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(78,205,196,0.15)", color: "#3aa89f" }}>✓ 預購頁已產生</span>
                 )}
               </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* 地方通訊文章 */}
-      <div className="rounded-xl overflow-hidden mb-6" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
-        <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
-          <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📰 地方通訊文章</h3>
-          <p className="text-xs mt-0.5" style={{ color: "#aaa" }}>DB05「對應對象」為此帳號 + 官網備項=地方通訊 的已發佈文章</p>
-        </div>
-        {newsletters.length === 0 ? (
-          <div className="py-10 text-center" style={{ color: "#aaa" }}>
-            <p className="text-2xl mb-2">📰</p>
-            <p className="text-sm">尚無關聯的地方通訊文章</p>
-            <p className="text-xs mt-1">在 Notion DB05 的「對應對象」填入此廠商即可自動出現</p>
-          </div>
-        ) : (
-          <div>
-            {newsletters.map(a => (
-              <div key={a.id} className="flex items-start gap-3 px-5 py-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium" style={{ color: "#333" }}>{a.title}</p>
-                  {a.summary && <p className="text-xs mt-0.5" style={{ color: "#888" }}>{a.summary}</p>}
-                </div>
-                <span className="text-xs flex-shrink-0" style={{ color: "#bbb" }}>{a.date}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 上架商品 */}
-      <div className="rounded-xl overflow-hidden" style={{ background: "#fff", border: "1px solid #e8e8e8" }}>
-        <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
-          <div className="flex items-center justify-between gap-3 flex-wrap">
-            <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📚 上架商品</h3>
-            <div className="flex items-center gap-2">
-              <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
-                className="flex items-center gap-1 px-2.5 h-8 rounded-lg text-xs font-semibold"
-                style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
-                💬 聯繫新增／修改
-              </a>
+              <p className="text-xs mt-0.5" style={{ color: "#999" }}>
+                {a.date} · {a.type} · {a.registered}/{a.capacity} 人
+              </p>
+              <ItemStatsRow />
             </div>
+          );
+        })}
+      </ItemSection>
+
+      {/* ── 參與活動 ── */}
+      <ItemSection
+        emoji="🙋" title="參與活動"
+        subtitle="你報名申請的活動（已拒絕不顯示）"
+        empty={participations.length === 0}>
+        {participations.map((p, i) => (
+          <div key={p.id}
+            className="px-5 py-3 hover:bg-gray-50 transition-colors"
+            style={rowStyle(i, participations.length)}
+            onClick={() => setModal({ type: "participation", data: p })}>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-sm font-medium" style={{ color: "#333" }}>{p.eventTitle}</span>
+              {p.status === "pending" && (
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "#fff3cd", color: "#856404" }}>受理中</span>
+              )}
+              {p.status === "approved" && (
+                <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(78,205,196,0.15)", color: "#3aa89f" }}>已通過</span>
+              )}
+            </div>
+            <p className="text-xs mt-0.5" style={{ color: "#999" }}>
+              {p.eventDate || "日期待定"}
+              {p.eventType ? ` · ${p.eventType}` : ""}
+              {" · 申請於 "}{p.createdAt}
+            </p>
+            <ItemStatsRow />
           </div>
-        </div>
+        ))}
+      </ItemSection>
+
+      {/* ── 收費內容 ── */}
+      <ItemSection
+        emoji="📰" title="收費內容"
+        subtitle="標記為地方通訊的已發佈文章"
+        empty={newsletters.length === 0}>
+        {newsletters.map((a, i) => (
+          <div key={a.id}
+            className="px-5 py-3 hover:bg-gray-50 transition-colors"
+            style={rowStyle(i, newsletters.length)}
+            onClick={() => setModal({ type: "newsletter", data: a })}>
+            <p className="text-sm font-medium" style={{ color: "#333" }}>{a.title}</p>
+            {a.summary && <p className="text-xs mt-0.5" style={{ color: "#888" }}>{a.summary}</p>}
+            <p className="text-xs mt-0.5" style={{ color: "#999" }}>{a.date}</p>
+            <ItemStatsRow />
+          </div>
+        ))}
+      </ItemSection>
+
+      {/* ── 上架商品 ── */}
+      <ItemSection
+        emoji="📚" title="上架商品"
+        empty={vendorProducts.length === 0}
+        headerRight={
+          <a href="https://lin.ee/964ervay" target="_blank" rel="noreferrer"
+            className="flex items-center gap-1 px-2.5 h-8 rounded-lg text-xs font-semibold flex-shrink-0"
+            style={{ background: "#06C755", color: "#fff", textDecoration: "none" }}>
+            💬 聯繫新增／修改
+          </a>
+        }>
         {/* Mobile card list */}
         <div className="sm:hidden">
-          {vendorProducts.length === 0 && (
-            <p className="px-5 py-8 text-sm text-center" style={{ color: "#aaa" }}>尚無上架商品</p>
-          )}
-          {vendorProducts.map(p => {
+          {vendorProducts.map((p, i) => {
             const stock = typeof p.stock === "number" ? p.stock : 0;
             return (
-              <div key={p.id} className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate" style={{ color: "#333" }}>{p.name}</p>
-                  <p className="text-xs mt-0.5" style={{ color: "#888" }}>
-                    NT${p.price !== "" ? Number(p.price).toLocaleString() : "—"}・庫存{" "}
-                    <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#666", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
-                  </p>
+              <div key={p.id}
+                className="px-4 py-3 hover:bg-gray-50 transition-colors"
+                style={rowStyle(i, vendorProducts.length)}
+                onClick={() => setModal({ type: "product", data: p })}>
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium truncate flex-1" style={{ color: "#333" }}>{p.name}</p>
+                  <span className="text-xs px-2 py-1 rounded-full flex-shrink-0"
+                    style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
+                    {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
+                  </span>
                 </div>
-                <span className="text-xs px-2 py-1 rounded-full flex-shrink-0"
-                  style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
-                  {stock === 0 ? "缺貨" : stock <= 5 ? "庫存低" : "上架中"}
-                </span>
+                <ItemStatsRow price={p.price} stock={p.stock} isProduct />
               </div>
             );
           })}
@@ -509,23 +744,31 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead>
               <tr style={{ borderBottom: "1px solid #eee" }}>
-                {["商品名稱", "售價", "庫存", "已售", "評分", "狀態"].map(h => (
-                  <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888" }}>{h}</th>
+                {["商品名稱", "售價", "庫存", "觸及率", "開啟率", "購買率", "售出件數", "平均評分", "狀態"].map(h => (
+                  <th key={h} style={{ textAlign: "left", padding: "10px 14px", fontSize: 12, fontWeight: 600, color: "#888", whiteSpace: "nowrap" }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {vendorProducts.map(p => {
+              {vendorProducts.map((p, i) => {
                 const stock = typeof p.stock === "number" ? p.stock : 0;
                 return (
-                  <tr key={p.id} style={{ borderBottom: "1px solid #f5f5f5" }}>
-                    <td style={{ padding: "12px 14px", fontSize: 14 }}>{p.name}</td>
-                    <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>NT${p.price}</td>
+                  <tr key={p.id}
+                    className="hover:bg-gray-50 transition-colors"
+                    style={{ borderBottom: i < vendorProducts.length - 1 ? "1px solid #f5f5f5" : "none", cursor: "pointer" }}
+                    onClick={() => setModal({ type: "product", data: p })}>
+                    <td style={{ padding: "12px 14px", fontSize: 14, fontWeight: 500 }}>{p.name}</td>
+                    <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>
+                      NT${p.price !== "" ? Number(p.price).toLocaleString() : "—"}
+                    </td>
                     <td style={{ padding: "12px 14px", fontSize: 14 }}>
                       <span style={{ color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#e8935a" : "#333", fontWeight: stock <= 5 ? 700 : 400 }}>{stock}</span>
                     </td>
-                    <td style={{ padding: "12px 14px", fontSize: 14, color: "#666" }}>—</td>
-                    <td style={{ padding: "12px 14px", fontSize: 14 }}><span style={{ color: "#ccc" }}>—</span></td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
+                    <td style={{ padding: "12px 14px", fontSize: 13, color: "#ddd" }}>—</td>
                     <td style={{ padding: "12px 14px" }}>
                       <span className="text-xs px-2 py-1 rounded-full"
                         style={{ background: stock === 0 ? "#fde8e8" : stock <= 5 ? "#fff3cd" : "#d4edda", color: stock === 0 ? "#e53e3e" : stock <= 5 ? "#856404" : "#155724" }}>
@@ -538,7 +781,20 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
             </tbody>
           </table>
         </div>
-      </div>
+      </ItemSection>
+
+      {/* Detail Modal */}
+      {modal && (
+        <ItemDetailModal
+          item={modal}
+          onClose={() => setModal(null)}
+          vendorProducts={vendorProducts}
+          selected={selected}
+          setSelected={setSelected}
+          generated={generated}
+          setGenerated={setGenerated}
+        />
+      )}
     </div>
   );
 }
@@ -573,7 +829,7 @@ function VendorFinance({ stats }: { stats: VendorStats }) {
         <div className="px-5 py-3" style={{ background: "#fafafa", borderBottom: "1px solid #e8e8e8" }}>
           <h3 className="text-sm font-semibold" style={{ color: "#333" }}>📊 月報表</h3>
         </div>
-        {/* Mobile card list */}
+        {/* Mobile */}
         <div className="sm:hidden">
           {monthly.map(m => (
             <div key={m.month} className="px-4 py-3 flex items-center justify-between gap-3" style={{ borderBottom: "1px solid #f5f5f5" }}>
@@ -588,7 +844,7 @@ function VendorFinance({ stats }: { stats: VendorStats }) {
             </div>
           ))}
         </div>
-        {/* Desktop table */}
+        {/* Desktop */}
         <div className="hidden sm:block overflow-x-auto">
           <table style={{ width: "100%", borderCollapse: "collapse" }}>
             <thead><tr style={{ borderBottom: "1px solid #eee" }}>
@@ -681,7 +937,6 @@ function VendorSettings({ notionId }: { notionId: string | null }) {
           ))}
         </div>
       )}
-      {/* 聯絡修改提示 */}
       <div className="mt-5 pt-4" style={{ borderTop: "1px solid #f0f0f0" }}>
         <p className="text-xs" style={{ color: "#aaa" }}>
           如需修改單位資料，請透過{" "}
@@ -740,7 +995,9 @@ function PartnerReviews() {
             {r.comment && <p className="text-xs mt-0.5" style={{ color: "#888" }}>「{r.comment}」・{r.date}</p>}
           </div>
           <span className="flex gap-0.5 flex-shrink-0">
-            {[1,2,3,4,5].map(i => <span key={i} style={{ color: i <= r.rating ? "#f5a623" : "#ddd", fontSize: 14 }}>★</span>)}
+            {[1, 2, 3, 4, 5].map(i => (
+              <span key={i} style={{ color: i <= r.rating ? "#f5a623" : "#ddd", fontSize: 14 }}>★</span>
+            ))}
           </span>
         </div>
       ))}
@@ -751,7 +1008,9 @@ function PartnerReviews() {
 function StatCard({ label, value, unit, color }: { label: string; value: string | number; unit: string; color: string }) {
   return (
     <div className="rounded-xl p-4 text-center" style={{ background: "#fff", border: "1px solid #f0f0f0" }}>
-      <p className="text-2xl font-bold" style={{ color }}>{value}<span className="text-sm font-normal ml-0.5" style={{ color: "#aaa" }}>{unit}</span></p>
+      <p className="text-2xl font-bold" style={{ color }}>
+        {value}<span className="text-sm font-normal ml-0.5" style={{ color: "#aaa" }}>{unit}</span>
+      </p>
       <p className="text-xs mt-1" style={{ color: "#999" }}>{label}</p>
     </div>
   );
