@@ -39,17 +39,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 同步寫入 Supabase space_bookings
+    // 同步寫入 Supabase space_bookings（external = 會員官網預約）
     const slotMap: Record<string, string> = { "上午": "morning", "下午": "afternoon" };
     await supabase.from("space_bookings").upsert({
       booking_date: body.date,
       time_slot: slotMap[body.timeSlot] || body.timeSlot,
       venue: body.venue,
       status: "confirmed",
+      source: "external",
       contact_name: body.contactName,
       contact_phone: body.contactPhone,
       contact_email: body.contactEmail,
       usage_type: body.usageType,
+      attendee_count: body.attendeeCount ? Number(body.attendeeCount) : null,
       event_summary: body.eventSummary,
       notion_page_id: page.id,
     }, { onConflict: "booking_date,time_slot,venue" });

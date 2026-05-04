@@ -26,12 +26,14 @@ export async function POST(req: NextRequest) {
     partners: syncPartners,
     members: syncMembers,
     staff: syncStaff,
+    db08_places: syncDb08Places,
     products: () => syncProducts(doWriteback, skipImages),
     events: () => syncEvents(doWriteback, skipImages),
+    space_bookings: syncSpaceBookings,
     articles: () => syncArticles(doWriteback, skipImages),
   };
 
-  const order = ["persons", "topics", "partners", "members", "staff", "products", "events", "articles"];
+  const order = ["persons", "topics", "partners", "members", "staff", "db08_places", "products", "events", "space_bookings", "articles"];
 
   const failures: Record<string, string> = {};
 
@@ -388,6 +390,33 @@ async function syncStaff() {
   return result;
 }
 
+// ── DB08 → db08_places（不限經營類型，只要「地點」property 有座標就 upsert）──
+// 這張表是全工作區的地點權威，給走讀路線、地圖功能用
+async function syncDb08Places() {
+  // 拉所有 DB08 page，沒 filter（紀錄類也要）
+  const pages = await queryDatabase(DB.DB08_RELATIONSHIP);
+  const rows = pages
+    .map(page => {
+      const props = p(page);
+      const placeProp = props["地點"];
+      if (placeProp?.type !== "place") return null;
+      const place = placeProp.place;
+      if (!place || place.lat == null || place.lon == null) return null;
+      return {
+        notion_id: nid(page),
+        name: extractTitle(props["經營名稱"]?.title) || "未命名",
+        place,
+        region: extractSelect(props["行政區域"]?.select) || null,
+        category: extractSelect(props["經營類型"]?.select) || null,
+        updated_at: new Date().toISOString(),
+      };
+    })
+    .filter((r): r is NonNullable<typeof r> => r !== null);
+  const result = await batchUpsert("db08_places", rows, "notion_id");
+  // 注意：不做 cleanupStaleByNotionId，因為 DB08 中曾經有座標、後來刪掉的地點仍可能在 events.route_stops 裡被引用
+  return result;
+}
+
 // ── DB07 → products ──
 async function syncProducts(wb = false, skipImages = false) {
   const pages = await queryDatabase(DB.DB07_INVENTORY, { property: "庫存類型", select: { equals: "商品" } });
@@ -531,6 +560,64 @@ async function syncEvents(wb = false, skipImages = false) {
     }
   }
   return result;
+}
+
+// ── DB04（門市選項=場地使用）→ space_bookings (source=internal) ──
+async function syncSpaceBookings() {
+  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "門市選項", select: { equals: "場地使用" } });
+
+  // 反查地點與對象（DB08 經營名稱）
+  const locIds: string[] = [], guideIds: string[] = [];
+  for (const page of pages) {
+    const props = p(page);
+    locIds.push(...extractRelation(props["對應地點"]?.relation));
+    guideIds.push(...extractRelation(props["對應對象"]?.relation));
+  }
+  const allDb08Ids = [...new Set([...locIds, ...guideIds].map(id => id.replace(/-/g, "")))];
+  const db08NameMap: Record<string, string> = {};
+  if (allDb08Ids.length > 0) {
+    // 從 persons 撈名字（DB08 → persons table 已透過 syncPersons 同步）
+    for (let i = 0; i < allDb08Ids.length; i += 300) {
+      const chunk = allDb08Ids.slice(i, i + 300);
+      const { data: persons } = await supabase.from("persons").select("notion_id, name").in("notion_id", chunk);
+      for (const pr of persons || []) if (pr.notion_id) db08NameMap[pr.notion_id] = pr.name;
+    }
+  }
+
+  const rows = pages.map(page => {
+    const props = p(page);
+    const dateInfo = extractDate(props["執行時間"]?.date);
+    if (!dateInfo.start) return null; // 沒日期跳過
+
+    const startHour = new Date(dateInfo.start).getHours();
+    const time_slot = startHour >= 12 ? "afternoon" : "morning";
+    const booking_date = dateInfo.start.slice(0, 10);
+
+    const locNid = extractRelation(props["對應地點"]?.relation)[0]?.replace(/-/g, "");
+    const venue = locNid ? (db08NameMap[locNid] || "未指定") : "未指定";
+
+    const guideNid = extractRelation(props["對應對象"]?.relation)[0]?.replace(/-/g, "");
+    const contact_name = guideNid ? (db08NameMap[guideNid] || null) : null;
+
+    return {
+      notion_db04_id: nid(page),
+      booking_date,
+      time_slot,
+      venue,
+      status: "confirmed",
+      source: "internal",
+      contact_name,
+      contact_phone: null,
+      contact_email: null,
+      usage_type: "內部使用",
+      attendee_count: extractNumber(props["數量上限"]?.number) || null,
+      event_summary: extractText(props["簡介摘要"]?.rich_text) || null,
+      notion_page_id: page.id,
+    };
+  }).filter((r): r is NonNullable<typeof r> => r !== null);
+
+  console.log(`[sync] space_bookings (internal): ${rows.length} rows`);
+  return await batchUpsert("space_bookings", rows, "booking_date,time_slot,venue");
 }
 
 // ── DB05 → articles ──
