@@ -113,32 +113,52 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       return false;
     },
 
-    async session({ session }) {
-      const rawEmail = session.user?.email;           // 原始 email（可能帶點，如 Gmail）
-      const email = normalizeEmail(rawEmail);         // normalized（點已去除）
+    // 把身份資訊寫進 JWT，避免每次 request 都打 Notion API。
+    // - signIn 時抓一次寫進 token
+    // - 每 30 分鐘 stale 時自動 refresh
+    // - 之後 session() 只從 token 讀，幾乎 0ms
+    async jwt({ token, trigger }) {
+      const REFRESH_MS = 30 * 60 * 1000; // 30 分鐘
+      const lastChecked = (token as any).rolesCheckedAt || 0;
+      const stale = Date.now() - lastChecked > REFRESH_MS;
+      const shouldRefresh = trigger === "signIn" || trigger === "update" || stale || !(token as any).role;
 
-      if (email) {
-        // 有 email → 用 rawEmail 查（函式內部會先 normalized 查，fallback 再查原始）
-        const lookupEmail = rawEmail || email;
-        // 並行拉 4 件事，省冷啟時間（4 個 query 各自有 5 分鐘 in-memory cache）
-        const [person, isStaff, isVendor, memberStatus] = await Promise.all([
-          fetchPersonByEmail(lookupEmail),
-          checkIsStaff(lookupEmail),
-          checkIsVendor(lookupEmail),
-          checkMemberStatus(lookupEmail),
-        ]);
-        (session as any).role = isStaff ? "staff" : isVendor ? "vendor" : "member";
-        (session as any).memberStatus = memberStatus; // "會員" | "非會員" | "無會員" | null
-        (session as any).notionId = person?.id || null;
-        (session as any).displayName = person?.name || session.user?.name;
+      if (token.email && shouldRefresh) {
+        const lookupEmail = token.email as string;
+        try {
+          const [person, isStaff, isVendor, memberStatus] = await Promise.all([
+            fetchPersonByEmail(lookupEmail),
+            checkIsStaff(lookupEmail),
+            checkIsVendor(lookupEmail),
+            checkMemberStatus(lookupEmail),
+          ]);
+          (token as any).role = isStaff ? "staff" : isVendor ? "vendor" : "member";
+          (token as any).memberStatus = memberStatus || null;
+          (token as any).notionId = person?.id || null;
+          (token as any).displayName = person?.name || null;
+          (token as any).rolesCheckedAt = Date.now();
+        } catch (e) {
+          console.error("[auth/jwt] role refresh failed:", e);
+          // 失敗不擋登入，保留舊 token 值
+        }
+      }
+      return token;
+    },
+
+    async session({ session, token }) {
+      // 全部從 token 讀，不打 Notion
+      if (session.user?.email) {
+        (session as any).role = (token as any).role || "member";
+        (session as any).memberStatus = (token as any).memberStatus || null;
+        (session as any).notionId = (token as any).notionId || null;
+        (session as any).displayName = (token as any).displayName || session.user?.name;
       } else {
         // 沒有 email（LINE 用戶）→ 預設一般會員
         (session as any).role = "member";
-        (session as any).memberStatus = "會員"; // LINE 登入自動為會員
+        (session as any).memberStatus = "會員";
         (session as any).notionId = null;
         (session as any).displayName = session.user?.name || "LINE 會員";
       }
-
       return session;
     },
   },
