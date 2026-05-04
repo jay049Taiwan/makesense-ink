@@ -229,11 +229,19 @@ export default function EventPage({
                     </span>
                   )}
                 </div>
-                <div className="flex items-center flex-wrap gap-y-2">
+                <div className="flex items-center flex-wrap gap-y-3">
                   {event.routeStops.map((stop, i) => (
                     <div key={i} className="flex items-center">
                       {i > 0 && (
-                        <span className="mx-2 text-sm" style={{ color: "var(--color-dust)" }}>→</span>
+                        <span
+                          aria-hidden
+                          className="inline-block mx-1"
+                          style={{
+                            width: 32,
+                            height: 0,
+                            borderTop: "1.5px dashed var(--color-dust)",
+                          }}
+                        />
                       )}
                       <button
                         onClick={() => setPopupIndex(popupIndex === i ? null : i)}
