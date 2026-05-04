@@ -201,6 +201,22 @@ async function lookupPersonName(notionId: string): Promise<string | null> {
   return data?.name || null;
 }
 
+/**
+ * 查 DB08 entry 的顯示名稱：先 persons，沒有就 topics，再沒有就 partners。
+ * 用於 route stops 等情境（地點可能是觀點、標籤、合作夥伴而不是人物）。
+ */
+async function lookupDb08Name(notionId: string): Promise<string | null> {
+  if (!notionId) return null;
+  const clean = notionId.replace(/-/g, "");
+  const personsRes = await supabase.from("persons").select("name").eq("notion_id", clean).maybeSingle();
+  if (personsRes.data?.name) return personsRes.data.name;
+  const topicsRes = await supabase.from("topics").select("name").eq("notion_id", clean).maybeSingle();
+  if (topicsRes.data?.name) return topicsRes.data.name;
+  const partnersRes = await supabase.from("partners").select("name").eq("notion_id", clean).maybeSingle();
+  if (partnersRes.data?.name) return partnersRes.data.name;
+  return null;
+}
+
 // ── DB04 → events ──
 async function syncSingleEvent(nid: string, props: any) {
   const dateInfo = dt(props["執行時間"]);
@@ -235,7 +251,7 @@ async function syncSingleEvent(nid: string, props: any) {
     const locId = (sp.properties?.["對應地點"]?.relation || [])[0]?.id;
     let stopName = "未命名地點";
     if (locId) {
-      const locName = await lookupPersonName(locId);
+      const locName = await lookupDb08Name(locId);
       if (locName) stopName = locName;
     }
     const desc = (sp.properties?.["明細內容"]?.rich_text || []).map((x: any) => x.plain_text).join("");
