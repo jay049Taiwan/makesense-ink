@@ -9,10 +9,10 @@ import { activityProductConfig } from "@/lib/vendor-page-config";
 import { supabase } from "@/lib/supabase";
 import QrScanModal from "@/components/partner/QrScanModal";
 
-type PartnerTab = "概覽" | "項目" | "金流" | "設定";
+type PartnerTab = "概覽" | "項目" | "收益" | "設定";
 
 const tabIcons: Record<PartnerTab, string> = {
-  概覽: "📊", 項目: "📦", 金流: "💰", 設定: "⚙️",
+  概覽: "📊", 項目: "📦", 收益: "💰", 設定: "⚙️",
 };
 
 export interface VendorProduct {
@@ -191,7 +191,7 @@ export default function PartnerPage() {
       <div className="mb-24">
         {activeTab === "概覽" && <VendorOverview stats={stats} onOpenScanner={() => setShowScanner(true)} />}
         {activeTab === "項目" && <VendorItems vendorProducts={products.filter(p => p.active)} activities={activities} newsletters={newsletters} />}
-        {activeTab === "金流" && <VendorFinance stats={stats} />}
+        {activeTab === "收益" && <VendorFinance stats={stats} />}
         {activeTab === "設定" && <VendorSettings notionId={notionId} />}
       </div>
 
@@ -544,7 +544,7 @@ function VendorItems({ vendorProducts, activities, newsletters }: {
 }
 
 // ════════════════════════════════════════════
-// 金流
+// 收益
 // ════════════════════════════════════════════
 function VendorFinance({ stats }: { stats: VendorStats }) {
   const monthly = [
