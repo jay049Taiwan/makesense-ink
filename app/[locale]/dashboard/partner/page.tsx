@@ -150,18 +150,17 @@ export default function PartnerPage() {
           })));
         }
 
-        // ── 績效數據（partner_metrics_v VIEW）──
-        const { data: metrics } = await (supabase as any)
-          .from("partner_metrics_v")
-          .select("reach_count, conversion_count, total_revenue, product_count, out_of_stock_count, event_count, newsletter_count, avg_rating, review_count")
-          .eq("notion_id", notionId)
-          .maybeSingle() as {
-            data: {
-              reach_count: number; conversion_count: number; total_revenue: number;
-              product_count: number; out_of_stock_count: number; event_count: number;
-              newsletter_count: number; avg_rating: number; review_count: number;
-            } | null;
-          };
+        // ── 績效數據（partner_metrics_v VIEW，走 server API 確保只回自己的 row）──
+        let metrics: any = null;
+        try {
+          const r = await fetch("/api/user/partner-metrics");
+          if (r.ok) {
+            const d = await r.json();
+            metrics = d.metrics;
+          }
+        } catch (e) {
+          console.error("[partner dashboard] metrics fetch failed", e);
+        }
 
         if (metrics) {
           const avgR = Number(metrics.avg_rating) || 0;
