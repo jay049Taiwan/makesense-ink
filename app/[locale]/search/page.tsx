@@ -4,6 +4,7 @@ import { supabase } from "@/lib/supabase";
 import SafeImage from "@/components/ui/SafeImage";
 import ImagePlaceholder from "@/components/ui/ImagePlaceholder";
 import { cleanTitle } from "@/lib/clean-title";
+import { scoreItem, rankByScore } from "@/lib/search-rank";
 import AddToCartButton from "@/components/ui/AddToCartButton";
 import QuickBookButton from "@/components/ui/QuickBookButton";
 
@@ -14,13 +15,17 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   return { title: q ? `搜尋「${q}」` : "搜尋" };
 }
 
+type FilterType = "all" | "products" | "events" | "articles" | "topics";
+
 interface SearchPageProps {
-  searchParams: Promise<{ q?: string }>;
+  searchParams: Promise<{ q?: string; type?: string }>;
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const { q: rawQ } = await searchParams;
+  const { q: rawQ, type: rawType } = await searchParams;
   const q = (rawQ || "").trim();
+  const filter: FilterType = (["all", "products", "events", "articles", "topics"] as const)
+    .includes(rawType as any) ? (rawType as FilterType) : "all";
 
   if (!q) {
     return (
@@ -35,70 +40,83 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
   const [productsRes, eventsRes, articlesRes, topicsRes] = await Promise.all([
     supabase
       .from("products")
-      .select("id, notion_id, name, price, images, category, stock")
+      .select("id, notion_id, name, description, price, images, category, stock, updated_at")
       .eq("status", "active")
-      .ilike("name", like)
-      .limit(60),
+      .or(`name.ilike.${like},description.ilike.${like}`)
+      .limit(120),
     supabase
       .from("events")
-      .select("id, notion_id, title, cover_url, event_date, event_type, location")
+      .select("id, notion_id, title, description, cover_url, event_date, event_type, location")
       .eq("status", "active")
-      .ilike("title", like)
-      .order("event_date", { ascending: false })
-      .limit(60),
+      .or(`title.ilike.${like},description.ilike.${like}`)
+      .limit(120),
     supabase
       .from("articles")
       .select("id, notion_id, title, summary, cover_url, published_at, web_tag")
       .eq("status", "published")
       .or(`title.ilike.${like},summary.ilike.${like}`)
-      .order("published_at", { ascending: false })
-      .limit(120),
+      .limit(180),
     supabase
       .from("topics")
       .select("id, notion_id, name, summary, tag_type, region")
       .eq("status", "active")
-      .ilike("name", like)
-      .limit(60),
+      .or(`name.ilike.${like},summary.ilike.${like}`)
+      .limit(120),
   ]);
 
-  const products = (productsRes.data || []).map((p: any) => {
-    let photo: string | null = null;
-    try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
-    return {
-      id: p.notion_id || p.id,
-      name: cleanTitle(p.name),
-      price: p.price,
-      photo,
-      category: p.category,
-      stock: p.stock,
-    };
-  });
-  const events = (eventsRes.data || []).map((e: any) => ({
-    id: e.notion_id || e.id,
-    title: cleanTitle(e.title),
-    photo: e.cover_url,
-    date: e.event_date,
-    type: e.event_type,
-    location: e.location,
-  }));
+  const products = rankByScore(
+    (productsRes.data || []).map((p: any) => {
+      let photo: string | null = null;
+      try { photo = JSON.parse(p.images || "[]")[0] || null; } catch {}
+      return {
+        id: p.notion_id || p.id,
+        name: cleanTitle(p.name),
+        price: p.price,
+        photo,
+        category: p.category,
+        stock: p.stock,
+        _score: scoreItem(q, p.name, p.description),
+        _date: p.updated_at,
+      };
+    })
+  ).slice(0, 60);
+  const events = rankByScore(
+    (eventsRes.data || []).map((e: any) => ({
+      id: e.notion_id || e.id,
+      title: cleanTitle(e.title),
+      photo: e.cover_url,
+      date: e.event_date,
+      type: e.event_type,
+      location: e.location,
+      _score: scoreItem(q, e.title, e.description),
+      _date: e.event_date,
+    }))
+  ).slice(0, 60);
   // 排除話題推薦（沒獨立頁面，不該出現在搜尋結果）
-  const articles = (articlesRes.data || [])
-    .filter((a: any) => !Array.isArray(a.web_tag) || !a.web_tag.includes("話題推薦"))
-    .slice(0, 60)
-    .map((a: any) => ({
-      id: a.notion_id || a.id,
-      title: cleanTitle(a.title),
-      summary: a.summary,
-      photo: a.cover_url,
-      date: a.published_at,
-    }));
-  const topics = (topicsRes.data || []).map((t: any) => ({
-    id: t.notion_id || t.id,
-    name: cleanTitle(t.name),
-    summary: t.summary,
-    tagType: t.tag_type,
-    region: Array.isArray(t.region) ? t.region : [],
-  }));
+  const articles = rankByScore(
+    (articlesRes.data || [])
+      .filter((a: any) => !Array.isArray(a.web_tag) || !a.web_tag.includes("話題推薦"))
+      .map((a: any) => ({
+        id: a.notion_id || a.id,
+        title: cleanTitle(a.title),
+        summary: a.summary,
+        photo: a.cover_url,
+        date: a.published_at,
+        _score: scoreItem(q, a.title, a.summary),
+        _date: a.published_at,
+      }))
+  ).slice(0, 60);
+  const topics = rankByScore(
+    (topicsRes.data || []).map((t: any) => ({
+      id: t.notion_id || t.id,
+      name: cleanTitle(t.name),
+      summary: t.summary,
+      tagType: t.tag_type,
+      region: Array.isArray(t.region) ? t.region : [],
+      _score: scoreItem(q, t.name, t.summary),
+      _date: null,
+    }))
+  ).slice(0, 60);
 
   const total = products.length + events.length + articles.length + topics.length;
 
@@ -116,12 +134,38 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </h1>
         <p className="text-sm" style={{ color: "var(--color-bark)" }}>
           共找到 {total} 筆結果
-          {total > 0 && (
-            <span style={{ color: "var(--color-mist)" }}>
-              　·　商品 {products.length}　·　活動 {events.length}　·　文章 {articles.length}　·　觀點/標籤 {topics.length}
-            </span>
-          )}
         </p>
+
+        {/* 類別 Tab 篩選 */}
+        {total > 0 && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            {[
+              { key: "all" as const, label: "全部", count: total },
+              { key: "products" as const, label: "商品", count: products.length },
+              { key: "events" as const, label: "活動", count: events.length },
+              { key: "articles" as const, label: "文章", count: articles.length },
+              { key: "topics" as const, label: "觀點/標籤", count: topics.length },
+            ].map(({ key, label, count }) => {
+              const active = filter === key;
+              const params = new URLSearchParams({ q });
+              if (key !== "all") params.set("type", key);
+              return (
+                <Link
+                  key={key}
+                  href={`/search?${params.toString()}`}
+                  className="text-xs px-3 py-1.5 rounded-full transition-colors"
+                  style={{
+                    background: active ? "var(--color-bark)" : "var(--color-parchment)",
+                    color: active ? "#fff" : "var(--color-bark)",
+                    border: `1px solid ${active ? "var(--color-bark)" : "var(--color-dust)"}`,
+                  }}
+                >
+                  {label} <span style={{ opacity: 0.7 }}>({count})</span>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       {total === 0 && (
@@ -136,7 +180,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 商品 */}
-      {products.length > 0 && (
+      {(filter === "all" || filter === "products") && products.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>商品</h2>
@@ -167,7 +211,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 活動 */}
-      {events.length > 0 && (
+      {(filter === "all" || filter === "events") && events.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>活動</h2>
@@ -209,7 +253,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 文章 */}
-      {articles.length > 0 && (
+      {(filter === "all" || filter === "articles") && articles.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>文章</h2>
@@ -243,7 +287,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 觀點/標籤 */}
-      {topics.length > 0 && (
+      {(filter === "all" || filter === "topics") && topics.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>
