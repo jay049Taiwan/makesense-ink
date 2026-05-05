@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent } from "@/lib/notion";
+import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent, getPage } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
 
@@ -502,6 +502,81 @@ async function syncEvents(wb = false, skipImages = false) {
     }
   }
 
+  // ─── route_stops 預備：一次撈所有「表單名稱=路線腳本」DB05 entries，按事件分組 ───
+  let stopsByEvent: Record<string, any[]> = {};
+  let locNameMap: Record<string, string> = {};
+  try {
+    const allStops = await queryDatabase(DB.DB05_REGISTRATION, {
+      property: "表單名稱",
+      title: { equals: "路線腳本" },
+    });
+    for (const stopPage of allStops) {
+      const stopProps = (stopPage as any).properties || {};
+      const eventRels = extractRelation(stopProps["對應協作"]?.relation);
+      const eventNid = eventRels[0]?.replace(/-/g, "");
+      if (!eventNid) continue;
+      (stopsByEvent[eventNid] ||= []).push(stopPage);
+    }
+    for (const k in stopsByEvent) {
+      stopsByEvent[k].sort((a: any, b: any) =>
+        new Date(a.created_time).getTime() - new Date(b.created_time).getTime()
+      );
+    }
+    // 收集所有 stop 的對應地點 ids
+    const allLocIds = new Set<string>();
+    for (const stops of Object.values(stopsByEvent)) {
+      for (const sp of stops) {
+        const id = extractRelation((sp as any).properties?.["對應地點"]?.relation)[0];
+        if (id) allLocIds.add(id.replace(/-/g, ""));
+      }
+    }
+    const locIdsArr = [...allLocIds];
+    if (locIdsArr.length > 0) {
+      // 先 Supabase persons / topics / partners 反查
+      for (const tbl of ["persons", "topics", "partners"] as const) {
+        const remaining = locIdsArr.filter(id => !locNameMap[id]);
+        if (remaining.length === 0) break;
+        for (let i = 0; i < remaining.length; i += 300) {
+          const chunk = remaining.slice(i, i + 300);
+          const { data } = await supabase.from(tbl).select("notion_id, name").in("notion_id", chunk);
+          for (const d of (data || []) as any[]) locNameMap[d.notion_id] = d.name;
+        }
+      }
+      // 還沒找到的：fallback 直接打 Notion 抓 page title「經營名稱」
+      const missing = locIdsArr.filter(id => !locNameMap[id]);
+      for (const id of missing) {
+        try {
+          const pg: any = await getPage(id);
+          const title = (pg.properties?.["經營名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+          if (title) locNameMap[id] = title;
+        } catch { /* 該 page 抓不到就算了，stop 顯示「未命名地點」 */ }
+      }
+    }
+  } catch (e: any) {
+    console.warn(`[sync] route_stops 撈取失敗: ${e?.message}（events 仍會同步，只是路線資料空）`);
+  }
+
+  // ─── tickets 預備：用 Supabase products 表批次反查（products 表已先同步完成）───
+  let ticketInfoMap: Record<string, { name: string; price: number }> = {};
+  const allTicketIds = new Set<string>();
+  for (const page of pages) {
+    const rels = extractRelation((page as any).properties?.["對應庫存"]?.relation);
+    for (const r of rels) allTicketIds.add(r.replace(/-/g, ""));
+  }
+  if (allTicketIds.size > 0) {
+    const arr = [...allTicketIds];
+    for (let i = 0; i < arr.length; i += 300) {
+      const chunk = arr.slice(i, i + 300);
+      const { data } = await supabase
+        .from("products")
+        .select("notion_id, title, price")
+        .in("notion_id", chunk);
+      for (const d of (data || []) as any[]) {
+        ticketInfoMap[d.notion_id] = { name: d.title || "", price: Number(d.price) || 0 };
+      }
+    }
+  }
+
   const rows = pages.map(page => {
     const props = p(page);
     const dateInfo = extractDate(props["執行時間"]?.date);
@@ -526,8 +601,29 @@ async function syncEvents(wb = false, skipImages = false) {
       ? Math.round((new Date(dateInfo.end).getTime() - new Date(dateInfo.start).getTime()) / 60000)
       : (dateInfo.start ? 120 : null);
 
+    // route_stops：對應到此活動的「路線腳本」DB05 entries
+    const eventNid = nid(page);
+    const stops = stopsByEvent[eventNid] || [];
+    const route_stops = stops.map((sp: any) => {
+      const locId = extractRelation(sp.properties?.["對應地點"]?.relation)[0]?.replace(/-/g, "");
+      const name = (locId && locNameMap[locId]) || "未命名地點";
+      const desc = extractText(sp.properties?.["明細內容"]?.rich_text) || "";
+      return { name, desc };
+    });
+
+    // tickets：對應庫存 → DB07 products
+    const ticketRels = extractRelation(props["對應庫存"]?.relation);
+    const tickets = ticketRels
+      .map((id: string) => {
+        const cleanId = id.replace(/-/g, "");
+        const info = ticketInfoMap[cleanId];
+        if (!info || !info.name) return null;
+        return { name: info.name, price: String(info.price), notion_id: cleanId };
+      })
+      .filter((x): x is { name: string; price: string; notion_id: string } => x !== null);
+
     return {
-      notion_id: nid(page),
+      notion_id: eventNid,
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title) || "未命名活動",
       theme: extractSelect(props["活動細項"]?.select) || null,
       event_type: extractSelect(props["活動細項"]?.select) || null,
@@ -546,6 +642,8 @@ async function syncEvents(wb = false, skipImages = false) {
       collab_type: extractSelect(props["協作選項"]?.select) || null,
       owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
       status: ms(extractStatus(props["登記發佈"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      route_stops,
+      tickets,
     };
   });
 
