@@ -81,9 +81,10 @@ export default function LiffShopPage() {
   const catParam = (searchParams.get("cat") || "").toLowerCase();
   const catMap: Record<string, string> = { book: "商品/選書", goods: "商品/選物", digital: "商品/數位" };
   const categoryFilter = catMap[catParam] || null;
+  // 沒帶 cat 參數時，用一個 always-true clause（category 有值或沒值都匹配）
   const catOrClause = categoryFilter
     ? `category.eq.${categoryFilter}`
-    : catOrClause;
+    : `category.not.is.null,category.is.null`;
   const catLabel: Record<string, string> = { book: "主題選書", goods: "風格選物", digital: "數位內容" };
   const headerTitle = catLabel[catParam] || "";
 
