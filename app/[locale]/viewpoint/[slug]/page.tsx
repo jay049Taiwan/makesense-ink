@@ -12,8 +12,8 @@ interface TopicData {
   content: string | null;
 }
 
-export default function ViewpointPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params);
+export default function ViewpointPage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
+  const { locale, slug } = use(params);
   const [topic, setTopic] = useState<TopicData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [relatedTopics, setRelatedTopics] = useState<any[]>([]);
@@ -29,11 +29,29 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
         .maybeSingle();
 
       if (data) {
+        // 套用翻譯（locale != zh 時）
+        let name = data.name;
+        let summary = data.summary;
+        let content = data.content;
+        if (locale && locale !== "zh") {
+          const { data: trs } = await supabase
+            .from("translations")
+            .select("field, value")
+            .eq("table_name", "topics")
+            .eq("row_id", data.id)
+            .eq("locale", locale);
+          for (const tr of trs || []) {
+            if (tr.field === "name") name = tr.value;
+            if (tr.field === "summary") summary = tr.value;
+            if (tr.field === "content") content = tr.value;
+          }
+        }
+
         setTopic({
-          name: data.name,
+          name,
           tag_type: data.tag_type || "tag",
-          summary: data.summary,
-          content: data.content,
+          summary,
+          content,
         });
 
         // Fetch related topics (same tag_type, excluding self)
@@ -44,7 +62,25 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
           .eq("tag_type", data.tag_type)
           .neq("notion_id", slug)
           .limit(8);
-        setRelatedTopics((related || []).map(t => ({ id: t.notion_id || t.id, name: t.name, slug: t.notion_id || t.id })));
+
+        // 批次套翻譯到相關觀點 name
+        const relatedRows = related || [];
+        const relatedNameMap: Record<string, string> = {};
+        if (locale && locale !== "zh" && relatedRows.length > 0) {
+          const { data: relTrs } = await supabase
+            .from("translations")
+            .select("row_id, value")
+            .eq("table_name", "topics")
+            .eq("locale", locale)
+            .eq("field", "name")
+            .in("row_id", relatedRows.map((r: any) => r.id));
+          for (const tr of relTrs || []) relatedNameMap[tr.row_id] = tr.value;
+        }
+        setRelatedTopics(relatedRows.map((t: any) => ({
+          id: t.notion_id || t.id,
+          name: relatedNameMap[t.id] || t.name,
+          slug: t.notion_id || t.id,
+        })));
 
         // Fetch some products for "related products"
         const { data: prods } = await supabase
@@ -54,9 +90,21 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
           .eq("page_status", "有頁面")
           .limit(5);
 
-        setRelatedProducts((prods || []).map(p => ({
+        const prodRows = prods || [];
+        const prodNameMap: Record<string, string> = {};
+        if (locale && locale !== "zh" && prodRows.length > 0) {
+          const { data: prodTrs } = await supabase
+            .from("translations")
+            .select("row_id, value")
+            .eq("table_name", "products")
+            .eq("locale", locale)
+            .eq("field", "name")
+            .in("row_id", prodRows.map((p: any) => p.id));
+          for (const tr of prodTrs || []) prodNameMap[tr.row_id] = tr.value;
+        }
+        setRelatedProducts(prodRows.map((p: any) => ({
           id: p.notion_id || p.id,
-          name: p.name,
+          name: prodNameMap[p.id] || p.name,
           price: p.price,
           photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
           slug: p.notion_id || p.id,
@@ -65,7 +113,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ slug: stri
       setLoading(false);
     }
     load();
-  }, [slug]);
+  }, [slug, locale]);
 
   if (loading) {
     return <div className="flex items-center justify-center py-24"><p style={{ color: "var(--color-mist)" }}>載入中…</p></div>;
