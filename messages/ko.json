@@ -394,5 +394,12 @@
   },
   "languageSwitcher": {
     "label": "언어"
+  },
+  "viewpointDetail": {
+    "category": "관점",
+    "tag": "태그",
+    "relatedProducts": "관련 상품",
+    "exploreMore": "더 탐색하기",
+    "notFound": "관점을 찾을 수 없습니다"
   }
 }

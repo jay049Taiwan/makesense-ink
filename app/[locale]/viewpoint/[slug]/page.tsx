@@ -4,6 +4,7 @@ import { useState, useEffect, use } from "react";
 import { supabase } from "@/lib/supabase";
 import Link from "next/link";
 import SafeImage from "@/components/ui/SafeImage";
+import { useTranslations } from "next-intl";
 
 interface TopicData {
   name: string;
@@ -12,8 +13,17 @@ interface TopicData {
   content: string | null;
 }
 
+/** 雙語顯示專有名詞：英文（中文）。若兩個值相同（例如沒翻譯），就只顯示一個 */
+function bilingual(translated: string | undefined | null, original: string): string {
+  if (!translated) return original;
+  if (translated.trim() === original.trim()) return original;
+  return `${translated}（${original}）`;
+}
+
 export default function ViewpointPage({ params }: { params: Promise<{ locale: string; slug: string }> }) {
   const { locale, slug } = use(params);
+  const t = useTranslations("viewpointDetail");
+  const tCommon = useTranslations("common");
   const [topic, setTopic] = useState<TopicData | null>(null);
   const [relatedProducts, setRelatedProducts] = useState<any[]>([]);
   const [relatedTopics, setRelatedTopics] = useState<any[]>([]);
@@ -79,6 +89,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
         setRelatedTopics(relatedRows.map((t: any) => ({
           id: t.notion_id || t.id,
           name: relatedNameMap[t.id] || t.name,
+          original: t.name,
           slug: t.notion_id || t.id,
         })));
 
@@ -105,6 +116,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
         setRelatedProducts(prodRows.map((p: any) => ({
           id: p.notion_id || p.id,
           name: prodNameMap[p.id] || p.name,
+          original: p.name,
           price: p.price,
           photo: (() => { try { const imgs = JSON.parse(p.images || "[]"); return imgs[0] || null; } catch { return null; } })(),
           slug: p.notion_id || p.id,
@@ -116,14 +128,14 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
   }, [slug, locale]);
 
   if (loading) {
-    return <div className="flex items-center justify-center py-24"><p style={{ color: "var(--color-mist)" }}>載入中…</p></div>;
+    return <div className="flex items-center justify-center py-24"><p style={{ color: "var(--color-mist)" }}>{tCommon("loading")}</p></div>;
   }
 
   if (!topic) {
     return (
       <div className="flex items-center justify-center py-24 flex-col gap-2">
         <p className="text-4xl">💡</p>
-        <p style={{ color: "var(--color-mist)" }}>找不到此觀點</p>
+        <p style={{ color: "var(--color-mist)" }}>{t("notFound")}</p>
       </div>
     );
   }
@@ -139,7 +151,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
               background: topic.tag_type === "viewpoint" ? "#E3F2FD" : "#E8F5E9",
               color: topic.tag_type === "viewpoint" ? "#1565C0" : "#2E7D32",
             }}>
-            {topic.tag_type === "viewpoint" ? "觀點" : "標籤"}
+            {topic.tag_type === "viewpoint" ? t("category") : t("tag")}
           </span>
         </div>
         <h1 className="text-3xl font-semibold mb-3"
@@ -167,17 +179,19 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
       {/* 3. 相關商品 */}
       {relatedProducts.length > 0 && (
         <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>相關商品</h2>
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>{t("relatedProducts")}</h2>
           <div className="hscroll-track">
             {relatedProducts.map((p) => (
               <Link key={p.id} href={`/product/${p.slug}`}
                 className="flex-shrink-0 w-[180px] rounded-lg overflow-hidden transition-shadow hover:shadow-md"
                 style={{ border: "1px solid var(--color-dust)", background: "#fff" }}>
                 <div className="aspect-square flex items-center justify-center" style={{ background: "var(--color-parchment)" }}>
-                  <SafeImage src={p.photo} alt={p.name} placeholderType="product" />
+                  <SafeImage src={p.photo} alt={p.original || p.name} placeholderType="product" />
                 </div>
                 <div className="p-2.5">
-                  <h3 className="text-[0.85em] line-clamp-1" style={{ color: "var(--color-ink)" }}>{p.name}</h3>
+                  <h3 className="text-[0.85em] line-clamp-2" style={{ color: "var(--color-ink)" }}>
+                    {bilingual(p.name, p.original)}
+                  </h3>
                   <p className="text-[0.8em]" style={{ color: "var(--color-rust)" }}>NT$ {p.price}</p>
                 </div>
               </Link>
@@ -189,13 +203,13 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
       {/* 4. 延伸探索 */}
       {relatedTopics.length > 0 && (
         <section className="mb-10">
-          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>延伸探索</h2>
+          <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--color-ink)" }}>{t("exploreMore")}</h2>
           <div className="flex flex-wrap gap-3">
-            {relatedTopics.map((t) => (
-              <Link key={t.id} href={`/viewpoint/${t.slug}`}
+            {relatedTopics.map((rt) => (
+              <Link key={rt.id} href={`/viewpoint/${rt.slug}`}
                 className="px-4 py-2.5 rounded-full text-sm transition-all hover:shadow-sm"
                 style={{ background: "var(--color-parchment)", color: "var(--color-bark)", border: "1px solid var(--color-dust)" }}>
-                {t.name}
+                {bilingual(rt.name, rt.original)}
               </Link>
             ))}
           </div>

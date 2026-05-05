@@ -78,9 +78,23 @@ async function translateRowToLocale(
   const fieldTexts = fields.map(([name, val]) => `[${name}]\n${val}`).join("\n\n");
 
   const prompt = `Translate the following content from Traditional Chinese to ${langName}. ${context}
-Keep proper nouns, brand names (旅人書店, 宜蘭文化俱樂部, 現思文化), place names, and monetary values (NT$) in their original form or use the conventional local translation.
-For HTML content, preserve all HTML tags and only translate the text content.
-Return ONLY the translations in the exact same format, with [field_name] headers.
+
+CRITICAL FORMATTING RULES:
+1. For all proper nouns (places, people, ethnic groups, brand names, building names, organization names, indigenous terms), format as: TranslatedTerm（OriginalChinese）
+   Examples:
+   - 噶瑪蘭族 → Kavalan（噶瑪蘭族）
+   - 加禮宛 → Kalinawan（加禮宛）
+   - 五結鄉 → Wujie Township（五結鄉）
+   - 旅人書店 → Traveler Bookstore（旅人書店）
+   - 宜蘭 → Yilan（宜蘭）
+   - 蘭陽平原 → Lanyang Plain（蘭陽平原）
+2. Keep monetary values in original (NT$ 200, etc.).
+3. For HTML content, preserve all HTML tags; only translate text inside.
+4. Use Chinese full-width parentheses （） not half-width, around the original Chinese.
+5. First mention of a proper noun gets the parenthesized original; subsequent mentions in the same field can omit it.
+6. Brand names that are already widely known in Latin script (e.g., "Apple") may be kept as-is without parentheses.
+
+Return ONLY the translations in the exact same format, with [field_name] headers, no preamble.
 
 ${fieldTexts}`;
 

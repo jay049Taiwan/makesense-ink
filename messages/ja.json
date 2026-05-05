@@ -394,5 +394,12 @@
   },
   "languageSwitcher": {
     "label": "言語"
+  },
+  "viewpointDetail": {
+    "category": "観点",
+    "tag": "タグ",
+    "relatedProducts": "関連商品",
+    "exploreMore": "さらに探索",
+    "notFound": "観点が見つかりません"
   }
 }

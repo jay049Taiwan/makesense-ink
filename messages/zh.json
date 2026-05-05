@@ -394,5 +394,12 @@
   },
   "languageSwitcher": {
     "label": "語言"
+  },
+  "viewpointDetail": {
+    "category": "觀點",
+    "tag": "標籤",
+    "relatedProducts": "相關商品",
+    "exploreMore": "延伸探索",
+    "notFound": "找不到此觀點"
   }
 }

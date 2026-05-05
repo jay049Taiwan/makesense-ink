@@ -394,5 +394,12 @@
   },
   "languageSwitcher": {
     "label": "Language"
+  },
+  "viewpointDetail": {
+    "category": "Viewpoint",
+    "tag": "Tag",
+    "relatedProducts": "Related Products",
+    "exploreMore": "Explore More",
+    "notFound": "Viewpoint not found"
   }
 }
