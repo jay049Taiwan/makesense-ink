@@ -8,6 +8,7 @@ import { useLiff } from "@/components/providers/LiffProvider";
 import SafeImage from "@/components/ui/SafeImage";
 import BottomSheet, { type BottomSheetItem } from "@/components/ui/BottomSheet";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
+import { getLiffAccessToken } from "@/lib/liff";
 
 interface ProductItem {
   id: string;
@@ -110,58 +111,56 @@ export default function LiffShopPage() {
       let preferredCategory = "";
       let relatedTopicIds: string[] = [];
 
-      // 如果有登入，查購買紀錄做個人化推薦
+      // 如果有登入，查購買紀錄做個人化推薦（透過 server API）
       if (liffUser?.email) {
-        const { data: member } = await supabase
-          .from("members")
-          .select("id")
-          .eq("email", liffUser.email)
-          .maybeSingle();
-
-        if (member) {
-          const { data: orders } = await supabase
-            .from("orders")
-            .select("id")
-            .eq("member_id", member.id)
-            .neq("status", "cancelled")
-            .limit(20);
-
-          if (orders && orders.length > 0) {
-            const orderIds = orders.map(o => o.id);
-            const { data: items } = await supabase
-              .from("order_items")
-              .select("item_id, meta")
-              .in("order_id", orderIds);
-
-            if (items && items.length > 0) {
-              purchasedIds = items.map(i => i.item_id).filter(Boolean);
-
-              // 統計購買類別偏好
-              const categories: Record<string, number> = {};
-              for (const item of items) {
-                const cat = (item.meta as any)?.category || "";
-                if (cat) categories[cat] = (categories[cat] || 0) + 1;
+        const token = getLiffAccessToken();
+        if (token) {
+          try {
+            const res = await fetch("/api/liff/me/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ accessToken: token }),
+            });
+            const data = await res.json();
+            if (data.ok && data.member) {
+              const orders = (data.orders || []).slice(0, 20);
+              const items: any[] = [];
+              for (const o of orders) {
+                for (const it of o.order_items || []) items.push(it);
               }
-              // 找最常買的類別
-              const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
-              if (sorted.length > 0) preferredCategory = sorted[0][0];
-            }
 
-            // 查購買商品的相關觀點
-            if (purchasedIds.length > 0) {
-              const { data: prods } = await supabase
-                .from("products")
-                .select("related_topic_ids")
-                .in("notion_id", purchasedIds.slice(0, 10));
+              if (items.length > 0) {
+                purchasedIds = items.map(i => i.item_id).filter(Boolean);
 
-              if (prods) {
-                for (const p of prods) {
-                  const topics = (p.related_topic_ids as string[]) || [];
-                  relatedTopicIds.push(...topics);
+                // 統計購買類別偏好（注意：order_items 沒選 meta，client 端不再有此資訊）
+                // → 沿用 item_type 當分類訊號（舊欄位 meta.category 仍可從 server 加回；先簡化）
+                const categories: Record<string, number> = {};
+                for (const item of items) {
+                  const cat = (item as any).item_type || "";
+                  if (cat) categories[cat] = (categories[cat] || 0) + 1;
                 }
-                relatedTopicIds = [...new Set(relatedTopicIds)];
+                const sorted = Object.entries(categories).sort((a, b) => b[1] - a[1]);
+                if (sorted.length > 0) preferredCategory = sorted[0][0];
+              }
+
+              // 查購買商品的相關觀點（products 表是公開讀，不受 RLS 影響）
+              if (purchasedIds.length > 0) {
+                const { data: prods } = await supabase
+                  .from("products")
+                  .select("related_topic_ids")
+                  .in("notion_id", purchasedIds.slice(0, 10));
+
+                if (prods) {
+                  for (const p of prods) {
+                    const topics = (p.related_topic_ids as string[]) || [];
+                    relatedTopicIds.push(...topics);
+                  }
+                  relatedTopicIds = [...new Set(relatedTopicIds)];
+                }
               }
             }
+          } catch (e) {
+            console.error("[liff/shop] fetch orders failed", e);
           }
         }
       }

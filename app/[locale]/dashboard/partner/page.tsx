@@ -179,24 +179,20 @@ export default function PartnerPage() {
         }
       }
 
-      // ── 參與活動（market_applications，透過 email 查 member_id）──
+      // ── 參與活動（market_applications，走 server API 反查 member + applications）──
       if (email && email !== "—") {
-        const normEmail = normalizeEmailClient(email);
-        const { data: memberRow } = await supabase
-          .from("members")
-          .select("id")
-          .eq("email", normEmail)
-          .maybeSingle();
+        let apps: any[] | null = null;
+        try {
+          const r = await fetch("/api/user/partner-applications");
+          if (r.ok) {
+            const d = await r.json();
+            apps = d.applications || [];
+          }
+        } catch (e) {
+          console.error("[partner dashboard] applications fetch failed", e);
+        }
 
-        if (memberRow) {
-          const { data: apps } = await supabase
-            .from("market_applications")
-            .select("id, event_id, vendor_name, status, created_at")
-            .eq("member_id", memberRow.id)
-            .neq("status", "rejected")
-            .order("created_at", { ascending: false });
-
-          if (apps && apps.length > 0) {
+        if (apps && apps.length > 0) {
             const eventIds = (apps as any[]).map(a => a.event_id).filter(Boolean);
             let evtMap = new Map<string, any>();
             if (eventIds.length > 0) {
@@ -220,7 +216,6 @@ export default function PartnerPage() {
                 createdAt: new Date(app.created_at).toLocaleDateString("zh-TW"),
               };
             }));
-          }
         }
       }
     })();

@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { getLiffAccessToken } from "@/lib/liff";
 
 interface MemberInfo {
   name: string;
@@ -35,29 +35,32 @@ export default function LiffProfilePage() {
         return;
       }
 
-      // 查會員
-      const { data: member } = await supabase
-        .from("members")
-        .select("id, name")
-        .eq("email", liffUser.email)
-        .maybeSingle();
-
+      // 透過 server API 拿 member + orders（避免 anon SELECT 敏感表）
       let orderCount = 0;
       let totalSpent = 0;
-
-      if (member) {
-        const { data: orders } = await supabase
-          .from("orders")
-          .select("id, total")
-          .eq("member_id", member.id)
-          .neq("status", "cancelled");
-
-        orderCount = orders?.length || 0;
-        totalSpent = (orders || []).reduce((s, o: any) => s + (o.total || 0), 0);
+      let memberName: string | undefined;
+      const token = getLiffAccessToken();
+      if (token) {
+        try {
+          const res = await fetch("/api/liff/me/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: token }),
+          });
+          const data = await res.json();
+          if (data.ok && data.member) {
+            memberName = data.member.name;
+            const orders = data.orders || [];
+            orderCount = orders.length;
+            totalSpent = orders.reduce((s: number, o: any) => s + (o.total || 0), 0);
+          }
+        } catch (e) {
+          console.error("[liff/profile] fetch orders failed", e);
+        }
       }
 
       setInfo({
-        name: liffUser.lineProfile?.displayName || member?.name || "會員",
+        name: liffUser.lineProfile?.displayName || memberName || "會員",
         email: liffUser.email,
         role: liffUser.role || "會員",
         orderCount,

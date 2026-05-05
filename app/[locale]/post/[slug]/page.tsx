@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { supabase } from "@/lib/supabase";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { getPageContent } from "@/lib/notion";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import Link from "next/link";

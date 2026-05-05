@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "@/lib/supabase";
 import { useLiff } from "@/components/providers/LiffProvider";
+import { getLiffAccessToken } from "@/lib/liff";
 import SafeImage from "@/components/ui/SafeImage";
 import BottomSheet, { type BottomSheetItem } from "@/components/ui/BottomSheet";
 
@@ -27,41 +28,40 @@ export default function MoodBooksPage() {
 
     // 如果有登入，根據購買紀錄的觀點偏好選擇主題
     if (liffUser?.email) {
-      const { data: member } = await supabase
-        .from("members")
-        .select("id")
-        .eq("email", liffUser.email)
-        .maybeSingle();
-
-      if (member) {
-        const { data: orders } = await supabase
-          .from("orders")
-          .select("id")
-          .eq("member_id", member.id)
-          .neq("status", "cancelled")
-          .limit(20);
-
-        if (orders && orders.length > 0) {
-          const { data: items } = await supabase
-            .from("order_items")
-            .select("item_id")
-            .in("order_id", orders.map(o => o.id));
-
-          if (items && items.length > 0) {
-            const productIds = items.map(i => i.item_id).filter(Boolean);
-            const { data: prods } = await supabase
-              .from("products")
-              .select("related_topic_ids")
-              .in("notion_id", productIds.slice(0, 10));
-
-            if (prods) {
-              for (const p of prods) {
-                const ids = (p.related_topic_ids as string[]) || [];
-                preferredTopicIds.push(...ids);
+      const token = getLiffAccessToken();
+      if (token) {
+        try {
+          const res = await fetch("/api/liff/me/orders", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ accessToken: token }),
+          });
+          const data = await res.json();
+          if (data.ok && data.member) {
+            const orders = (data.orders || []).slice(0, 20);
+            // 拉出 order_items 的 item_id（products notion_id）
+            const productIds: string[] = [];
+            for (const o of orders) {
+              for (const it of o.order_items || []) {
+                if (it.item_id) productIds.push(String(it.item_id));
               }
-              preferredTopicIds = [...new Set(preferredTopicIds)];
+            }
+            if (productIds.length > 0) {
+              const { data: prods } = await supabase
+                .from("products")
+                .select("related_topic_ids")
+                .in("notion_id", productIds.slice(0, 10));
+              if (prods) {
+                for (const p of prods) {
+                  const ids = (p.related_topic_ids as string[]) || [];
+                  preferredTopicIds.push(...ids);
+                }
+                preferredTopicIds = [...new Set(preferredTopicIds)];
+              }
             }
           }
+        } catch (e) {
+          console.error("[liff/mood-books] fetch orders failed", e);
         }
       }
     }

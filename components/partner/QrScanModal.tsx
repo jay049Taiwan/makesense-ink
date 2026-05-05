@@ -96,69 +96,25 @@ export default function QrScanModal({ onClose, notionId }: Props) {
     if (!orderId) { setStep("not_found"); return; }
 
     try {
-      // 1. 查訂單基本資料
-      const { data: orderRow } = await supabase
-        .from("orders")
-        .select("id, checkin_status, created_at, status, member_id")
-        .eq("id", orderId)
-        .neq("status", "cancelled")
-        .maybeSingle();
-
-      if (!orderRow) { setStep("not_found"); return; }
-      if (orderRow.checkin_status === "checked_in") {
-        setStep("already_checked_in");
+      const res = await fetch("/api/partner/qr-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "lookup", orderId, partnerNotionId: notionId }),
+      });
+      const data = await res.json();
+      if (!data.ok) { setStep("not_found"); return; }
+      if (data.step === "not_found" || data.step === "already_checked_in" || data.step === "wrong_vendor") {
+        setStep(data.step);
         return;
       }
-
-      // 2. 查此訂單的 product 項目
-      const { data: items } = await supabase
-        .from("order_items")
-        .select("item_id, item_type, quantity, price, item_name")
-        .eq("order_id", orderId)
-        .eq("item_type", "product");
-
-      const productItems = items || [];
-
-      // 3. 驗廠商歸屬（notionId 為 null 時跳過，dev 模式顯示所有）
-      let myItems = productItems;
-      if (notionId && productItems.length > 0) {
-        const prodIds = productItems.map(i => i.item_id).filter(Boolean);
-        const { data: prods } = await supabase
-          .from("products")
-          .select("id, publisher_notion_id")
-          .in("id", prodIds);
-        const myProdIds = new Set(
-          (prods || []).filter(p => p.publisher_notion_id === notionId).map(p => p.id)
-        );
-        myItems = productItems.filter(i => myProdIds.has(i.item_id));
-        if (myItems.length === 0) { setStep("wrong_vendor"); return; }
-      }
-
-      // 4. 取會員資訊
-      let buyerName = "顧客", buyerPhone = "—";
-      if (orderRow.member_id) {
-        const { data: member } = await supabase
-          .from("members")
-          .select("name, phone")
-          .eq("id", orderRow.member_id)
-          .maybeSingle();
-        if (member) {
-          buyerName = member.name || "顧客";
-          buyerPhone = member.phone || "—";
-        }
-      }
-
+      const o = data.order;
       setOrder({
-        orderId: orderRow.id,
-        buyerName,
-        buyerPhone,
-        createdAt: new Date(orderRow.created_at).toLocaleString("zh-TW"),
-        checkinStatus: orderRow.checkin_status,
-        items: myItems.map(i => ({
-          name: i.item_name || "商品",
-          qty: i.quantity || 1,
-          price: i.price || 0,
-        })),
+        orderId: o.orderId,
+        buyerName: o.buyerName,
+        buyerPhone: o.buyerPhone,
+        createdAt: new Date(o.createdAt).toLocaleString("zh-TW"),
+        checkinStatus: o.checkinStatus,
+        items: o.items,
       });
       setStep("found");
     } catch {
@@ -170,10 +126,11 @@ export default function QrScanModal({ onClose, notionId }: Props) {
     if (!order) return;
     setConfirming(true);
     try {
-      await supabase
-        .from("orders")
-        .update({ checkin_status: "checked_in" })
-        .eq("id", order.orderId);
+      await fetch("/api/partner/qr-scan", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "confirm", orderId: order.orderId }),
+      });
       setOrder({ ...order, checkinStatus: "checked_in" });
       setStep("completed");
     } finally {
