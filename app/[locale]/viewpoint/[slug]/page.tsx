@@ -13,10 +13,16 @@ interface TopicData {
   content: string | null;
 }
 
-/** 雙語顯示專有名詞：英文（中文）。若兩個值相同（例如沒翻譯），就只顯示一個 */
+/** 雙語顯示專有名詞：英文（中文）。
+ * 規則：
+ * - 沒翻譯或翻譯=原文 → 只顯示中文
+ * - 翻譯已內含「（原文）」 → 直接用翻譯（避免重複）
+ * - 否則 → 翻譯（原文）
+ */
 function bilingual(translated: string | undefined | null, original: string): string {
   if (!translated) return original;
   if (translated.trim() === original.trim()) return original;
+  if (translated.includes(`（${original}）`) || translated.includes(`(${original})`)) return translated;
   return `${translated}（${original}）`;
 }
 
