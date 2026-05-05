@@ -15,17 +15,13 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   return { title: q ? `搜尋「${q}」` : "搜尋" };
 }
 
-type FilterType = "all" | "products" | "events" | "articles" | "topics";
-
 interface SearchPageProps {
-  searchParams: Promise<{ q?: string; type?: string }>;
+  searchParams: Promise<{ q?: string }>;
 }
 
 export default async function SearchPage({ searchParams }: SearchPageProps) {
-  const { q: rawQ, type: rawType } = await searchParams;
+  const { q: rawQ } = await searchParams;
   const q = (rawQ || "").trim();
-  const filter: FilterType = (["all", "products", "events", "articles", "topics"] as const)
-    .includes(rawType as any) ? (rawType as FilterType) : "all";
 
   if (!q) {
     return (
@@ -134,38 +130,12 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
         </h1>
         <p className="text-sm" style={{ color: "var(--color-bark)" }}>
           共找到 {total} 筆結果
+          {total > 0 && (
+            <span style={{ color: "var(--color-mist)" }}>
+              　·　商品 {products.length}　·　活動 {events.length}　·　文章 {articles.length}　·　觀點/標籤 {topics.length}
+            </span>
+          )}
         </p>
-
-        {/* 類別 Tab 篩選 */}
-        {total > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {[
-              { key: "all" as const, label: "全部", count: total },
-              { key: "products" as const, label: "商品", count: products.length },
-              { key: "events" as const, label: "活動", count: events.length },
-              { key: "articles" as const, label: "文章", count: articles.length },
-              { key: "topics" as const, label: "觀點/標籤", count: topics.length },
-            ].map(({ key, label, count }) => {
-              const active = filter === key;
-              const params = new URLSearchParams({ q });
-              if (key !== "all") params.set("type", key);
-              return (
-                <Link
-                  key={key}
-                  href={`/search?${params.toString()}`}
-                  className="text-xs px-3 py-1.5 rounded-full transition-colors"
-                  style={{
-                    background: active ? "var(--color-bark)" : "var(--color-parchment)",
-                    color: active ? "#fff" : "var(--color-bark)",
-                    border: `1px solid ${active ? "var(--color-bark)" : "var(--color-dust)"}`,
-                  }}
-                >
-                  {label} <span style={{ opacity: 0.7 }}>({count})</span>
-                </Link>
-              );
-            })}
-          </div>
-        )}
       </div>
 
       {total === 0 && (
@@ -180,7 +150,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 商品 */}
-      {(filter === "all" || filter === "products") && products.length > 0 && (
+      {products.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>商品</h2>
@@ -211,7 +181,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 活動 */}
-      {(filter === "all" || filter === "events") && events.length > 0 && (
+      {events.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>活動</h2>
@@ -253,7 +223,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 文章 */}
-      {(filter === "all" || filter === "articles") && articles.length > 0 && (
+      {articles.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>文章</h2>
@@ -287,7 +257,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
       )}
 
       {/* 觀點/標籤 */}
-      {(filter === "all" || filter === "topics") && topics.length > 0 && (
+      {topics.length > 0 && (
         <section className="mb-12">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold" style={{ color: "var(--color-ink)" }}>
