@@ -112,7 +112,7 @@ export async function POST(req: NextRequest) {
         mtdOrderSet.add(it.order_id);
       }
       // 待簽到只看活動票
-      if (it.item_type === "event" && o.checkin_status === "pending") {
+      if (it.item_type !== "商品" && o.checkin_status === "pending") {
         pendingCheckin += Number(it.quantity || 0);
       }
     }
@@ -141,9 +141,9 @@ export async function POST(req: NextRequest) {
       })
       .slice(0, 10)
       .map((it) => ({
-        type: it.item_type === "event" ? "registration" : "order",
+        type: it.item_type !== "商品" ? "registration" : "order",
         title:
-          it.item_type === "event"
+          it.item_type !== "商品"
             ? eventById.get(it.item_id) || "活動"
             : productById.get(it.item_id) || "商品",
         qty: it.quantity,
@@ -166,7 +166,7 @@ export async function POST(req: NextRequest) {
       return {
         type: "review",
         title: it
-          ? it.item_type === "event"
+          ? it.item_type !== "商品"
             ? eventById.get(it.item_id) || "活動"
             : productById.get(it.item_id) || "商品"
           : "—",

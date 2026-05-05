@@ -117,7 +117,7 @@ async function handleEvent(event: any) {
       }
       break;
 
-    // ── 新追蹤 → 歡迎訊息 ──
+    // ── 新追蹤 → 歡迎訊息 + 綁角色 Rich Menu ──
     case "follow":
       await lineClient.replyMessage({
         replyToken,
@@ -129,6 +129,20 @@ async function handleEvent(event: any) {
         message_type: "reply",
         template: "welcome",
       });
+
+      // 自動綁角色對應 Rich Menu（partner 自動拿 partner-shop，否則 member）
+      try {
+        const { bindRichMenuByRole } = await import("@/lib/line-richmenu");
+        const result = await bindRichMenuByRole(userId);
+        await supabase.from("line_message_log").insert({
+          user_id: userId,
+          message_type: "richmenu_bind",
+          template: result.role,
+          payload: { menuId: result.menuId, ok: result.ok },
+        });
+      } catch (e: any) {
+        console.warn("[follow] richmenu bind failed:", e?.message);
+      }
       break;
 
     // ── postback 事件 ──

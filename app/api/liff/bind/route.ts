@@ -43,7 +43,17 @@ export async function POST(req: NextRequest) {
 
     if (error) throw error;
 
-    return NextResponse.json({ success: true, memberId: member.id });
+    // 綁定後依角色切換 Rich Menu（partner 自動拿廠商選單）
+    let role: "partner" | "member" = "member";
+    try {
+      const { bindRichMenuByRole } = await import("@/lib/line-richmenu");
+      const result = await bindRichMenuByRole(lineUid);
+      role = result.role;
+    } catch (e: any) {
+      console.warn("[liff/bind] richmenu sync failed:", e?.message);
+    }
+
+    return NextResponse.json({ success: true, memberId: member.id, role });
   } catch (err: any) {
     console.error("LIFF bind error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });

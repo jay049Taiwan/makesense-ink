@@ -118,6 +118,187 @@ export async function notifyOrderStatusChange(
   }
 }
 
+/**
+ * 訂單成立後 → 通知所有被點到貨/活動的合作廠商
+ * 一筆訂單可能涉及多家廠商，每家收一則 push（包含「跟自己有關」的品項摘要）
+ */
+export async function notifyPartnerOnOrder(
+  orderId: string,
+  items: { name: string; qty: number; price: number; itemId: string; itemType: "product" | "event" }[]
+): Promise<void> {
+  // 找出每個品項的 partner notion_id
+  const productIds = items.filter((i) => i.itemType === "product").map((i) => i.itemId);
+  const eventIds = items.filter((i) => i.itemType === "event").map((i) => i.itemId);
+
+  // products → publisher_notion_id
+  const productPartnerMap = new Map<string, string>(); // itemId -> partner_notion_id
+  if (productIds.length > 0) {
+    const { data } = await supabase
+      .from("products")
+      .select("id, publisher_notion_id")
+      .in("id", productIds);
+    for (const p of data || []) {
+      if (p.publisher_notion_id) productPartnerMap.set(p.id, p.publisher_notion_id);
+    }
+  }
+
+  // events → related_partner_ids[]
+  const eventPartnersMap = new Map<string, string[]>();
+  if (eventIds.length > 0) {
+    const { data } = await supabase
+      .from("events")
+      .select("id, related_partner_ids")
+      .in("id", eventIds);
+    for (const e of data || []) {
+      eventPartnersMap.set(e.id, (e.related_partner_ids || []) as string[]);
+    }
+  }
+
+  // 反轉：每個 partner_notion_id → 涉及的品項
+  const partnerItems = new Map<string, typeof items>();
+  for (const it of items) {
+    const partners: string[] = [];
+    if (it.itemType === "product") {
+      const pid = productPartnerMap.get(it.itemId);
+      if (pid) partners.push(pid);
+    } else {
+      partners.push(...(eventPartnersMap.get(it.itemId) || []));
+    }
+    for (const pn of partners) {
+      const arr = partnerItems.get(pn) || [];
+      arr.push(it);
+      partnerItems.set(pn, arr);
+    }
+  }
+
+  if (partnerItems.size === 0) return;
+
+  // 撈 partners → contact email → members.line_uid
+  const partnerNotionIds = [...partnerItems.keys()];
+  const { data: partners } = await supabase
+    .from("partners")
+    .select("notion_id, name, contact")
+    .in("notion_id", partnerNotionIds);
+
+  for (const p of partners || []) {
+    const email = (p.contact as any)?.email;
+    if (!email) continue;
+
+    const { data: member } = await supabase
+      .from("members")
+      .select("line_uid")
+      .eq("email", email)
+      .maybeSingle();
+    if (!member?.line_uid) continue;
+
+    const myItems = partnerItems.get(p.notion_id) || [];
+    if (myItems.length === 0) continue;
+
+    const hasEvent = myItems.some((i) => i.itemType === "event");
+    const lines = myItems
+      .slice(0, 5)
+      .map((i) => `・${i.name} ×${i.qty}  NT$${i.price}`)
+      .join("\n");
+    const more = myItems.length > 5 ? `\n…等共 ${myItems.length} 件` : "";
+    const subtotal = myItems.reduce((s, i) => s + i.price * i.qty, 0);
+
+    const text = `${hasEvent ? "🎪 您有新報名！" : "📦 您有新訂單！"}\n` +
+      `訂單：${orderId.slice(0, 8).toUpperCase()}\n\n${lines}${more}\n\n` +
+      `小計：NT$ ${subtotal.toLocaleString()}\n\n` +
+      `查看詳情 → https://makesense.ink/liff/partner/dashboard?liff_mode=true`;
+
+    try {
+      await lineClient.pushMessage({
+        to: member.line_uid,
+        messages: [{ type: "text", text }],
+      });
+      await supabase.from("line_message_log").insert({
+        user_id: member.line_uid,
+        message_type: "push",
+        template: "partner_order",
+        payload: { orderId, partnerNotionId: p.notion_id, itemCount: myItems.length, subtotal },
+      });
+    } catch (err: any) {
+      console.error(`[line-notify] partner ${p.name} notify failed:`, err.message);
+    }
+  }
+}
+
+/**
+ * 評價提交後 → 通知擁有該商品/活動的合作廠商
+ */
+export async function notifyPartnerOnReview(reviewId: string): Promise<void> {
+  const { data: review } = await supabase
+    .from("reviews")
+    .select("rating, comment, order_item_id")
+    .eq("id", reviewId)
+    .maybeSingle();
+  if (!review) return;
+
+  const { data: item } = await supabase
+    .from("order_items")
+    .select("item_id, item_type")
+    .eq("id", review.order_item_id)
+    .maybeSingle();
+  if (!item) return;
+
+  let partnerNotionIds: string[] = [];
+  let itemTitle = "—";
+
+  if (item.item_type === "product") {
+    const { data: prod } = await supabase
+      .from("products")
+      .select("name, publisher_notion_id")
+      .eq("id", item.item_id)
+      .maybeSingle();
+    if (prod?.publisher_notion_id) partnerNotionIds = [prod.publisher_notion_id];
+    if (prod?.name) itemTitle = prod.name;
+  } else {
+    const { data: ev } = await supabase
+      .from("events")
+      .select("title, related_partner_ids")
+      .eq("id", item.item_id)
+      .maybeSingle();
+    if (ev?.related_partner_ids) partnerNotionIds = (ev.related_partner_ids as string[]) || [];
+    if (ev?.title) itemTitle = ev.title;
+  }
+
+  if (partnerNotionIds.length === 0) return;
+
+  const { data: partners } = await supabase
+    .from("partners")
+    .select("notion_id, contact")
+    .in("notion_id", partnerNotionIds);
+
+  for (const p of partners || []) {
+    const email = (p.contact as any)?.email;
+    if (!email) continue;
+    const { data: m } = await supabase
+      .from("members")
+      .select("line_uid")
+      .eq("email", email)
+      .maybeSingle();
+    if (!m?.line_uid) continue;
+
+    const stars = "★".repeat(review.rating) + "☆".repeat(5 - review.rating);
+    const text = `⭐ 您收到新評價！\n${itemTitle}\n${stars} (${review.rating}/5)\n` +
+      (review.comment ? `\n「${review.comment.slice(0, 100)}」\n` : "") +
+      `\n查看詳情 → https://makesense.ink/liff/partner/dashboard?liff_mode=true`;
+
+    try {
+      await lineClient.pushMessage({ to: m.line_uid, messages: [{ type: "text", text }] });
+      await supabase.from("line_message_log").insert({
+        user_id: m.line_uid,
+        message_type: "push",
+        template: "partner_review",
+        payload: { reviewId, rating: review.rating, partnerNotionId: p.notion_id },
+      });
+    } catch (err: any) {
+      console.error(`[line-notify] partner review notify failed:`, err.message);
+    }
+  }
+}
+
 export async function notifyRegistrationResult(
   memberId: string,
   eventName: string,

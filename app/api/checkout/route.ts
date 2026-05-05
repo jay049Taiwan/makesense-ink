@@ -396,6 +396,27 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // 6b. 推播給合作廠商（涉及他們商品/活動的訂單）
+    try {
+      const { notifyPartnerOnOrder } = await import("@/lib/line-notifications");
+      // 把 itemId 從剛建立的 orderItems 拿（含 Supabase 端的 product/event UUID）
+      // item_type 用中文（商品/走讀/市集/講座/...），轉成 partner 通知用的 product/event
+      const partnerItems = orderItems
+        .map((row) => ({
+          name: (row.meta as any)?.name || "—",
+          qty: row.quantity,
+          price: row.price,
+          itemId: row.item_id as string,
+          itemType: (row.item_type === "商品" ? "product" : "event") as "product" | "event",
+        }))
+        .filter((i) => i.itemId);
+      if (partnerItems.length > 0) {
+        await notifyPartnerOnOrder(order.id, partnerItems);
+      }
+    } catch (e: any) {
+      console.warn("[checkout] partner LINE notify failed:", e?.message);
+    }
+
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
     //    欄位名已對照 Notion live schema 確認：
     //      DB05: 表單名稱(title), 表單類型=報名登記, 登記選項=紀錄庫存, 庫存細項=出貨, 對應明細→DB06

@@ -194,10 +194,10 @@ export default function LiffPartnerDashboardPage() {
 
       {/* 入口 */}
       <div className="px-4 mt-5 space-y-2">
+        <NavRow href="/liff/partner/products" icon="📦" label="我的商品" hint="即時庫存、30 天銷售" />
+        <NavRow href="/liff/partner/events" icon="🎪" label="我的活動" hint="活動清單、報名進度" />
+        <NavRow href="/liff/partner/scan" icon="📷" label="簽到掃碼" hint="活動現場 QR 掃描" />
         <NavRow href="/dashboard/partner?liff_mode=true" icon="📊" label="完整後台" hint="桌面版的所有功能（金流、提案、設定）" />
-        <NavRow href="/liff/partner/products" icon="📦" label="我的商品" hint="即時庫存、銷售紀錄" disabled />
-        <NavRow href="/liff/partner/events" icon="🎪" label="我的活動" hint="活動清單、報名進度" disabled />
-        <NavRow href="/liff/partner/scan" icon="📷" label="簽到掃碼" hint="活動現場 QR 掃描" disabled />
       </div>
     </div>
   );
