@@ -881,23 +881,25 @@ function VendorSettings({ notionId }: { notionId: string | null }) {
   useEffect(() => {
     if (!notionId) { setLoading(false); return; }
     (async () => {
-      const { data } = await (supabase as any)
-        .from("partners")
-        .select("name, contact, created_at")
-        .eq("notion_id", notionId)
-        .maybeSingle() as { data: { name: string; contact: Record<string, string | null>; created_at: string } | null };
-
-      if (data) {
-        setInfo({
-          name: data.name,
-          contactPerson: data.contact?.contactPerson || null,
-          email: data.contact?.email || null,
-          phone: data.contact?.phone || null,
-          address: data.contact?.address || null,
-          since: data.created_at
-            ? new Date(data.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" })
-            : null,
-        });
+      try {
+        const r = await fetch("/api/user/partner-info");
+        if (r.ok) {
+          const { partner } = await r.json();
+          if (partner) {
+            setInfo({
+              name: partner.name,
+              contactPerson: partner.contact?.contactPerson || null,
+              email: partner.contact?.email || null,
+              phone: partner.contact?.phone || null,
+              address: partner.contact?.address || null,
+              since: partner.created_at
+                ? new Date(partner.created_at).toLocaleDateString("zh-TW", { year: "numeric", month: "2-digit", day: "2-digit" })
+                : null,
+            });
+          }
+        }
+      } catch (e) {
+        console.error("[partner dashboard] fetch partner-info failed", e);
       }
       setLoading(false);
     })();

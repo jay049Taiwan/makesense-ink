@@ -46,12 +46,17 @@ export default function VendorProductsPage() {
     async function load() {
       if (!email) { setLoading(false); return; }
 
-      // 查 Supabase：先找 partner，再查商品
-      const { data: partner } = await supabase
-        .from("partners")
-        .select("id")
-        .eq("contact->>email" as any, email)
-        .maybeSingle();
+      // 透過 server API 找 partner（避免 client 直接 SELECT contact）
+      let partner: { id: string } | null = null;
+      try {
+        const r = await fetch("/api/user/partner-info");
+        if (r.ok) {
+          const d = await r.json();
+          if (d.partner?.id) partner = { id: d.partner.id };
+        }
+      } catch (e) {
+        console.error("[dashboard/products] fetch partner-info failed", e);
+      }
 
       if (partner?.id) {
         const { data } = await supabase

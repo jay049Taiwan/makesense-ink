@@ -307,7 +307,7 @@ export async function fetchSBTopics(tagType?: "tag" | "viewpoint", limit = 20) {
 export async function fetchSBPartners(limit = 20) {
   const { data, error } = await supabase
     .from("partners")
-    .select("id, notion_id, name, type, contact, status")
+    .select("id, notion_id, name, type, status")
     .eq("status", "active")
     .order("created_at", { ascending: false })
     .limit(limit);
@@ -317,7 +317,7 @@ export async function fetchSBPartners(limit = 20) {
     id: p.notion_id || p.id,
     name: cleanTitle(p.name),
     type: p.type,
-    contact: p.contact,
+    contact: null,  // 已鎖：合作夥伴 contact 不再公開，要看請走 server API（合作申請流程）
     slug: p.notion_id || p.id,
   }));
 }
