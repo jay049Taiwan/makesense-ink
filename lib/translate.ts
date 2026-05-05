@@ -77,24 +77,45 @@ async function translateRowToLocale(
   // 組合翻譯請求
   const fieldTexts = fields.map(([name, val]) => `[${name}]\n${val}`).join("\n\n");
 
-  const prompt = `Translate the following content from Traditional Chinese to ${langName}. ${context}
+  // 依目標語言給對應的範例（避免 Haiku 都用英文範例導致偏向英文輸出）
+  const examples = {
+    en: [
+      "噶瑪蘭族 → Kavalan（噶瑪蘭族）",
+      "加禮宛 → Kalinawan（加禮宛）",
+      "五結鄉 → Wujie Township（五結鄉）",
+      "宜蘭 → Yilan（宜蘭）",
+    ],
+    ja: [
+      "噶瑪蘭族 → カヴァラン族（噶瑪蘭族）",
+      "加禮宛 → カリワン（加禮宛）",
+      "五結鄉 → 五結郷（五結鄉）",
+      "宜蘭 → 宜蘭（宜蘭）",
+    ],
+    ko: [
+      "噶瑪蘭族 → 카발란족（噶瑪蘭族）",
+      "加禮宛 → 가리완（加禮宛）",
+      "五結鄉 → 우제향（五結鄉）",
+      "宜蘭 → 이란（宜蘭）",
+    ],
+  }[locale] || [];
 
-CRITICAL FORMATTING RULES:
-1. For all proper nouns (places, people, ethnic groups, brand names, building names, organization names, indigenous terms), format as: TranslatedTerm（OriginalChinese）
-   Examples:
-   - 噶瑪蘭族 → Kavalan（噶瑪蘭族）
-   - 加禮宛 → Kalinawan（加禮宛）
-   - 五結鄉 → Wujie Township（五結鄉）
-   - 旅人書店 → Traveler Bookstore（旅人書店）
-   - 宜蘭 → Yilan（宜蘭）
-   - 蘭陽平原 → Lanyang Plain（蘭陽平原）
-2. Keep monetary values in original (NT$ 200, etc.).
-3. For HTML content, preserve all HTML tags; only translate text inside.
-4. Use Chinese full-width parentheses （） not half-width, around the original Chinese.
-5. First mention of a proper noun gets the parenthesized original; subsequent mentions in the same field can omit it.
-6. Brand names that are already widely known in Latin script (e.g., "Apple") may be kept as-is without parentheses.
+  const prompt = `TARGET LANGUAGE: ${langName}
+Translate ALL text from Traditional Chinese to ${langName}. The output MUST be primarily in ${langName} script — do NOT default to English.
 
-Return ONLY the translations in the exact same format, with [field_name] headers, no preamble.
+${context}
+
+FORMATTING RULES:
+1. The body content (sentences, descriptions) must be written in ${langName}.
+2. For proper nouns (places, people, ethnic groups, brand/building/organization names, indigenous terms), format as: ${langName}Translation（OriginalChinese）
+   Examples in ${langName}:
+${examples.map(e => `   - ${e}`).join("\n")}
+3. Use Chinese full-width parentheses （） around the original Chinese, NOT half-width.
+4. First mention of a proper noun in each field gets the parenthesized original; subsequent mentions in same field can omit it.
+5. Keep monetary values in original (NT$ 200, etc.).
+6. For HTML content, preserve all HTML tags; only translate text inside.
+7. If the source field is a single proper noun (like a topic name), output just "${langName}Translation（OriginalChinese）" with no extra prose.
+
+Return ONLY the translations in this exact format, with [field_name] headers, no preamble:
 
 ${fieldTexts}`;
 
