@@ -3,6 +3,7 @@ import { requireStaff } from "../_guard";
 import { getNotionUserId } from "@/lib/notion-users";
 import { fetchVisibleTasksForStaff } from "@/lib/staff-tasks";
 import { supabaseAdmin } from "@/lib/supabase";
+import { normalizeEmail } from "@/lib/email";
 
 // Vercel 預設 10s timeout 不夠 — cold cache 第一次打 Notion union 需要 30+s
 export const runtime = "nodejs";
@@ -15,7 +16,9 @@ export const maxDuration = 60;
 export async function GET(req: Request) {
   const guard = await requireStaff(req);
   if ("error" in guard) return guard.error;
-  const email = (guard.email || "").toLowerCase();
+  // 用 normalizeEmail 統一 key（Gmail 去點 + 砍 +suffix）— 兩個入口（web NextAuth / Telegram members）email
+  // 可能一個帶點一個沒帶點，cache 不能因此分裂
+  const email = normalizeEmail(guard.email || "");
   const url = new URL(req.url);
   const force = url.searchParams.get("refresh") === "1";
 
