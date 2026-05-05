@@ -1,7 +1,14 @@
 import { supabaseAdmin } from "./supabase";
+import { createHash } from "crypto";
 
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY;
 const LOCALES = ["en", "ja", "ko"] as const;
+
+/** SHA-256 hash 用於判斷原文是否變動，避免重複翻譯 */
+function sourceHash(fields: [string, string | null][]): string {
+  const concat = fields.map(([k, v]) => `${k}::${v || ""}`).join("\n");
+  return createHash("sha256").update(concat).digest("hex").slice(0, 16);
+}
 
 interface TranslateRequest {
   tableName: string;
@@ -40,6 +47,25 @@ async function translateRowToLocale(
   fields: [string, string | null][],
   locale: string
 ): Promise<void> {
+  // Hash check：原文跟既有翻譯的 source_hash 相同就跳過（避免重翻浪費 API）
+  const hash = sourceHash(fields);
+  const { data: existing } = await supabaseAdmin
+    .from("translations")
+    .select("field, source_hash")
+    .eq("table_name", tableName)
+    .eq("row_id", rowId)
+    .eq("locale", locale);
+
+  if (existing && existing.length > 0) {
+    const allMatch = existing.every((r: any) => r.source_hash === hash);
+    const fieldsCovered = new Set(existing.map((r: any) => r.field));
+    const allFieldsTranslated = fields.every(([f]) => fieldsCovered.has(f));
+    if (allMatch && allFieldsTranslated) {
+      console.log(`[translate] skip ${tableName}/${rowId}/${locale} (hash unchanged: ${hash})`);
+      return;
+    }
+  }
+
   const langName = { en: "English", ja: "Japanese", ko: "Korean" }[locale] || locale;
   const context = {
     products: "This is a product listing for a Taiwanese cultural bookstore/goods shop in Yilan.",
@@ -83,7 +109,7 @@ ${fieldTexts}`;
   // 解析回傳的翻譯
   const translations = parseTranslationResponse(responseText, fields.map(([name]) => name));
 
-  // 寫入 Supabase
+  // 寫入 Supabase（含 source_hash 供下次比對）
   const upserts = Object.entries(translations)
     .filter(([, val]) => val && val.trim().length > 0)
     .map(([field, value]) => ({
@@ -92,6 +118,7 @@ ${fieldTexts}`;
       locale,
       field,
       value: value!,
+      source_hash: hash,
       updated_at: new Date().toISOString(),
     }));
 
