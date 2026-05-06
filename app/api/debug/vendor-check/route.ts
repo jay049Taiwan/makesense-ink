@@ -38,7 +38,7 @@ export async function GET() {
 
     return {
       notion_page_id: page.id,
-      經營名稱: getTitle(props["經營名稱"]),
+      對象名稱: getTitle(props["對象名稱"]),
       Email_in_notion: getText(props["Email"]),
       會員狀態: getStatus(props["會員狀態"]),
       關係選項: getSelect(props["關係選項"]),

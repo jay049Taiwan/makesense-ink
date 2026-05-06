@@ -73,7 +73,7 @@ Dev 環境左側有角色切換面板（DEV 角色：會員 / 工作 / 廠商）
 - 📢 動態 — 庫存異動通知
 - 📋 交接 — 待辦事項 + 子任務 checklist
 - 📦 庫存 — 商品出貨/進貨/盤點
-- ⏰ 考勤 — 打卡/日誌/請假/加班/班表
+- 📓 紀錄 — 打卡/日誌/請假/加班
 - 💰 費用 — 請款（報銷）+ 請購（採買）
 
 工作台組件已抽到 `components/workbench/WorkbenchShell.tsx`，官網和 Telegram Mini App 共用。

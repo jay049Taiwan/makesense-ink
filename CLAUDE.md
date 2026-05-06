@@ -197,13 +197,13 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | DB05 | 登記表單 | articles（篩選：文案細項=官網內容）, registrations, orders |
 | DB06 | 進銷明細 | **直接更新 products.stock**（進貨+/出貨-/盤點=） |
 | DB07 | 庫存控管 | products（名稱/價格/照片/作者/發行/觀點/文章） |
-| DB08 | 關係經營 | persons, partners, members, staff, topics |
+| DB08 | 關係對象 | persons, partners, members, staff, topics |
 | DB09 | 日期紀錄 | 不同步（SQL 聚合即可） |
 
 ### 重要欄位名稱
 - DB04 的 title 欄位叫「協作名稱」，但**官網顯示標題用「主題名稱」（rich_text）**
 - DB05 的 title 欄位叫「表單名稱」，但**官網顯示標題用「主題名稱」（rich_text）**
-- DB08 的 title 欄位叫「經營名稱」
+- DB08 的 title 欄位叫「對象名稱」
 - DB05 連 DB08：「對應對象」relation
 - DB06 連 DB08：「對應標籤對象」relation
 - 同步優先級：主題名稱 > title 欄位（協作名稱/表單名稱）→ Supabase .title

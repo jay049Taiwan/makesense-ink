@@ -15,14 +15,14 @@ function authCacheSet<T>(key: string, value: T) {
   _authCache.set(key, { value, expires: Date.now() + AUTH_CACHE_TTL });
 }
 
-// 批次解析 relation IDs → DB08 經營名稱
+// 批次解析 relation IDs → DB08 對象名稱
 export async function resolveRelationNames(ids: string[]): Promise<Record<string, string>> {
   if (!ids.length) return {};
   const entries = await Promise.all(
     ids.map(async (id) => {
       try {
         const page = await getPage(id) as any;
-        const name = extractTitle(page.properties["經營名稱"]?.title);
+        const name = extractTitle(page.properties["對象名稱"]?.title);
         return [id, name] as const;
       } catch { return [id, ""] as const; }
     })
@@ -235,7 +235,7 @@ export async function fetchTransactions(limit = 50): Promise<TransactionItem[]> 
 }
 
 // ══════════════════════════════════════════
-// DB08: 關係經營（關鍵字、觀點、會員、合作單位）
+// DB08: 關係對象（關鍵字、觀點、會員、合作單位）
 // ══════════════════════════════════════════
 export interface KeywordItem {
   id: string;
@@ -262,7 +262,7 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
       const props = page.properties;
       return {
         id: page.id,
-        name: extractTitle(props["經營名稱"]?.title),
+        name: extractTitle(props["對象名稱"]?.title),
         type: extractSelect(props["經營類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         slug: page.id.replace(/-/g, ""),
@@ -287,7 +287,7 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
     const props = page.properties;
     return {
       id: page.id,
-      name: extractTitle(props["經營名稱"]?.title),
+      name: extractTitle(props["對象名稱"]?.title),
       type: extractSelect(props["經營類型"]?.select) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
@@ -342,7 +342,7 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
     const props = page.properties;
     return {
       id: page.id,
-      name: extractTitle(props["經營名稱"]?.title),
+      name: extractTitle(props["對象名稱"]?.title),
       type: extractSelect(props["經營類型"]?.select) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
@@ -396,7 +396,7 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
     const props = page.properties;
     return {
       id: page.id,
-      name: extractTitle(props["經營名稱"]?.title),
+      name: extractTitle(props["對象名稱"]?.title),
       email: extractText(props["Email"]?.rich_text),
       since: extractDate(props["建立時間"]?.date) || page.created_time?.substring(0, 10) || "",
       phone: extractText(props["電話"]?.rich_text) || "",  // 2026/04/17：「聯繫電話」不存在，統一用「電話」

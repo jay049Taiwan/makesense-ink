@@ -60,7 +60,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!person) {
           try {
             const props: any = {
-              "經營名稱": { title: [{ text: { content: displayName } }] },
+              "對象名稱": { title: [{ text: { content: displayName } }] },
               "Email": { rich_text: [{ text: { content: email } }] },   // 永遠寫 normalized
               "會員狀態": { status: { name: "會員" } },
               "關係選項": { select: { name: "個人" } },
@@ -99,7 +99,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         if (!existingPerson) {
           try {
             await createPage(DB.DB08_RELATIONSHIP, {
-              "經營名稱": { title: [{ text: { content: displayName } }] },
+              "對象名稱": { title: [{ text: { content: displayName } }] },
               "LINE_UID": { rich_text: [{ text: { content: lineUid } }] },
             });
           } catch (e) {

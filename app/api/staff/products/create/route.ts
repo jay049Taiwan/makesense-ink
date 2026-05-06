@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
   if (!resolvedAuthorId && typeof authorName === "string" && authorName.trim()) {
     try {
       const newAuthor = await createPage(DB.DB08_RELATIONSHIP, {
-        "經營名稱": { title: [{ text: { content: authorName.trim() } }] },
+        "對象名稱": { title: [{ text: { content: authorName.trim() } }] },
       });
       resolvedAuthorId = newAuthor.id;
     } catch (err: any) {
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
   if (!resolvedPublisherId && typeof publisherName === "string" && publisherName.trim()) {
     try {
       const newPub = await createPage(DB.DB08_RELATIONSHIP, {
-        "經營名稱": { title: [{ text: { content: publisherName.trim() } }] },
+        "對象名稱": { title: [{ text: { content: publisherName.trim() } }] },
       });
       resolvedPublisherId = newPub.id;
     } catch (err: any) {

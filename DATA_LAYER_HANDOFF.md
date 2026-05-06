@@ -1,5 +1,11 @@
 # 官網 ↔ Supabase ↔ Notion 欄位對應交接文件
 
+> ⚠️ **狀態（2026/05/04）：本文件大部分內容已過時，僅保留作歷史參考。**
+> - 文中規劃的 `vendor_products` / `market_events` / `market_vendor_slots` / `market_slot_products` / `activity_addon_products` / `preorders` 6 張表 **均未建立**。
+> - 實際採用的是統一商品表 `products`（DB07 庫存控管）+ `events`（DB04 協作交接）+ `vendor_preorders` / `vendor_preorder_items` / `market_applications`。
+> - DB05 名稱現為「登記表單」（不是「登記表單明細」），DB07 為「庫存控管」（不是「庫存資產」）。
+> - 現行欄位對應請改參考 `CLAUDE.md` 的「Notion 資料庫」與「Notion ↔ Supabase 同步」章節。
+
 **整理日期**：2026/04/13  
 **整理人**：Claude（依 Noah 指示）  
 **對象**：負責資料層整合的工程師  
@@ -14,7 +20,7 @@
 
 **原則**：
 - 商業邏輯資料（訂單、廠商商品、預購）→ **Supabase**
-- 內容型資料（文章、活動說明、關係經營名錄）→ **Notion**（已存在）
+- 內容型資料（文章、活動說明、關係對象名錄）→ **Notion**（已存在）
 - 官網從 Supabase 查詢，再視需要 JOIN Notion page ID 拿詳細內容
 
 ---
@@ -185,7 +191,7 @@ CREATE TABLE preorders (
 
 ## 三、Notion 欄位對應
 
-### DB05 登記表單明細（原子資料層）
+### DB05 登記表單（原子資料層）
 
 民眾送出預購/報名後，需同步一筆到 DB05。
 
@@ -200,13 +206,13 @@ CREATE TABLE preorders (
 
 ---
 
-### DB08 關係經營（廠商主檔）
+### DB08 關係對象（廠商主檔）
 
 合作廠商的 profile 資料來自這裡，Supabase `partners.notion_id` 指向此表。
 
 | DB08 欄位名稱 | 用途 |
 |---|---|
-| 經營名稱 | 廠商顯示名稱（`MarketPreOrderPanel` 的 vendor.name） |
+| 對象名稱 | 廠商顯示名稱（`MarketPreOrderPanel` 的 vendor.name） |
 | 關係選項 | 判斷角色（個人 / 合作夥伴 / 工作團隊）；搭配 會員狀態=會員 判斷是否為會員 |
 | 聯絡方式 | 電話、Email、LINE |
 

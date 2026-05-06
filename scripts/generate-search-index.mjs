@@ -60,7 +60,7 @@ async function main() {
     p: products.map(r => ({ n: extractTitle(r.properties["庫存名稱"]?.title), c: extractSelect(r.properties["選書細項"]?.select) || extractSelect(r.properties["庫存類型"]?.select) || "商品", s: r.id.replace(/-/g, "") })),
     a: activities.map(r => ({ n: extractText(r.properties["主題名稱"]?.rich_text) || extractTitle(r.properties["協作名稱"]?.title), d: r.properties["執行時間"]?.date?.start || null, t: extractSelect(r.properties["活動細項"]?.select), s: r.id.replace(/-/g, "") })),
     r: articles.map(r => ({ n: extractTitle(r.properties["表單名稱"]?.title), t: extractSelect(r.properties["表單類型"]?.select) || "文章", d: r.created_time?.substring(0, 10) || null, s: r.id.replace(/-/g, "") })),
-    k: keywords.map(r => ({ n: extractTitle(r.properties["經營名稱"]?.title), s: r.id.replace(/-/g, "") })),
+    k: keywords.map(r => ({ n: extractTitle(r.properties["對象名稱"]?.title), s: r.id.replace(/-/g, "") })),
   };
 
   writeFileSync("public/search-index.json", JSON.stringify(index));

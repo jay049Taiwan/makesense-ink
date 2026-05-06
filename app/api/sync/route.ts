@@ -224,7 +224,7 @@ async function syncPersons() {
     return {
       notion_id: nid(page),
       type: extractSelect(props["關係選項"]?.select) || "個人",
-      name: extractTitle(props["經營名稱"]?.title) || "未命名",
+      name: extractTitle(props["對象名稱"]?.title) || "未命名",
       bio: extractText(props["簡介摘要"]?.rich_text) || null,
       contact: {
         email: extractText(props["Email"]?.rich_text) || null,
@@ -296,7 +296,7 @@ async function syncTopics() {
     const category = extractSelect(props["經營類型"]?.select);
     return {
       notion_id: nid(page),
-      name: extractTitle(props["經營名稱"]?.title) || "未命名",
+      name: extractTitle(props["對象名稱"]?.title) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
@@ -332,7 +332,7 @@ async function syncPartners() {
     return {
       notion_id: nid(page),
       type: extractSelect(props["單位選項"]?.select) || "民間單位",
-      name: extractTitle(props["經營名稱"]?.title) || "未命名",
+      name: extractTitle(props["對象名稱"]?.title) || "未命名",
       contact: {
         email: extractText(props["Email"]?.rich_text) || null,
         phone: extractText(props["電話"]?.rich_text) || null,
@@ -358,7 +358,7 @@ async function syncMembers() {
       if (!email) return null;
       return {
         email,
-        name: extractTitle(props["經營名稱"]?.title) || null,
+        name: extractTitle(props["對象名稱"]?.title) || null,
         phone: extractText(props["電話"]?.rich_text) || null,
         line_uid: extractText(props["LINE_UID"]?.rich_text) || null,
         member_type: extractSelect(props["關係選項"]?.select) || null,
@@ -381,7 +381,7 @@ async function syncStaff() {
     const props = p(page);
     return {
       notion_id: nid(page),
-      name: extractTitle(props["經營名稱"]?.title) || "未命名",
+      name: extractTitle(props["對象名稱"]?.title) || "未命名",
       role: extractSelect(props["職級細項"]?.select) || null,
     };
   });
@@ -404,7 +404,7 @@ async function syncDb08Places() {
       if (!place || place.lat == null || place.lon == null) return null;
       return {
         notion_id: nid(page),
-        name: extractTitle(props["經營名稱"]?.title) || "未命名",
+        name: extractTitle(props["對象名稱"]?.title) || "未命名",
         place,
         region: extractSelect(props["行政區域"]?.select) || null,
         category: extractSelect(props["經營類型"]?.select) || null,
@@ -542,12 +542,12 @@ async function syncEvents(wb = false, skipImages = false) {
           for (const d of (data || []) as any[]) locNameMap[d.notion_id] = d.name;
         }
       }
-      // 還沒找到的：fallback 直接打 Notion 抓 page title「經營名稱」
+      // 還沒找到的：fallback 直接打 Notion 抓 page title「對象名稱」
       const missing = locIdsArr.filter(id => !locNameMap[id]);
       for (const id of missing) {
         try {
           const pg: any = await getPage(id);
-          const title = (pg.properties?.["經營名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+          const title = (pg.properties?.["對象名稱"]?.title || []).map((x: any) => x.plain_text).join("");
           if (title) locNameMap[id] = title;
         } catch { /* 該 page 抓不到就算了，stop 顯示「未命名地點」 */ }
       }
@@ -666,7 +666,7 @@ async function syncEvents(wb = false, skipImages = false) {
 async function syncSpaceBookings() {
   const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "門市選項", select: { equals: "場地使用" } });
 
-  // 反查地點與對象（DB08 經營名稱）
+  // 反查地點與對象（DB08 對象名稱）
   const locIds: string[] = [], guideIds: string[] = [];
   for (const page of pages) {
     const props = p(page);

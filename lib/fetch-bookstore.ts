@@ -124,7 +124,7 @@ export async function fetchKeywords(limit = 12): Promise<Keyword[]> {
     const props = page.properties;
     return {
       id: page.id,
-      name: extractTitle(props["經營名稱"]?.title),
+      name: extractTitle(props["對象名稱"]?.title),
       type: extractSelect(props["經營類型"]?.select) || "",
       slug: page.id.replace(/-/g, ""),
     };

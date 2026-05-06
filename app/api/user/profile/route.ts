@@ -72,7 +72,7 @@ export async function PATCH(req: NextRequest) {
         notionUpdates["電話"] = { rich_text: [{ text: { content: body.phone.trim() } }] };
       }
       if (typeof body.name === "string" && body.name.trim()) {
-        notionUpdates["經營名稱"] = { title: [{ text: { content: body.name.trim() } }] };
+        notionUpdates["對象名稱"] = { title: [{ text: { content: body.name.trim() } }] };
       }
       if (Object.keys(notionUpdates).length > 0) {
         await updatePage(person.id, notionUpdates);

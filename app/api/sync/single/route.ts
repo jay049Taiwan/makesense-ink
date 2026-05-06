@@ -203,7 +203,7 @@ async function lookupPersonName(notionId: string): Promise<string | null> {
 
 /**
  * 查 DB08 entry 的顯示名稱：先 persons，沒有就 topics，再沒有就 partners。
- * 全都沒有就直接從 Notion 抓 page 的「經營名稱」title（DB08 還沒同步到 Supabase 也能拿到）。
+ * 全都沒有就直接從 Notion 抓 page 的「對象名稱」title（DB08 還沒同步到 Supabase 也能拿到）。
  */
 async function lookupDb08Name(notionId: string): Promise<string | null> {
   if (!notionId) return null;
@@ -214,10 +214,10 @@ async function lookupDb08Name(notionId: string): Promise<string | null> {
   if (topicsRes.data?.name) return topicsRes.data.name;
   const partnersRes = await supabase.from("partners").select("name").eq("notion_id", clean).maybeSingle();
   if (partnersRes.data?.name) return partnersRes.data.name;
-  // Fallback: 直接從 Notion 抓 DB08 page 的 title「經營名稱」
+  // Fallback: 直接從 Notion 抓 DB08 page 的 title「對象名稱」
   try {
     const page: any = await getPage(notionId);
-    const title = (page.properties?.["經營名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+    const title = (page.properties?.["對象名稱"]?.title || []).map((x: any) => x.plain_text).join("");
     return title || null;
   } catch {
     return null;
@@ -849,7 +849,7 @@ async function syncSingleRelation(nid: string, props: any) {
   if (placeProp?.type === "place" && placeProp.place?.lat != null && placeProp.place?.lon != null) {
     const placeRow = {
       notion_id: nid,
-      name: t(props["經營名稱"]) || "未命名",
+      name: t(props["對象名稱"]) || "未命名",
       place: placeProp.place,  // { lat, lon, name, address, aws_place_id, google_place_id }
       region: extractSelect(props["行政區域"]?.select) || null,
       category: category || null,
@@ -889,7 +889,7 @@ async function syncSingleRelation(nid: string, props: any) {
 
     const row: Record<string, any> = {
       notion_id: nid,
-      name: t(props["經營名稱"]) || "未命名",
+      name: t(props["對象名稱"]) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: tx(props["簡介摘要"]),
       cover_url: fileUrl(props["上傳檔案"]),
@@ -918,7 +918,7 @@ async function syncSingleRelation(nid: string, props: any) {
 
   // ── 寫入 members + persons/partners/staff（需 會員狀態=會員）──
   if (isMember) {
-    const name = t(props["經營名稱"]) || "未命名";
+    const name = t(props["對象名稱"]) || "未命名";
     const email = tx(props["Email"]);
 
     // members（email 為主鍵，無 email 則跳過）
