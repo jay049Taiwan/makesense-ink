@@ -10,6 +10,7 @@ export interface BottomSheetItem {
   photo?: string | null;
   type: "article" | "product";
   description?: string | null;
+  stock?: number; // 商品用：傳入後才能判斷代訂；undefined 視為「不檢查庫存」
 }
 
 /**
@@ -28,12 +29,25 @@ export default function BottomSheet({
 
   if (!item) return null;
 
+  const isOutOfStock = item.type === "product" && typeof item.stock === "number" && item.stock <= 0;
+
   const handleAdd = () => {
     addItem({
       id: item.id,
       name: item.name,
       price: item.price,
       type: "商品",
+    });
+    onClose();
+  };
+
+  const handlePreorder = () => {
+    addItem({
+      id: `preorder-${item.id}`,
+      name: item.name,
+      subtitle: "代訂（書店缺貨）",
+      price: item.price,
+      type: "預購",
     });
     onClose();
   };
@@ -77,19 +91,35 @@ export default function BottomSheet({
               {item.description.length > 300 ? item.description.slice(0, 300) + "…" : item.description}
             </p>
           )}
+          {/* 缺貨提示 */}
+          {isOutOfStock && (
+            <div className="mt-3 p-3 rounded-lg" style={{ background: "#fff8ef", border: "1px solid #f0d9a8" }}>
+              <p className="text-sm font-medium" style={{ color: "#8a6d3b" }}>📚 此商品目前缺貨</p>
+              <p className="text-xs mt-1" style={{ color: "#b8997a" }}>可由旅人書店代訂，到貨時通知您</p>
+            </div>
+          )}
         </div>
 
         {/* 操作按鈕 */}
         <div className="px-4 pb-6 pt-2 flex gap-3 flex-wrap">
           {item.type === "product" ? (
             <>
-              {item.price > 0 && (
+              {item.price > 0 && !isOutOfStock && (
                 <button
                   onClick={handleAdd}
                   className="flex-1 min-w-[120px] py-3 rounded-xl text-white font-semibold text-sm"
                   style={{ background: "var(--color-brown)" }}
                 >
                   ＋ 加入購物車
+                </button>
+              )}
+              {item.price > 0 && isOutOfStock && (
+                <button
+                  onClick={handlePreorder}
+                  className="flex-1 min-w-[120px] py-3 rounded-xl text-white font-semibold text-sm"
+                  style={{ background: "#e8935a" }}
+                >
+                  📦 請書店代訂
                 </button>
               )}
               <a

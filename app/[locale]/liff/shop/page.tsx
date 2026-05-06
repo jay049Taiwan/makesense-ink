@@ -283,6 +283,7 @@ export default function LiffShopPage() {
         setSheetItem({
           id: data.product.slug, name: data.product.name, price: data.product.price,
           photo: data.product.photo, type: "product",
+          stock: data.product.stock,
         });
       } else {
         // 掃到條碼但找不到商品 — 提示並自動帶入搜尋
