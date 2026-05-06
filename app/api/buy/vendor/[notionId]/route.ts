@@ -29,10 +29,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
 
     // 驗證是否為錄取的市集攤商
     const admissionStatus = st(props["錄取狀態"]);
-    const registerOption = st(props["登記選項"]);
+    const registerCategory = st(props["登記類別"]);
+    const registerOption = st(props["報名選項"]);
     const formType = st(props["表單類型"]);
 
-    if (admissionStatus !== "錄取" || registerOption !== "預約報名" || formType !== "報名登記") {
+    if (admissionStatus !== "錄取" || registerCategory !== "填寫報名" || registerOption !== "活動" || formType !== "報名登記") {
       return NextResponse.json({ available: false, reason: "not_accepted" }, { status: 404 });
     }
 

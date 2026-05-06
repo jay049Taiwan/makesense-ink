@@ -419,7 +419,7 @@ export async function POST(req: NextRequest) {
 
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
     //    欄位名已對照 Notion live schema 確認：
-    //      DB05: 表單名稱(title), 表單類型=報名登記, 登記選項=紀錄庫存, 庫存細項=出貨, 對應明細→DB06
+    //      DB05: 表單名稱(title), 表單類型=報名登記, 登記類別=紀錄庫存（reservation 改用 填寫報名+報名選項=活動）, 庫存細項=出貨, 對應明細→DB06
     //      DB06: 明細名稱(title), 明細類型=庫存紀錄, 登記數量, 登記單價, 對應庫存→DB07
     //    改用 await：Vercel serverless 會在 response 後終止執行，fire-and-forget 跑不完
     //    失敗不影響結帳回應（包 try/catch）
@@ -500,17 +500,19 @@ export async function POST(req: NextRequest) {
       }
 
       // 7-2. 建 DB05 訂單標頭
-      //   兩種模式 表單類型 都用「報名登記」；用 登記選項 做區分
-      //   reservation 模式：登記選項=預約報名（等錄取後才建 confirmed DB05）
-      //   direct 模式：登記選項=紀錄庫存（立刻交付）
+      //   兩種模式 表單類型 都用「報名登記」；用 登記類別 做區分
+      //   reservation 模式：登記類別=填寫報名 + 報名選項=活動（等錄取後才建 confirmed DB05）
+      //   direct 模式：登記類別=紀錄庫存（立刻交付）
       const titlePrefix = orderMode === "reservation" ? "預約" : "官網訂單";
-      const registerOption = orderMode === "reservation" ? "預約報名" : "紀錄庫存";
       const db05Props: Record<string, any> = {
         "表單名稱": { title: [{ text: { content: `${titlePrefix} ${orderNumber}` } }] },
         "表單類型": { select: { name: "報名登記" } },
-        "登記選項": { select: { name: registerOption } },
+        "登記類別": { select: { name: orderMode === "reservation" ? "填寫報名" : "紀錄庫存" } },
         "庫存細項": { select: { name: "出貨" } },
       };
+      if (orderMode === "reservation") {
+        db05Props["報名選項"] = { select: { name: "活動" } };
+      }
       // 訂單聯絡人（A）層級
       if (contact.name) db05Props["登記聯絡人"] = { rich_text: [{ text: { content: contact.name } }] };
       if (contact.phone) db05Props["登記電話"] = { rich_text: [{ text: { content: contact.phone } }] };

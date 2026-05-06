@@ -28,7 +28,7 @@ function toDashedNotionId(id: string | null | undefined): string | null {
  * }
  *
  * 會建：
- * - DB05 主報名紀錄（表單類型=報名登記、登記選項=預約報名）
+ * - DB05 主報名紀錄（表單類型=報名登記、登記類別=填寫報名、報名選項=活動）
  * - DB06 每個商品一筆（明細名稱「商品-xxx」）、每個體驗一筆（「體驗-xxx」）
  * - DB06 設備三筆（「設備-桌」、「設備-椅」、「設備-電源」）
  * - 全部以「對應表單」relation 連回 DB05
@@ -62,7 +62,8 @@ export async function POST(req: NextRequest) {
     const db05Props: Record<string, any> = {
       "表單名稱": { title: [{ text: { content: `市集報名：${brand.name}` } }] },
       "表單類型": { select: { name: "報名登記" } },
-      "登記選項": { select: { name: "預約報名" } },
+      "登記類別": { select: { name: "填寫報名" } },
+      "報名選項": { select: { name: "活動" } },
       "明細內容": { rich_text: [{ text: { content: brandSummaryLines.slice(0, 1900) } }] },
       "登記聯絡人": { rich_text: [{ text: { content: contact.name } }] },
       "登記電話": { rich_text: [{ text: { content: contact.phone } }] },

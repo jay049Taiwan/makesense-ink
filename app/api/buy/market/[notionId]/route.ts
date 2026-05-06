@@ -42,7 +42,8 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
       {
         and: [
           { property: "表單類型", select: { equals: "報名登記" } },
-          { property: "登記選項", select: { equals: "預約報名" } },
+          { property: "登記類別", select: { equals: "填寫報名" } },
+          { property: "報名選項", select: { equals: "活動" } },
           { property: "錄取狀態", status: { equals: "錄取" } },
           { property: "對應協作", relation: { contains: dashedId } },
         ],

@@ -317,21 +317,21 @@ async function syncSingleEvent(nid: string, props: any) {
   return { table: "events", title: row.title, status: row.status };
 }
 
-// ── DB05 分流：文章 / 庫存批次 / 預約報名 ──
+// ── DB05 分流：文章 / 庫存批次 / 填寫報名 ──
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["表單類型"]);
-  const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點（2026/04/22 改為用庫存選項判斷）
+  const stockAction = sel(props["庫存細項"]);  // 進貨 / 出貨 / 盤點
   const copyDetail = sel(props["文案細項"]);
-  const registerOption = sel(props["登記選項"]);
+  const registerCategory = sel(props["登記類別"]);
 
-  // 庫存批次：表單類型=共識互動 + 庫存選項有值（進貨/出貨/盤點）
+  // 庫存批次：表單類型=共識互動 + 庫存細項有值（進貨/出貨/盤點）
   if (formType === "共識互動" && stockAction) {
     return await syncStockBatch(nid, props);
   }
 
-  // V2：登記選項=預約報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
-  // （表單類型固定為「報名登記」，用 登記選項 區分 reservation / direct）
-  if (registerOption === "預約報名") {
+  // V2：登記類別=填寫報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
+  // （表單類型固定為「報名登記」，用 登記類別 區分 reservation / direct）
+  if (registerCategory === "填寫報名") {
     return await syncSingleReservation(nid, props);
   }
 
@@ -341,7 +341,7 @@ async function syncSingleDB05(nid: string, props: any) {
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（登記選項=${registerOption}, 表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知
@@ -534,9 +534,9 @@ async function syncSingleReservation(nid: string, props: any) {
 
 // ── DB05 庫存批次（一次更新所有關聯 DB06 的庫存）──
 async function syncStockBatch(nid: string, props: any) {
-  const action = sel(props["庫存選項"]); // 進貨 / 出貨 / 盤點
+  const action = sel(props["庫存細項"]); // 進貨 / 出貨 / 盤點
   if (!action) {
-    return { table: "stock_batch", note: "缺少庫存選項（進貨/出貨/盤點）", nid, skipped: true };
+    return { table: "stock_batch", note: "缺少庫存細項（進貨/出貨/盤點）", nid, skipped: true };
   }
 
   // 讀取「對應明細」relation → DB06 page IDs

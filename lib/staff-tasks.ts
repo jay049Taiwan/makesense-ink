@@ -92,7 +92,7 @@ export function extractDB05(page: any): TaskItem {
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
     handoverNote: getRichText(p["交接回覆"]),
     handoverReply: getRichText(p["交接回覆"]),
-    checkOption: getSelect(p["點交選項"]),
+    checkOption: getSelect(p["點交備項"]),
     attrSummary: p["屬性整合"]?.formula?.string || p["屬性整合"]?.formula?.number?.toString() || "",
     quantity: getNumber(p["登記數量"]),
     unitPrice: getNumber(p["登記單價"]),

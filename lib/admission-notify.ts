@@ -225,7 +225,7 @@ async function createConfirmedEntries(args: {
   const db05Props: Record<string, any> = {
     "表單名稱": { title: [{ text: { content: `報名錄取 ${orderNumber}` } }] },
     "表單類型": { select: { name: "報名登記" } },
-    "登記選項": { select: { name: "紀錄庫存" } },
+    "登記類別": { select: { name: "紀錄庫存" } },
     "庫存細項": { select: { name: "出貨" } },
   };
 

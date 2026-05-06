@@ -57,7 +57,7 @@ export async function writeStaffDB05Record(args: WriteDB05Args): Promise<{ id: s
     props["請款請購"] = { select: { name: args.detail } };
   } else if (args.type === "inventory") {
     props["表單類型"] = { select: { name: "報名登記" } };
-    props["登記選項"] = { select: { name: "紀錄庫存" } };
+    props["登記類別"] = { select: { name: "紀錄庫存" } };
     props["庫存細項"] = { select: { name: args.detail } };
   }
 
