@@ -51,7 +51,6 @@ export async function scanDb04() {
       const title =
         readTitle(page.properties?.["主題名稱"]) ||
         readTitle(page.properties?.["協作名稱"]) ||
-        readTitle(page.properties?.["交接名稱"]) ||
         "（未命名）";
       toInsert.push({ source_db: "DB04", notion_id, event_type: "db04_updated", event_at: lastEdited, title });
     }

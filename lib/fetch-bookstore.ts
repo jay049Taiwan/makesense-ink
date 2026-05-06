@@ -93,7 +93,7 @@ export async function fetchActivities(limit = 5): Promise<Activity[]> {
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title),
       date: props["執行時間"]?.date?.start || null,
       endDate: props["執行時間"]?.date?.end || null,
-      type: extractSelect(props["活動細項"]?.select) || "",
+      type: extractSelect(props["活動選項"]?.select) || "",
       slug: page.id.replace(/-/g, ""),
     };
   });

@@ -279,7 +279,7 @@ function DB04Detail({ task, onPatch }: { task: Task; onPatch: (id: string, patch
         {task.partnerNames && task.partnerNames.length > 0 && (
           <div style={{ color: "#7a5c40", fontWeight: 500 }}>🏪 辦理單位：{task.partnerNames.join("、")}</div>
         )}
-        {task.eventCategory && <div>活動細項：{task.eventCategory}</div>}
+        {task.eventCategory && <div>活動選項：{task.eventCategory}</div>}
         {typeof task.distanceKm === "number" && task.distanceKm > 0 && (
           <div style={{ color: "#2d5016" }}>距離：{task.distanceKm} km（完成後將寫入參與者「距離行程」點數）</div>
         )}

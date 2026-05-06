@@ -15,7 +15,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     properties["執行時間"] = executionTime ? { date: { start: executionTime } } : { date: null };
   }
   if (handoverNote !== undefined) {
-    properties["交接備註"] = { rich_text: [{ text: { content: handoverNote } }] };
+    properties["交接回覆"] = { rich_text: [{ text: { content: handoverNote } }] };
   }
   try {
     await updatePageProperties(id, properties);

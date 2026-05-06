@@ -37,7 +37,7 @@ export type TaskItem = {
   partnerRelations?: string[];   // DB04「對應辦理單位」→ DB08（合作夥伴）
   partnerNames?: string[];       // resolve 後的合作夥伴名稱
   distanceKm?: number | null;    // DB04「距離km」
-  eventCategory?: string;        // DB04「活動細項」
+  eventCategory?: string;        // DB04「活動選項」
   children?: TaskItem[];
 };
 
@@ -55,7 +55,7 @@ export function extractDB04(page: any): TaskItem {
   const p = page.properties;
   return {
     id: page.id, db: "DB04",
-    title: getTitle(p["交接名稱"]) || "（無標題）",
+    title: getTitle(p["協作名稱"]) || "（無標題）",
     executionStatus: getStatus(p["執行狀態"]),
     reviewStatus: getStatus(p["檢核狀態"]),
     assignees: getPeopleNames(p["責任執行"]),
@@ -64,14 +64,14 @@ export function extractDB04(page: any): TaskItem {
     executionTime: getDate(p["執行時間"]),
     topicName: getRichText(p["主題名稱"]),
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
-    handoverNote: getRichText(p["交接備註"]),
+    handoverNote: getRichText(p["交接回覆"]),
     handoverReply: getRichText(p["交接回覆"]),
     taskType: getSelect(p["交接類型"]),
     childRelations: getRelationIds(p["對應明細"]),
     parentRelations: getRelationIds(p["對應項目"]),
     partnerRelations: getRelationIds(p["對應辦理單位"]),
     distanceKm: getNumber(p["距離km"]),
-    eventCategory: getSelect(p["活動細項"]),
+    eventCategory: getSelect(p["活動選項"]),
   };
 }
 
@@ -90,7 +90,7 @@ export function extractDB05(page: any): TaskItem {
     deadline: getDate(p["截止時間"]),
     topicName: getRichText(p["主題名稱"]),
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
-    handoverNote: getRichText(p["交接備註"]),
+    handoverNote: getRichText(p["交接回覆"]),
     handoverReply: getRichText(p["交接回覆"]),
     checkOption: getSelect(p["點交選項"]),
     attrSummary: p["屬性整合"]?.formula?.string || p["屬性整合"]?.formula?.number?.toString() || "",

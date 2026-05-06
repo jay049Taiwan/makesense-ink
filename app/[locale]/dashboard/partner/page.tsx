@@ -110,7 +110,7 @@ export default function PartnerPage() {
       }
 
       if (notionId) {
-        // ── 合作活動（交接類型=專案協作 + 協作選項=活動辦理 + 含此廠商）──
+        // ── 合作活動（交接類型=專案協作 + 協作類別=活動辦理 + 含此廠商）──
         const { data: evts } = await supabase
           .from("events")
           .select("id, notion_id, title, event_date, theme, capacity, status")

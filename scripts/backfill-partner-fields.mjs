@@ -104,7 +104,7 @@ async function backfillProducts() {
 // ── DB04 events → 邊抓邊寫，避開壞 cursor ──
 async function processDB04Page(page, stats) {
   const props = p(page);
-  if (extractSelect(props["協作選項"]?.select) !== "活動辦理") return;
+  if (extractSelect(props["協作類別"]?.select) !== "活動辦理") return;
   const guideRel = extractRelation(props["對應對象"]?.relation);
   const pubRel = extractRelation(props["對應辦理單位"]?.relation);
   const relatedPartnerIds = [...new Set([
@@ -118,7 +118,7 @@ async function processDB04Page(page, stats) {
     .update({
       related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
       event_category: extractSelect(props["交接類型"]?.select),
-      collab_type: extractSelect(props["協作選項"]?.select),
+      collab_type: extractSelect(props["協作類別"]?.select),
     })
     .eq("notion_id", eventNid)
     .select("id", { count: "exact", head: true });

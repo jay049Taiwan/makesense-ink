@@ -479,7 +479,7 @@ async function syncProducts(wb = false, skipImages = false) {
 
 // ── DB04 → events ──
 async function syncEvents(wb = false, skipImages = false) {
-  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作選項", select: { equals: "活動辦理" } });
+  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作類別", select: { equals: "活動辦理" } });
 
   // 批次反查 relation → persons 名字
   const locIds: string[] = [], guideIds: string[] = [];
@@ -625,12 +625,12 @@ async function syncEvents(wb = false, skipImages = false) {
     return {
       notion_id: eventNid,
       title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title) || "未命名活動",
-      theme: extractSelect(props["活動細項"]?.select) || null,
-      event_type: extractSelect(props["活動細項"]?.select) || null,
+      theme: extractSelect(props["活動選項"]?.select) || null,
+      event_type: extractSelect(props["活動選項"]?.select) || null,
       event_date: dateInfo.start || null,
       duration_min: durationMin,
       distance_km: extractNumber(props["距離km"]?.number) ?? null,
-      price: extractNumber(props["實際單價"]?.number) ?? extractNumber(props["預計單價"]?.number) ?? 0,
+      price: Number(props["實際總價"]?.formula?.number) || 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
       min_capacity: extractNumber(props["最低數量"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
@@ -639,9 +639,9 @@ async function syncEvents(wb = false, skipImages = false) {
       guide: guideName,
       related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
       event_category: extractSelect(props["交接類型"]?.select) || null,
-      collab_type: extractSelect(props["協作選項"]?.select) || null,
+      collab_type: extractSelect(props["協作類別"]?.select) || null,
       owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
-      status: ms(extractStatus(props["登記發佈"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
       route_stops,
       tickets,
     };
@@ -656,15 +656,15 @@ async function syncEvents(wb = false, skipImages = false) {
 
   if (wb) {
     for (const page of pages) {
-      await writeback(page, `${SITE_URL}/events/${nid(page)}`, "登記發佈", "已發佈", "對應連結");
+      await writeback(page, `${SITE_URL}/events/${nid(page)}`, "發佈狀態", "已發佈", "對應連結");
     }
   }
   return result;
 }
 
-// ── DB04（門市選項=場地使用）→ space_bookings (source=internal) ──
+// ── DB04（門市類別=使用場地）→ space_bookings (source=internal) ──
 async function syncSpaceBookings() {
-  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "門市選項", select: { equals: "場地使用" } });
+  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "門市類別", select: { equals: "使用場地" } });
 
   // 反查地點與對象（DB08 對象名稱）
   const locIds: string[] = [], guideIds: string[] = [];

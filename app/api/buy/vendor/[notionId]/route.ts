@@ -46,7 +46,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
         const dateProp = ep["執行時間"]?.date || ep["活動日期"]?.date;
         event = {
           id: String(eventRels[0]).replace(/-/g, ""),
-          title: t(ep["主題名稱"]) || t(ep["交接名稱"]) || "",
+          title: t(ep["主題名稱"]) || t(ep["協作名稱"]) || "",
           date: dateProp?.start || null,
           endDate: dateProp?.end || null,
         };

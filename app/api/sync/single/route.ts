@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
         topics: `${SITE_URL}/viewpoint/${cleanId}`,
       };
       const table = result.table;
-      const statusField = statusFieldFor(table);
+      const statusField = "發佈狀態";
       // 話題推薦用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
       const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題推薦");
       if (urlMap[table] && result.status !== "draft" && result.status !== null) {
@@ -129,11 +129,6 @@ function mapStatus(val: string | null, map: Record<string, string>): string | nu
   if (!val) return null; // 從未設定，不同步
   if (val === "無發佈" || val === "不發佈") return "draft"; // 下架
   return map[val] || "draft";
-}
-
-/** DB04 用「登記發佈」，其他 DB 用「發佈狀態」 */
-function statusFieldFor(table: string): string {
-  return table === "events" ? "登記發佈" : "發佈狀態";
 }
 
 /** 回寫 Notion：上架 → 狀態改「已發佈」+ 寫入 URL */
@@ -281,10 +276,10 @@ async function syncSingleEvent(nid: string, props: any) {
     })
   )).filter((x): x is { name: string; price: string; notion_id: string } => x !== null);
 
-  // 基本票價 = 最低票種價；沒票種就看 DB04 單價 fallback（實際單價優先，無則預計單價）
+  // 基本票價 = 最低票種價；沒票種就看 DB04 formula「實際總價」
   const basePrice = tickets.length > 0
     ? Math.min(...tickets.map(t => Number(t.price) || 0))
-    : (num(props["實際單價"]) ?? num(props["預計單價"]) ?? 0);
+    : (Number(props["實際總價"]?.formula?.number) || 0);
 
   // 計算活動時長：end - start（分鐘）；只有單一日期時預設 120 分鐘（2小時）
   const durationMin = dateInfo.start && dateInfo.end
@@ -294,8 +289,8 @@ async function syncSingleEvent(nid: string, props: any) {
   const row = {
     notion_id: nid,
     title: tx(props["主題名稱"]) || t(props["協作名稱"]) || "未命名活動",
-    theme: sel(props["活動細項"]),
-    event_type: sel(props["活動細項"]),
+    theme: sel(props["活動選項"]),
+    event_type: sel(props["活動選項"]),
     event_date: dateInfo.start || null,
     duration_min: durationMin,
     distance_km: num(props["距離km"]) ?? null,
@@ -310,10 +305,10 @@ async function syncSingleEvent(nid: string, props: any) {
     guide: guideName,
     related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
     event_category: sel(props["交接類型"]) || null,   // 專案協作 / 庫存門市
-    collab_type:    sel(props["協作選項"]) || null,   // 活動辦理 / 空間借用 etc
+    collab_type:    sel(props["協作類別"]) || null,   // 活動辦理 / 內容製作
     // owner_staff_notion_id：DB04「責任執行」第一位（用於工作台「個人營收」歸屬）
     owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
-    status: mapStatus(st(props["登記發佈"]), { "已發佈": "active", "待發佈": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
   };
   if (row.status === null) return { table: "events", title: row.title, status: null, skipped: true };
   const { error } = await supabase.from("events").upsert(row, { onConflict: "notion_id" });

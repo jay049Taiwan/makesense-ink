@@ -4,7 +4,7 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 /**
  * GET /api/calendar/bookings?year=2026&month=4
  * 回傳該月的空間預約占用時段（from Supabase space_bookings）
- * 來源含 external（會員官網預約）與 internal（DB04 場地使用同步）
+ * 來源含 external（會員官網預約）與 internal（DB04 使用場地同步）
  * 回傳格式對應 BookingSlot[]：{ date, timeSlot }
  */
 export async function GET(req: NextRequest) {

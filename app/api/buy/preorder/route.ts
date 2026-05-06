@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
     if (marketRels[0]) {
       try {
         const mp: any = await getPage(marketRels[0]);
-        marketTitle = t(mp?.properties?.["主題名稱"]) || t(mp?.properties?.["交接名稱"]) || "市集";
+        marketTitle = t(mp?.properties?.["主題名稱"]) || t(mp?.properties?.["協作名稱"]) || "市集";
       } catch {}
     }
 

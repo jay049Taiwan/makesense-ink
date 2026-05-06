@@ -22,7 +22,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
     const evPage: any = await getPage(cleanId);
     const ep = evPage?.properties || {};
     const dateProp = ep["執行時間"]?.date || ep["活動日期"]?.date;
-    const eventTitle = t(ep["主題名稱"]) || t(ep["交接名稱"]) || "市集";
+    const eventTitle = t(ep["主題名稱"]) || t(ep["協作名稱"]) || "市集";
     const eventDate = dateProp?.start || null;
     const eventEndDate = dateProp?.end || null;
     const eventLocation = tx(ep["活動地點"]) || tx(ep["地點"]) || "";
