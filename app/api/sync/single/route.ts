@@ -384,7 +384,7 @@ async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStat
   return { table: "reservation", admissionStatus, result, nid, linePushed: true, note: "market 路徑已推 LINE" };
 }
 
-// ── V2：DB05 預約報名 → 錄取時建庫存紀錄+扣庫存+LINE；未錄取時標記退款+LINE ──
+// ── V2：DB05 填寫報名（登記類別=填寫報名 + 報名選項=活動）→ 錄取時建庫存紀錄+扣庫存+LINE；未錄取時標記退款+LINE ──
 async function syncSingleReservation(nid: string, props: any) {
   const admissionStatus = st(props["錄取狀態"]);  // status 欄位：錄取 / 未錄取 / 無關錄取
 

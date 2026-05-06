@@ -457,8 +457,9 @@ export async function POST(req: NextRequest) {
       }
 
       // 7-1. DB06 明細
-      //   reservation：登記選項=預約報名，不連 DB07（對應庫存留空，避免跟真實庫存混淆）
-      //   direct：登記選項=紀錄庫存 + 庫存選項=出貨 + 對應庫存→DB07（實際扣庫存）
+      //   reservation：DB06 登記選項=預約報名，不連 DB07（對應庫存留空，避免跟真實庫存混淆）
+      //   direct：DB06 登記選項=紀錄庫存 + 庫存選項=出貨 + 對應庫存→DB07（實際扣庫存）
+      //   ※ DB05 那層用 登記類別+報名選項，DB06 仍用舊 登記選項/庫存選項 欄位名
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
         const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
