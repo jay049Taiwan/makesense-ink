@@ -6,7 +6,7 @@ import { processAdmission } from "@/lib/admission-notify";
 /**
  * POST /api/line/registration-result
  *
- * 由 n8n webhook 呼叫（備援路徑；主要觸發走 /api/sync/single 的 DB05 預約報名分支）。
+ * 由 n8n webhook 呼叫（備援路徑；主要觸發走 /api/sync/single 的 DB05 填寫報名分支）。
  * V2：未錄取不做對衝（V2 架構報名時就沒扣庫存），只標記退款狀態 + LINE。
  *
  * Request body:

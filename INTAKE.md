@@ -238,7 +238,7 @@ LayoutShell（沒 Telegram 環境會有 Header）
 | Supabase 表 | 來源 | 用途 |
 |-------------|------|------|
 | `articles` | DB05（文案細項=官網內容） | 文章 / 通訊 |
-| `events` | DB04（協作選項=活動辦理） | 活動 |
+| `events` | DB04（協作類別=活動辦理） | 活動 |
 | `products` | DB07 | 商品 / 票券 |
 | `topics` | DB08（經營類型=觀點/標籤） | 觀點 / 標籤 |
 | `persons` | DB08（會員狀態=會員 + 關係選項=個人） | 帶路老師 / 創作者 |
@@ -261,7 +261,7 @@ LayoutShell（沒 Telegram 環境會有 Header）
 
 - 每筆按「發佈更新」按鈕 → n8n webhook → `/api/sync/single`（即時）
 - 每天 8AM n8n 全量同步（workflow ID: `C8Tc2zIoSW4THUr2`）
-- 「發佈狀態」/「登記發佈」是同步觸發的單一真相欄位
+- 「發佈狀態」是同步觸發的單一真相欄位（DB04 舊名「登記發佈」已撤回統一）
 
 ---
 

@@ -5,7 +5,7 @@ import { notifyRegistrationResult } from "@/lib/line-notifications";
 export type AdmissionResult = "accepted" | "rejected";
 
 export interface AdmissionNotifyOptions {
-  db05PageId: string;             // 原 預約報名 DB05 頁（dashed UUID）
+  db05PageId: string;             // 原 填寫報名 DB05 頁（dashed UUID）
   result: AdmissionResult;
   orderId: string;                // Supabase orders.id
   memberId?: string | null;

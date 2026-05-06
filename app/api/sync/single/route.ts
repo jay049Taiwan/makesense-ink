@@ -487,7 +487,7 @@ async function syncSingleReservation(nid: string, props: any) {
                 value: totalDist,
                 source_table: "orders",
                 source_id: order.id,
-                note: `${totalDist} km（走讀行旅錄取）`,
+                note: `${totalDist} km（導覽走讀錄取）`,
               });
             }
           }
