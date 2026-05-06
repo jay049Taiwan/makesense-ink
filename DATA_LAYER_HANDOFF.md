@@ -199,7 +199,7 @@ CREATE TABLE preorders (
 |---|---|---|
 | 表單名稱（title） | title | `[市集/活動名稱] - [買家姓名]` |
 | 明細內容 | rich_text | 商品清單文字（e.g. "蘭東案內×2、散步圖×1"） |
-| 表單類型 | select | `報名登記`（DB05 只有 3 選項：報名登記/共識互動/圖文影音） |
+| 表單類型 | select | `報名登記`（DB05 只有 3 選項：報名登記/共識互動/文化內容） |
 | 對應對象 | relation → DB08 | 廠商的 DB08 page ID（如有） |
 
 **同步時機**：`preorders` 的 `notion_synced = false` → 定時 job 或 webhook 觸發同步。
