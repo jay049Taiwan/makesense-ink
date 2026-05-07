@@ -47,7 +47,7 @@ export const TIMELINE_EVENTS: TimelineEvent[] = [
   { date: "2018-03", title: "成立旅人書店", type: "milestone", phase: "founding", note: "自營空間，作為所有計畫的基地。" },
   { date: "2018-07", title: "文化部青年村落文化行動獲選", type: "award", phase: "founding" },
   { date: "2019-02", title: "與在地職人共同開發走讀地圖", type: "event", phase: "founding" },
-  { date: "2020-05", title: "疫情期間轉型線上文化內容", type: "milestone", phase: "expansion", note: "危機變成重新定義服務方式的機會。" },
+  { date: "2020-05", title: "疫情期間轉型線上內容素材", type: "milestone", phase: "expansion", note: "危機變成重新定義服務方式的機會。" },
   { date: "2021-06", title: "宜蘭文化俱樂部 Beta", type: "milestone", phase: "expansion", note: "從單次活動，走向會員制的長期關係。" },
   { date: "2022-04", title: "活化羅東文化街 55 號", type: "milestone", phase: "expansion", note: "整條街區的重新編輯。" },
   { date: "2022-10", title: "青創爸媽擴大至 12 組", type: "event", phase: "expansion" },
