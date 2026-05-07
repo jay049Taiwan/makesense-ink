@@ -131,7 +131,7 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | 📢 動態 | 庫存異動、系統通知 | DB07 |
 | 📋 交接 | 待辦事項 + 子任務 checklist | DB03 + DB06 |
 | 📦 庫存 | 商品出貨/進貨/盤點 | DB07 |
-| 📓 紀錄 | 打卡/日誌/請假/加班 | DB05（紀錄備項）+ Supabase staff_activities（讀取走 Supabase）|
+| 📓 紀錄 | 打卡/日誌/請假/加班 | DB05（紀錄細項）+ Supabase staff_activities（讀取走 Supabase）|
 | 💰 費用 | 請款 + 請購 | DB05（請款請購）|
 
 - 工作台直接走 Notion API，不經 Supabase
@@ -248,7 +248,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 ### 其他欄位
 - 行政區域（select；DB08）
 - 單價（number；DB04 活動）
-- 庫存異動規則：DB05 內容類型=報名登記 + 登記選項=紀錄庫存 + 庫存細項=進/出/盤 → DB06（明細類型=庫存紀錄）→ DB07
+- 庫存異動規則：DB05 內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項=進/出/盤 → DB06（明細類型=庫存紀錄）→ DB07
 
 ## Notion ↔ Supabase 同步
 - 狀態：**已建好同步 API，已完成首次同步（706 筆資料）**
@@ -486,7 +486,7 @@ npm run lint   # ESLint
 ## 📌 補充更新（2026/04/28-29 第二批）
 
 ### DB05 欄位補充（之前文件漂移漏記）
-- **紀錄備項**（select）— 工作台「考勤」用：打卡紀錄 / 加班紀錄 / 請假紀錄 / 工作紀錄 / 搜查彙報 / 會議討論
+- **紀錄細項**（select）— 工作台「考勤」用：打卡紀錄 / 加班紀錄 / 請假紀錄 / 工作紀錄 / 搜查彙報 / 會議討論
 - **請款請購**（select）— 工作台「費用」用：請購直匯 / 請款轉交
 - **登記單價**（number）— 金額欄位，DB05 與 DB06 都有
 - **責任執行**（people）— Notion users，工作台寫入時自動帶員工本人
@@ -494,8 +494,8 @@ npm run lint   # ESLint
 ### DB05 / DB06 cascade 機制（2026/04/29 釐清，2026/05/04 完工）
 - 不是 Notion automation，是 **code-driven**
 - 範例：`/api/staff/inventory/route.ts` 庫存異動由 Next.js API 同時寫 DB05+DB06
-- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記選項=紀錄庫存` + `庫存細項=進貨/出貨/盤點` + `對應明細→DB06`
-- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄備項 / 請款請購 區分
+- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存細項=進貨/出貨/盤點` + `對應明細→DB06`
+- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 請款請購 區分
 - 統一封裝在 `lib/staff-helper.ts`：`getStaffNotionPageId` / `getStaffIdByEmail` / `writeStaffDB05Record({type, detail, title, staffEmail, amount?, content?, ...})`
 - 紀錄類同步到 Supabase `staff_activities`（task_type / notion_db05_id / detail jsonb），讀取走 Supabase 避免每次打 Notion API
 - 費用類只寫 DB05，不雙寫 DB06（一張收據 = 一筆 DB05）

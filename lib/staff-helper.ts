@@ -28,7 +28,7 @@ export interface WriteDB05Args {
   type: StaffRecordType;
   /**
    * 子分類 option 值
-   * - attendance: 打卡紀錄 / 加班紀錄 / 請假紀錄 / 工作紀錄 / 搜查彙報 / 會議討論
+   * - attendance: 會議 / 打卡 / 請假 / 日誌 / 加班（DB05 紀錄細項 select；2026/05/07 取代已刪的紀錄備項）
    * - expense:    請購直匯 / 請款轉交
    * - inventory:  進貨 / 出貨 / 盤點
    */
