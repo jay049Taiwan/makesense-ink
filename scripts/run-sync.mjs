@@ -189,7 +189,7 @@ async function syncArticles() {
         const eNid = extractRelation(props["對應協作"]?.relation)[0]?.replace(/-/g, "");
         return {
           notion_id: nid(page),
-          title: extractTitle(props["表單名稱"]?.title) || "未命名文章",
+          title: extractTitle(props["內容名稱"]?.title) || "未命名文章",
           cover_url: fileUrl(props["上傳檔案"]) || null,
           related_event_id: eNid ? (eMap[eNid] || null) : null,
           status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "草稿": "draft" }),

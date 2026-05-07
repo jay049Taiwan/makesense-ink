@@ -111,8 +111,8 @@ export async function POST(req: Request) {
     }
 
     const db05Props: Record<string, any> = {
-      "表單名稱": { title: [{ text: { content: eventTitle } }] },
-      "表單類型": { select: { name: "報名登記" } },
+      "內容名稱": { title: [{ text: { content: eventTitle } }] },
+      "內容類型": { select: { name: "報名登記" } },
       "登記類別": { select: { name: "紀錄庫存" } },
       "庫存細項": { select: { name: operation } },
     };

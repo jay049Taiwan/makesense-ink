@@ -106,10 +106,10 @@ export async function fetchWorkItems(limit = 20): Promise<WorkItem[]> {
 // ══════════════════════════════════════════
 export interface Registration {
   id: string;
-  title: string;        // 表單名稱（DB05 的 title）
+  title: string;        // 內容名稱（DB05 的 title）
   topicTitle: string;   // 主題名稱
   content: string;      // 明細內容
-  type: string;         // 表單類型（DB05 的 select）
+  type: string;         // 內容類型（DB05 的 select）
   summary: string;      // 簡介摘要
   date: string | null;
   slug: string;
@@ -131,10 +131,10 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["表單名稱"]?.title),
+        title: extractTitle(props["內容名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
-        type: extractSelect(props["表單類型"]?.select) || "",
+        type: extractSelect(props["內容類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),
@@ -149,7 +149,7 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "表單類型", select: { equals: "報名登記" } },
+          { property: "內容類型", select: { equals: "報名登記" } },
           // 實際上要用 relation 或 rollup 比對 email，這裡先用標題包含 email 做 fallback
         ],
       },
@@ -160,10 +160,10 @@ export async function fetchRegistrationsByEmail(email: string, limit = 50): Prom
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["表單名稱"]?.title),
+        title: extractTitle(props["內容名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: "",
-        type: extractSelect(props["表單類型"]?.select) || "",
+        type: extractSelect(props["內容類型"]?.select) || "",
         summary: "",
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),
@@ -179,7 +179,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "表單類型", select: { equals: "報名登記" } },
+          { property: "內容類型", select: { equals: "報名登記" } },
           { property: "對應對象", relation: { contains: notionId } },
         ],
       },
@@ -190,10 +190,10 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
       const props = page.properties;
       return {
         id: page.id,
-        title: extractTitle(props["表單名稱"]?.title),
+        title: extractTitle(props["內容名稱"]?.title),
         topicTitle: extractText(props["主題名稱"]?.rich_text),
         content: extractText(props["明細內容"]?.rich_text),
-        type: extractSelect(props["表單類型"]?.select) || "",
+        type: extractSelect(props["內容類型"]?.select) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         date: page.created_time?.substring(0, 10) || null,
         slug: page.id.replace(/-/g, ""),

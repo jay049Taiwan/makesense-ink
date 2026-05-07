@@ -502,12 +502,12 @@ async function syncEvents(wb = false, skipImages = false) {
     }
   }
 
-  // ─── route_stops 預備：一次撈所有「表單名稱=路線腳本」DB05 entries，按事件分組 ───
+  // ─── route_stops 預備：一次撈所有「內容名稱=路線腳本」DB05 entries，按事件分組 ───
   let stopsByEvent: Record<string, any[]> = {};
   let locNameMap: Record<string, string> = {};
   try {
     const allStops = await queryDatabase(DB.DB05_REGISTRATION, {
-      property: "表單名稱",
+      property: "內容名稱",
       title: { equals: "路線腳本" },
     });
     for (const stopPage of allStops) {
@@ -747,7 +747,7 @@ async function syncArticles(wb = false, skipImages = false) {
     const relatedPartnerIds = objRel.map((id: string) => id.replace(/-/g, "")).filter(Boolean);
     return {
       notion_id: nid(page),
-      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["表單名稱"]?.title) || "未命名文章",
+      title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["內容名稱"]?.title) || "未命名文章",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       related_event_id: eNid ? (eMap[eNid] || null) : null,

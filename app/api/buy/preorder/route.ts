@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
     // 從 Notion 取攤商 + 市集資訊（僅讀，不寫）
     const vendorPage: any = await getPage(vendorDb05Id.replace(/-/g, ""));
     const vp = vendorPage?.properties || {};
-    const vendorBrand = (tx(vp["明細內容"]).match(/品牌名稱[:：]\s*(.+)/)?.[1] || t(vp["表單名稱"])).trim();
+    const vendorBrand = (tx(vp["明細內容"]).match(/品牌名稱[:：]\s*(.+)/)?.[1] || t(vp["內容名稱"])).trim();
     const vendorEmail = (tx(vp["登記信箱"]) || "").trim().toLowerCase();
     const marketRels = rel(vp["對應協作"]);
     const marketId = marketRels[0] ? marketRels[0].replace(/-/g, "") : null;

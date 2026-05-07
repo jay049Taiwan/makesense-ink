@@ -79,11 +79,11 @@ export function extractDB05(page: any): TaskItem {
   const p = page.properties;
   return {
     id: page.id, db: "DB05",
-    title: getTitle(p["表單名稱"]) || "（無標題）",
+    title: getTitle(p["內容名稱"]) || "（無標題）",
     content: getRichText(p["明細內容"]),
     executionStatus: getStatus(p["執行狀態"]),
     reviewStatus: getStatus(p["檢核狀態"]),
-    type: getSelect(p["表單類型"]),
+    type: getSelect(p["內容類型"]),
     assignees: getPeopleNames(p["責任執行"]),
     assigneeEmails: getPeopleEmails(p["責任執行"]),
     executionTime: getDate(p["執行時間"]),

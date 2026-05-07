@@ -47,19 +47,19 @@ export interface WriteDB05Args {
 
 export async function writeStaffDB05Record(args: WriteDB05Args): Promise<{ id: string }> {
   const props: Record<string, any> = {
-    "表單名稱": { title: [{ text: { content: args.title } }] },
+    "內容名稱": { title: [{ text: { content: args.title } }] },
   };
 
-  // 子分類 + 表單類型上游欄位
+  // 子分類 + 內容類型上游欄位
   if (args.type === "attendance") {
     // TODO(2026/05/06): DB05「紀錄備項」select 已被刪除，原選項（打卡紀錄/加班紀錄/請假紀錄/工作紀錄）
     // 需要 Noah 確認新分類欄位（紀錄細項 options 已改為 季目標/年度計畫/月報/週記/工作日誌，並非 attendance）。
-    // 暫時不寫子分類，attendance 紀錄仍會建出 DB05 page（表單名稱+責任執行+對應對象），但無類型標記。
+    // 暫時不寫子分類，attendance 紀錄仍會建出 DB05 page（內容名稱+責任執行+對應對象），但無類型標記。
     // staff_activities Supabase 表是 attendance 真相來源，Notion mirror 是輔助。
   } else if (args.type === "expense") {
     props["請款請購"] = { select: { name: args.detail } };
   } else if (args.type === "inventory") {
-    props["表單類型"] = { select: { name: "報名登記" } };
+    props["內容類型"] = { select: { name: "報名登記" } };
     props["登記類別"] = { select: { name: "紀錄庫存" } };
     props["庫存細項"] = { select: { name: args.detail } };
   }

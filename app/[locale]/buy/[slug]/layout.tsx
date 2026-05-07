@@ -34,7 +34,7 @@ export async function generateMetadata(
         const m = line.match(/^([^：:]+)[：:]\s*(.*)$/);
         if (m) brand[m[1].trim()] = m[2].trim();
       });
-      const brandName = brand["品牌名稱"] || t(props["表單名稱"]) || "攤商預購";
+      const brandName = brand["品牌名稱"] || t(props["內容名稱"]) || "攤商預購";
       const intro = (brand["品牌簡介"] || "").slice(0, 120);
       const files = props["上傳檔案"]?.files || [];
       const imageUrl =

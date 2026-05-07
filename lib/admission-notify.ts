@@ -51,7 +51,7 @@ function fillAttendeeProps(p: Record<string, any>, reg: Record<string, any> | nu
  * V2：錄取/未錄取通知的共用邏輯
  *
  * accepted：
- *   - 建立新 DB05（表單類型=報名登記，代表已確認交易）
+ *   - 建立新 DB05（內容類型=報名登記，代表已確認交易）
  *   - 為每個 order_items 建 DB06（明細類型=庫存紀錄、出貨）+ 對應 attendee 資料
  *   - 扣 Supabase products.stock
  *   - 推 LINE Flex 卡片
@@ -67,7 +67,7 @@ export async function processAdmission(opts: AdmissionNotifyOptions): Promise<Ad
 
   // 1. 取 預約 DB05 頁
   const reservationDb05: any = opts.db05Page;
-  const reservationTitle = extractTitle(reservationDb05?.properties?.["表單名稱"]?.title) || "報名";
+  const reservationTitle = extractTitle(reservationDb05?.properties?.["內容名稱"]?.title) || "報名";
   const eventName = opts.eventName || reservationTitle;
   const memberId = opts.memberId ?? null;
 
@@ -223,8 +223,8 @@ async function createConfirmedEntries(args: {
 
   // 建 報名登記 DB05（帶 聯絡人/attendee 資料；關聯剛建的 DB06）
   const db05Props: Record<string, any> = {
-    "表單名稱": { title: [{ text: { content: `報名錄取 ${orderNumber}` } }] },
-    "表單類型": { select: { name: "報名登記" } },
+    "內容名稱": { title: [{ text: { content: `報名錄取 ${orderNumber}` } }] },
+    "內容類型": { select: { name: "報名登記" } },
     "登記類別": { select: { name: "紀錄庫存" } },
     "庫存細項": { select: { name: "出貨" } },
   };

@@ -31,7 +31,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
     const admissionStatus = st(props["錄取狀態"]);
     const registerCategory = st(props["登記類別"]);
     const registerOption = st(props["報名選項"]);
-    const formType = st(props["表單類型"]);
+    const formType = st(props["內容類型"]);
 
     if (admissionStatus !== "錄取" || registerCategory !== "填寫報名" || registerOption !== "活動" || formType !== "報名登記") {
       return NextResponse.json({ available: false, reason: "not_accepted" }, { status: 404 });
@@ -126,7 +126,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
       available: true,
       vendor: {
         id: cleanId,
-        title: t(props["表單名稱"]),
+        title: t(props["內容名稱"]),
         brandName: brand["品牌名稱"] || "",
         type: brand["攤位類型"] || "",
         region: brand["所在地區"] || "",

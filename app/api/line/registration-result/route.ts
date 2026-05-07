@@ -12,7 +12,7 @@ import { processAdmission } from "@/lib/admission-notify";
  * Request body:
  *   - db05PageId  (required): 觸發變動的 DB05 頁 ID（dashed 或無 dash 都可）
  *   - result      (required): "accepted" | "rejected"
- *   - eventName   (optional): 顯示用活動名稱（預設讀 DB05 表單名稱）
+ *   - eventName   (optional): 顯示用活動名稱（預設讀 DB05 內容名稱）
  *   - customMessage (optional): 覆寫預設文案
  *   - skipLine    (optional): true 時不推 LINE（給 n8n 工作流用，避免重複）
  */

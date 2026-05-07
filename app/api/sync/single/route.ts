@@ -235,13 +235,13 @@ async function syncSingleEvent(nid: string, props: any) {
     [...guideRels, ...publisherRels].map(id => id.replace(/-/g, "")).filter(Boolean)
   )];
 
-  // 對應表單 relation → DB05 → 篩「表單名稱=路線腳本」= route stops
+  // 對應表單 relation → DB05 → 篩「內容名稱=路線腳本」= route stops
   const formRels = rel(props["對應表單"]);
   const stopPages = (await Promise.all(
     formRels.map(async (id) => {
       try {
         const page: any = await getPage(id);
-        const title = (page.properties?.["表單名稱"]?.title || []).map((x: any) => x.plain_text).join("");
+        const title = (page.properties?.["內容名稱"]?.title || []).map((x: any) => x.plain_text).join("");
         if (title !== "路線腳本") return null;
         return page;
       } catch { return null; }
@@ -319,18 +319,18 @@ async function syncSingleEvent(nid: string, props: any) {
 
 // ── DB05 分流：文章 / 庫存批次 / 填寫報名 ──
 async function syncSingleDB05(nid: string, props: any) {
-  const formType = sel(props["表單類型"]);
+  const formType = sel(props["內容類型"]);
   const stockAction = sel(props["庫存細項"]);  // 進貨 / 出貨 / 盤點
   const copyDetail = sel(props["文案細項"]);
   const registerCategory = sel(props["登記類別"]);
 
-  // 庫存批次：表單類型=共識互動 + 庫存細項有值（進貨/出貨/盤點）
+  // 庫存批次：內容類型=共識互動 + 庫存細項有值（進貨/出貨/盤點）
   if (formType === "共識互動" && stockAction) {
     return await syncStockBatch(nid, props);
   }
 
   // V2：登記類別=填寫報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
-  // （表單類型固定為「報名登記」，用 登記類別 區分 reservation / direct）
+  // （內容類型固定為「報名登記」，用 登記類別 區分 reservation / direct）
   if (registerCategory === "填寫報名") {
     return await syncSingleReservation(nid, props);
   }
@@ -341,7 +341,7 @@ async function syncSingleDB05(nid: string, props: any) {
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 表單類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 內容類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知
@@ -349,7 +349,7 @@ async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStat
   const { lineClient } = await import("@/lib/line");
   const emailRaw = tx(props["登記信箱"]) || "";
   const email = emailRaw.trim().toLowerCase();
-  const title = t(props["表單名稱"]) || "您的報名";
+  const title = t(props["內容名稱"]) || "您的報名";
 
   if (!email) {
     return { table: "reservation", note: "DB05 無登記信箱，略過 LINE 推播", nid, skipped: true };
@@ -661,7 +661,7 @@ async function syncSingleArticle(nid: string, props: any) {
 
   const row: Record<string, any> = {
     notion_id: nid,
-    title: tx(props["主題名稱"]) || t(props["表單名稱"]) || "未命名文章",
+    title: tx(props["主題名稱"]) || t(props["內容名稱"]) || "未命名文章",
     summary: tx(props["簡介摘要"]),
     cover_url: fileUrl(props["上傳檔案"]),
     related_event_id: relatedEventId,

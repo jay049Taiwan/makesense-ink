@@ -41,7 +41,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "表單類型", select: { equals: "報名登記" } },
+          { property: "內容類型", select: { equals: "報名登記" } },
           { property: "登記類別", select: { equals: "填寫報名" } },
           { property: "報名選項", select: { equals: "活動" } },
           { property: "錄取狀態", status: { equals: "錄取" } },
@@ -65,7 +65,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
         || files[0]?.external?.url || null;
       return {
         id: String(row.id).replace(/-/g, ""),
-        brandName: brand["品牌名稱"] || t(p["表單名稱"]),
+        brandName: brand["品牌名稱"] || t(p["內容名稱"]),
         type: brand["攤位類型"] || "",
         keywords: brand["品牌關鍵字"] || "",
         intro: brand["品牌簡介"]?.slice(0, 80) || "",
