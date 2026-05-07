@@ -102,7 +102,7 @@ export async function fetchWorkItems(limit = 20): Promise<WorkItem[]> {
 }
 
 // ══════════════════════════════════════════
-// DB05: 登記表單明細（文章、報名紀錄）
+// DB05: 登記內容（文章、報名紀錄）
 // ══════════════════════════════════════════
 export interface Registration {
   id: string;
@@ -203,7 +203,7 @@ export async function fetchRegistrationsByNotionId(notionId: string, limit = 50)
 }
 
 // ══════════════════════════════════════════
-// DB06: 進銷明細（訂單明細）
+// DB06: 清單明細（訂單明細）
 // ══════════════════════════════════════════
 export interface TransactionItem {
   id: string;
