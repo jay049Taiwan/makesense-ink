@@ -3,12 +3,12 @@ import { requireStaff } from "../_guard";
 import { writeStaffDB05Record, getStaffIdByEmail } from "@/lib/staff-helper";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// 子類型 → DB05 子分類欄位（紀錄備項已刪，待 Noah 指定新欄位）
+// 子類型 → DB05 紀錄細項 select option 值（2026/05/07 紀錄備項→紀錄細項，options 移除「紀錄」後綴）
 const SUB_TYPE_TO_DETAIL: Record<string, string> = {
-  打卡: "打卡紀錄",
-  日誌: "工作紀錄",
-  請假: "請假紀錄",
-  加班: "加班紀錄",
+  打卡: "打卡",
+  日誌: "日誌",
+  請假: "請假",
+  加班: "加班",
 };
 
 function pad(n: number) { return String(n).padStart(2, "0"); }
