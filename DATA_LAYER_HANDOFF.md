@@ -3,7 +3,7 @@
 > ⚠️ **狀態（2026/05/04）：本文件大部分內容已過時，僅保留作歷史參考。**
 > - 文中規劃的 `vendor_products` / `market_events` / `market_vendor_slots` / `market_slot_products` / `activity_addon_products` / `preorders` 6 張表 **均未建立**。
 > - 實際採用的是統一商品表 `products`（DB07 庫存控管）+ `events`（DB04 協作交接）+ `vendor_preorders` / `vendor_preorder_items` / `market_applications`。
-> - DB05 名稱現為「登記表單」（不是「登記表單明細」），DB07 為「庫存控管」（不是「庫存資產」）。
+> - DB05 名稱現為「登記內容」（不是「登記內容明細」），DB07 為「庫存控管」（不是「庫存資產」）。
 > - 現行欄位對應請改參考 `CLAUDE.md` 的「Notion 資料庫」與「Notion ↔ Supabase 同步」章節。
 
 **整理日期**：2026/04/13  
@@ -191,16 +191,18 @@ CREATE TABLE preorders (
 
 ## 三、Notion 欄位對應
 
-### DB05 登記表單（原子資料層）
+### DB05 登記內容（原子資料層）
 
 民眾送出預購/報名後，需同步一筆到 DB05。
 
 | DB05 欄位名稱 | 類型 | 寫入內容 |
 |---|---|---|
-| 表單名稱（title） | title | `[市集/活動名稱] - [買家姓名]` |
+| 內容名稱（title） | title | `[市集/活動名稱] - [買家姓名]` |
 | 明細內容 | rich_text | 商品清單文字（e.g. "蘭東案內×2、散步圖×1"） |
-| 表單類型 | select | `報名登記`（DB05 只有 3 選項：報名登記/共識互動/文化內容） |
+| 內容類型 | select | `報名登記`（DB05 只有 3 選項：報名登記/共識互動/文化內容） |
 | 對應對象 | relation → DB08 | 廠商的 DB08 page ID（如有） |
+
+> **2026/05/06 補**：DB05 新增 9 個 X引用 relation（提案引用/管考引用/項目引用/協作引用/內容引用/明細引用/庫存引用/對象引用/日期引用），語意「引用提及」，**不參與 Supabase 同步**。聚合查詢只看「對應X」系列。
 
 **同步時機**：`preorders` 的 `notion_synced = false` → 定時 job 或 webhook 觸發同步。
 

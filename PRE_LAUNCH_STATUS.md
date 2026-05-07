@@ -44,8 +44,8 @@
 **怎麼做**：
 1. 在 checkout route 最後加入：
    - `UPDATE products SET stock = stock - qty WHERE id = ?` （迴圈 order_items）
-   - 呼叫 Notion API 在 DB05 建立一筆「結帳」紀錄（表單類型=共識互動）
-   - 呼叫 Notion API 在 DB06 建立進銷明細（明細類型=出貨）
+   - 呼叫 Notion API 在 DB05 建立一筆「結帳」紀錄（內容類型=共識互動）
+   - 呼叫 Notion API 在 DB06 建立清單明細（明細類型=出貨）
    - 若 Supabase→Notion 即時回寫複雜，可改 n8n webhook 非同步處理
 2. DB08 的客戶購買紀錄可透過 members.notion_id + purchase aggregate view 顯示，不一定要逐筆寫 DB08
 
