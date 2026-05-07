@@ -194,7 +194,7 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | DB02 | 績效管考 | 不同步（內部管理） |
 | DB03 | 項目進度 | 工作台直接 Notion API |
 | DB04 | 協作交接 | events, space_bookings |
-| DB05 | 登記內容 | articles（篩選：文案細項=官網內容）, registrations, orders；**X引用 9 個 relation 不參與同步** |
+| DB05 | 登記內容 | articles（篩選：文案細項=官網內容）, registrations, orders；**X引用 + X被引 共 18 個 relation 不參與同步** |
 | DB06 | 清單明細 | **直接更新 products.stock**（進貨+/出貨-/盤點=） |
 | DB07 | 庫存控管 | products（名稱/價格/照片/作者/發行/觀點/文章） |
 | DB08 | 關係對象 | persons, partners, members, staff, topics |
@@ -209,12 +209,14 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 - DB06 連 DB08：「對應標籤對象」relation
 - 同步優先級:主題名稱 > title 欄位（協作名稱/內容名稱）→ Supabase .title
 
-### DB05 雙層 relation 設計（2026/05/06）
+### DB05 三層 relation 設計（2026/05/06 雙層 → 2026/05/08 升級三層）
 - **對應X**（9 個 + ai_對應X）= 直接上下游 → partner_metrics_v 等聚合查詢只看這個
-- **X引用**（9 個）= 引用提及 → **不參與 Supabase 同步**、不入聚合
+- **X引用**（9 個）= 引用提及，出向（此 page 主動引用他人）→ **不參與 Supabase 同步**、不入聚合
   - 提案引用 / 管考引用 / 項目引用 / 協作引用 / 內容引用 / 明細引用 / 庫存引用 / 對象引用 / 日期引用
-- sync route 自動忽略 X引用 系列
-- 全文搜尋（articles_search_v）兩條都看
+- **X被引**（9 個）= 此 page 被他人引用，入向 → **AI 廣泛寫入為主**，人工清掉不適合的；**不**走 Notion auto dual sync；不參與 Supabase 同步、不入聚合
+  - 提案被引 / 管考被引 / 項目被引 / 協作被引 / 內容被引 / 明細被引 / 庫存被引 / 對象被引 / 日期被引
+- sync route 自動忽略 X引用 + X被引 共 18 個 relation
+- 全文搜尋（articles_search_v）三條都看
 
 ### DB04 重要欄位（2026/05/04 schema 校正）
 - title：**協作名稱**
