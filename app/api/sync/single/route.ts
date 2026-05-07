@@ -324,8 +324,9 @@ async function syncSingleDB05(nid: string, props: any) {
   const copyDetail = sel(props["文案細項"]);
   const registerCategory = sel(props["登記類別"]);
 
-  // 庫存批次：內容類型=共識互動 + 庫存細項有值（進貨/出貨/盤點）
-  if (formType === "共識互動" && stockAction) {
+  // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項有值（進貨/出貨/盤點）
+  // 與寫入端一致（lib/staff-helper.ts inventory + lib/admission-notify.ts + checkout direct mode）
+  if (formType === "報名登記" && registerCategory === "紀錄庫存" && stockAction) {
     return await syncStockBatch(nid, props);
   }
 
