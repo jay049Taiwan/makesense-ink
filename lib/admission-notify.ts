@@ -175,7 +175,6 @@ async function createConfirmedEntries(args: {
     const db06Props: Record<string, any> = {
       "明細名稱": { title: [{ text: { content: itemName } }] },
       "明細類型": { select: { name: "庫存紀錄" } },
-      "庫存選項": { select: { name: "出貨" } },
       "登記數量": { number: oi.quantity },
       "登記單價": { number: oi.price },
     };

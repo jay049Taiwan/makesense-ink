@@ -420,7 +420,7 @@ export async function POST(req: NextRequest) {
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
     //    欄位名已對照 Notion live schema 確認：
     //      DB05: 內容名稱(title), 內容類型=報名登記, 登記類別=紀錄庫存（reservation 改用 填寫報名+報名選項=活動）, 庫存細項=出貨, 對應明細→DB06
-    //      DB06: 明細名稱(title), 明細類型=庫存紀錄, 登記數量, 登記單價, 對應庫存→DB07
+    //      DB06: 明細名稱(title), 明細類型=庫存紀錄, 登記數量, 登記單價, 對應庫存→DB07（DB06 庫存選項已於 2026/05/07 刪除）
     //    改用 await：Vercel serverless 會在 response 後終止執行，fire-and-forget 跑不完
     //    失敗不影響結帳回應（包 try/catch）
     try {
@@ -458,8 +458,8 @@ export async function POST(req: NextRequest) {
 
       // 7-1. DB06 明細
       //   reservation：DB06 登記選項=預約報名，不連 DB07（對應庫存留空，避免跟真實庫存混淆）
-      //   direct：DB06 登記選項=紀錄庫存 + 庫存選項=出貨 + 對應庫存→DB07（實際扣庫存）
-      //   ※ DB05 那層用 登記類別+報名選項，DB06 仍用舊 登記選項/庫存選項 欄位名
+      //   direct：DB06 登記選項=紀錄庫存 + 對應庫存→DB07（實際扣庫存；2026/05/07 起 DB06 已無庫存選項欄位）
+      //   ※ DB05 那層用 登記類別+報名選項，DB06 此處仍用 登記選項 欄位名（DB06 庫存選項已刪）
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
         const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
@@ -482,7 +482,7 @@ export async function POST(req: NextRequest) {
             "登記單價": { number: item.price },
           };
           if (orderMode === "direct") {
-            db06Props["庫存選項"] = { select: { name: "出貨" } };
+            // 2026/05/07：DB06「庫存選項」已刪；direct 模式只連對應庫存
             if (productNotionDashed) {
               db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
             }
