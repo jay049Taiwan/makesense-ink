@@ -477,10 +477,10 @@ export async function POST(req: NextRequest) {
           const db06Props: Record<string, any> = {
             "明細名稱": { title: [{ text: { content: item.name + titleSuffix } }] },
             "明細類型": { select: { name: "報名登記" } },
-            "登記選項": { select: { name: orderMode === "reservation" ? "預約報名" : "紀錄庫存" } },
             "登記數量": { number: perPersonQty },
             "登記單價": { number: item.price },
           };
+          // 2026/05/08：DB06「登記選項」option 已改名（預約報名→填寫報名），不再寫入此欄位避免 schema 不匹配
           if (orderMode === "direct") {
             // 2026/05/07：DB06「庫存選項」已刪；direct 模式只連對應庫存
             if (productNotionDashed) {

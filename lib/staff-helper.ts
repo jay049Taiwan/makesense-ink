@@ -55,7 +55,7 @@ export async function writeStaffDB05Record(args: WriteDB05Args): Promise<{ id: s
     // 2026/05/07：紀錄備項刪除後，改用「紀錄細項」select 分類（options：會議/打卡/請假/日誌/加班）
     props["紀錄細項"] = { select: { name: args.detail } };
   } else if (args.type === "expense") {
-    props["請款請購"] = { select: { name: args.detail } };
+    props["紀錄費用"] = { select: { name: args.detail } };
   } else if (args.type === "inventory") {
     props["內容類型"] = { select: { name: "報名登記" } };
     props["登記類別"] = { select: { name: "紀錄庫存" } };
