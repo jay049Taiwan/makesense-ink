@@ -28,7 +28,7 @@ const eventCatStyles: Record<string, { bg: string; text: string }> = {
 
 export default async function CultureClubPage() {
   const events = await fetchSBEvents(5);
-  const articles = await fetchSBArticles(5);
+  const articles = await fetchSBArticles(5, "地方通訊");
   const tags = await fetchSBTopics("tag", 10);
   const products = await fetchSBProducts(undefined, 6);
 

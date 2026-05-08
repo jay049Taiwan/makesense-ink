@@ -75,7 +75,7 @@ export default async function BookstorePage({ params }: { params: Promise<{ loca
   const [booksRaw, goodsRaw, articlesRaw, eventsRaw, topicShowcasesRaw, viewpointsRaw] = await Promise.all([
     fetchSBProducts("選書", 12),
     fetchSBProducts("選物", 12),
-    fetchSBArticles(5),
+    fetchSBArticles(5, "地方通訊"),
     fetchSBEvents(3),
     // 話題推薦：DB05 官網備項=話題推薦 的文章，each with its related products
     (async () => {
