@@ -132,7 +132,7 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 | 📋 交接 | 待辦事項 + 子任務 checklist | DB03 + DB06 |
 | 📦 庫存 | 商品出貨/進貨/盤點 | DB07 |
 | 📓 紀錄 | 打卡/日誌/請假/加班 | DB05（紀錄細項）+ Supabase staff_activities（讀取走 Supabase）|
-| 💰 費用 | 請款 + 請購 | DB05（請款請購）|
+| 💰 費用 | 請款 + 請購 | DB05（紀錄費用）|
 
 - 工作台直接走 Notion API，不經 Supabase
 - Tab Bar 用 sticky 定位（不是 fixed）
@@ -489,7 +489,7 @@ npm run lint   # ESLint
 
 ### DB05 欄位補充（之前文件漂移漏記）
 - **紀錄細項**（select）— 工作台「考勤」用：會議 / 打卡 / 請假 / 日誌 / 加班（2026/05/07 改名 + options 統一去「紀錄」後綴；舊欄位「紀錄備項」已刪）
-- **請款請購**（select）— 工作台「費用」用：請購直匯 / 請款轉交
+- **紀錄費用**（select；2026/05/09 從「請款請購」改名）— 工作台「費用」用：請購直匯 / 請款轉交
 - **登記單價**（number）— 金額欄位，DB05 與 DB06 都有
 - **責任執行**（people）— Notion users，工作台寫入時自動帶員工本人
 
@@ -497,7 +497,7 @@ npm run lint   # ESLint
 - 不是 Notion automation，是 **code-driven**
 - 範例：`/api/staff/inventory/route.ts` 庫存異動由 Next.js API 同時寫 DB05+DB06
 - 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存細項=進貨/出貨/盤點` + `對應明細→DB06`
-- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 請款請購 區分
+- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 紀錄費用 區分
 - 統一封裝在 `lib/staff-helper.ts`：`getStaffNotionPageId` / `getStaffIdByEmail` / `writeStaffDB05Record({type, detail, title, staffEmail, amount?, content?, ...})`
 - 紀錄類同步到 Supabase `staff_activities`（task_type / notion_db05_id / detail jsonb），讀取走 Supabase 避免每次打 Notion API
 - 費用類只寫 DB05，不雙寫 DB06（一張收據 = 一筆 DB05）
