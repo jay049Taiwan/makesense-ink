@@ -321,7 +321,7 @@ async function syncSingleEvent(nid: string, props: any) {
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["內容類型"]);
   const stockAction = sel(props["庫存細項"]);  // 進貨 / 出貨 / 盤點
-  const copyDetail = sel(props["文案細項"]);
+  const copyDetail = sel(props["文案選項"]);
   const registerCategory = sel(props["登記類別"]);
 
   // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項有值（進貨/出貨/盤點）
@@ -336,13 +336,13 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncSingleReservation(nid, props);
   }
 
-  // 官網文章：文案細項=官網內容
+  // 官網文章：文案選項=官網內容
   if (copyDetail === "官網內容") {
     return await syncSingleArticle(nid, props);
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 內容類型=${formType}, 文案細項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 內容類型=${formType}, 文案選項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知

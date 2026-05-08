@@ -237,7 +237,7 @@ LayoutShell（沒 Telegram 環境會有 Header）
 
 | Supabase 表 | 來源 | 用途 |
 |-------------|------|------|
-| `articles` | DB05（文案細項=官網內容） | 文章 / 通訊 |
+| `articles` | DB05（文案選項=官網內容） | 文章 / 通訊 |
 | `events` | DB04（協作類別=活動辦理） | 活動 |
 | `products` | DB07 | 商品 / 票券 |
 | `topics` | DB08（經營類型=觀點/標籤） | 觀點 / 標籤 |

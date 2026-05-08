@@ -722,7 +722,7 @@ async function syncSpaceBookings() {
 
 // ── DB05 → articles ──
 async function syncArticles(wb = false, skipImages = false) {
-  const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案細項", select: { equals: "官網內容" } });
+  const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案選項", select: { equals: "官網內容" } });
 
   const eIds: string[] = [];
   const pIds: string[] = [];
