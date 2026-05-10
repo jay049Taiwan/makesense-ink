@@ -113,3 +113,131 @@ export function sendGAEvent(eventName: string, params: Record<string, any> = {})
     (window as any).gtag("event", eventName, params);
   }
 }
+
+// ─────────────────────────────────────────────────────────────
+// Cart / Commerce events → cart_events table + GA4
+// ─────────────────────────────────────────────────────────────
+
+interface CartEventBase {
+  itemId?: string;
+  itemType?: string;     // product / event / ticket / addon
+  itemName?: string;
+  price?: number;
+  qty?: number;
+  cartTotal?: number;
+  cartCount?: number;
+  orderId?: string;      // for checkout_complete
+  meta?: Record<string, any>;
+  path?: string;
+}
+
+async function insertCartEvent(eventType: string, payload: CartEventBase) {
+  try {
+    await supabase.from("cart_events").insert({
+      event_type: eventType,
+      item_id: payload.itemId || null,
+      item_type: payload.itemType || null,
+      item_name: payload.itemName || null,
+      price: payload.price ?? null,
+      qty: payload.qty ?? null,
+      cart_total: payload.cartTotal ?? null,
+      cart_count: payload.cartCount ?? null,
+      order_id: payload.orderId || null,
+      meta: payload.meta || null,
+      session_id: getSessionId(),
+      source: getSource(),
+      device_type: getDeviceType(),
+      path: payload.path || (typeof window !== "undefined" ? window.location.pathname : null),
+    });
+  } catch (e) {
+    console.debug(`[tracking] ${eventType} error:`, e);
+  }
+}
+
+/** 加入購物車 */
+export function trackAddToCart(item: { id: string; type: string; name: string; price: number; qty: number }, cartSnapshot?: { total: number; count: number }) {
+  insertCartEvent("add_to_cart", {
+    itemId: item.id, itemType: item.type, itemName: item.name,
+    price: item.price, qty: item.qty,
+    cartTotal: cartSnapshot?.total, cartCount: cartSnapshot?.count,
+  });
+  sendGAEvent("add_to_cart", {
+    currency: "TWD",
+    value: item.price * item.qty,
+    items: [{ item_id: item.id, item_name: item.name, item_category: item.type, price: item.price, quantity: item.qty }],
+  });
+}
+
+/** 移除購物車 */
+export function trackRemoveFromCart(item: { id: string; type: string; name: string; price: number; qty: number }, cartSnapshot?: { total: number; count: number }) {
+  insertCartEvent("remove_from_cart", {
+    itemId: item.id, itemType: item.type, itemName: item.name,
+    price: item.price, qty: item.qty,
+    cartTotal: cartSnapshot?.total, cartCount: cartSnapshot?.count,
+  });
+  sendGAEvent("remove_from_cart", {
+    currency: "TWD",
+    value: item.price * item.qty,
+    items: [{ item_id: item.id, item_name: item.name, item_category: item.type, price: item.price, quantity: item.qty }],
+  });
+}
+
+/** 結帳開始（checkout 頁載入時呼叫） */
+export function trackCheckoutStart(cartSnapshot: { total: number; count: number; items?: Array<{ id: string; name: string; price: number; qty: number; type?: string }> }) {
+  insertCartEvent("checkout_start", {
+    cartTotal: cartSnapshot.total,
+    cartCount: cartSnapshot.count,
+    meta: cartSnapshot.items ? { items: cartSnapshot.items } : undefined,
+  });
+  sendGAEvent("begin_checkout", {
+    currency: "TWD",
+    value: cartSnapshot.total,
+    items: (cartSnapshot.items || []).map(i => ({
+      item_id: i.id, item_name: i.name, item_category: i.type, price: i.price, quantity: i.qty,
+    })),
+  });
+}
+
+/** 結帳完成 */
+export function trackCheckoutComplete(orderId: string, cartSnapshot: { total: number; count: number; items?: Array<{ id: string; name: string; price: number; qty: number; type?: string }> }) {
+  insertCartEvent("checkout_complete", {
+    orderId,
+    cartTotal: cartSnapshot.total,
+    cartCount: cartSnapshot.count,
+    meta: cartSnapshot.items ? { items: cartSnapshot.items } : undefined,
+  });
+  sendGAEvent("purchase", {
+    transaction_id: orderId,
+    currency: "TWD",
+    value: cartSnapshot.total,
+    items: (cartSnapshot.items || []).map(i => ({
+      item_id: i.id, item_name: i.name, item_category: i.type, price: i.price, quantity: i.qty,
+    })),
+  });
+}
+
+/** Outbound click（點擊離站連結，例：LINE / FB icon / 電話） */
+export function trackOutboundClick(target: string, meta?: Record<string, any>) {
+  insertCartEvent("outbound_click", { itemId: target, meta });
+  sendGAEvent("click", { link_url: target, outbound: true, ...meta });
+}
+
+/** Scroll depth（每頁最多 4 個 milestone：25/50/75/100） */
+export function trackScrollDepth(depth: 25 | 50 | 75 | 100, path?: string) {
+  insertCartEvent("scroll_depth", { qty: depth, path });
+  sendGAEvent("scroll", { percent_scrolled: depth });
+}
+
+/** 更新 page_views.duration_sec — 用 sendBeacon 確保在頁面離開前送出 */
+export function trackPageDuration(sessionId: string, path: string, durationSec: number) {
+  if (typeof navigator === "undefined" || !navigator.sendBeacon) return;
+  try {
+    const blob = new Blob([JSON.stringify({ session_id: sessionId, path, duration_sec: durationSec })], { type: "application/json" });
+    navigator.sendBeacon("/api/track/duration", blob);
+  } catch (e) {
+    console.debug("[tracking] duration beacon error:", e);
+  }
+}
+
+// 暴露 helper 給其他元件用
+export { getSessionId };
