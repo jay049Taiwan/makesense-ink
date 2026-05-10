@@ -116,7 +116,7 @@ Telegram Bot 的操作應該反映到官網工作台，反之亦然：
 - 對應X（9 個）= 直接上下游 / X引用（9 個）= 引用提及（出向，此 page 主動引用他人）/ X被引（9 個）= 此 page 被他人引用（入向）
 - X引用：提案引用 / 管考引用 / 項目引用 / 協作引用 / 內容引用 / 明細引用 / 庫存引用 / 對象引用 / 日期引用
 - X被引：提案被引 / 管考被引 / 項目被引 / 協作被引 / 內容被引 / 明細被引 / 庫存被引 / 對象被引 / 日期被引
-- Telegram Bot / AI agent 寫 DB05 時：執行紀錄寫對應X、主動引用寫 X引用、**被引主要靠 AI（嗨嗨聯想/Notion AI）廣撒**（人工裁掉不合適者）；**不**走 Notion auto dual sync
+- Telegram Bot / AI agent 寫 DB05 時：執行紀錄寫對應X、主動引用寫 X引用；**X被引由 Notion auto dual-sync 自動鏡射，AI 不需操作**（X引用 端做人工裁切即可）
 - Notion → Supabase 同步只取對應X，X引用 + X被引 共 18 個 relation 純 Notion 內部使用
 
 ---
@@ -165,7 +165,7 @@ Telegram Bot ←→ Notion API ←→ Next.js API Routes ←→ 官網前端
 | activity_feed | 動態 | ✅ | — |
 | handover | 交接 | ✅ | /today, /done |
 | inventory | 庫存 | ✅ | — |
-| attendance | 考勤 | ✅ | — |
+| attendance | 紀錄 | ✅ | — |
 | expense | 費用 | ✅ | — |
 
 ### 兩邊的讀取邏輯
@@ -173,7 +173,7 @@ Telegram Bot ←→ Notion API ←→ Next.js API Routes ←→ 官網前端
 - **Telegram Bot**：啟動時或收到指令時 → 讀取同一份 Notion 設定 → 決定是否回應該指令
 
 ### 效果
-Noah 在 Notion 把「考勤」關掉 → 官網工作台的考勤 Tab 消失 + Telegram 相關指令停用，不需要改任何程式碼。
+Noah 在 Notion 把「紀錄」關掉 → 官網工作台的紀錄 Tab 消失 + Telegram 相關指令停用，不需要改任何程式碼。
 
 ---
 
