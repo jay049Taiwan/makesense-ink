@@ -11,8 +11,8 @@ export default async function SensePage() {
     { count: eventCount },
     { count: partnerCount },
   ] = await Promise.all([
-    supabase.from("events").select("*", { count: "exact", head: true }).eq("status", "active"),
-    supabase.from("partners").select("*", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("events").select("id", { count: "exact", head: true }).eq("status", "active"),
+    supabase.from("partners").select("id", { count: "exact", head: true }).eq("status", "active"),
   ]);
 
   const stats = {

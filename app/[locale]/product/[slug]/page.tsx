@@ -6,8 +6,10 @@ import { supabase } from "@/lib/supabase";
 import { useCart } from "@/components/providers/CartProvider";
 import { AlsoWantToKnow, MightAlsoLike } from "@/components/ui/RecommendSections";
 import SafeImage from "@/components/ui/SafeImage";
+import NearbyButton from "@/components/ui/NearbyButton";
 
 interface ProductData {
+  id: string;
   name: string;
   price: number;
   stock: number;
@@ -74,6 +76,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
           }
 
           setProduct({
+            id: data.id,
             name: data.name,
             price: data.price,
             stock: data.stock,
@@ -235,6 +238,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
               style={{ background: added ? "var(--color-teal)" : product.stock > 0 ? "var(--color-moss)" : "#ccc" }}>
               {added ? "✓ 已加入" : product.stock > 0 ? "加入購物車" : "無庫存"}
             </button>
+            <NearbyButton productId={product.id} />
           </div>
 
           {/* Description */}

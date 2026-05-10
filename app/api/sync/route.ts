@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent, getPage } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { uploadToCloudinary } from "@/lib/cloudinary";
+import { toTraditional } from "@/lib/zh-convert";
 
 export const maxDuration = 300; // Vercel timeout 5 min
 
@@ -267,6 +268,7 @@ async function syncTopics() {
     extractRelation(props["對應標籤協作"]?.relation).forEach((id: string) => needEventNids.add(id.replace(/-/g, "")));
     extractRelation(props["對應標籤表單"]?.relation).forEach((id: string) => needArticleNids.add(id.replace(/-/g, "")));
     extractRelation(props["自對標籤"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
+    extractRelation(props["自對零售內容"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
   }
   const fetchMap = async (table: string, nids: Set<string>): Promise<Map<string, string>> => {
     if (nids.size === 0) return new Map();
@@ -294,12 +296,28 @@ async function syncTopics() {
   const rows = pages.map(page => {
     const props = p(page);
     const category = extractSelect(props["經營類型"]?.select);
+    // 地址：(a) DB08「地址」rich_text 優先（手填，已是繁體）→ (b) 否則用 Notion Place 抽，opencc 簡轉繁
+    const handAddr = extractText(props["地址"]?.rich_text);
+    let addressText: string | null = handAddr || null;
+    if (!addressText) {
+      const placeProp = props["地點"];
+      if (placeProp?.type === "place") {
+        const placeAddr = placeProp.place?.address || null;
+        addressText = toTraditional(placeAddr);
+      }
+    }
+    // 自對零售內容 → notion_id 陣列（不轉 supabase id，給 /api/nearby 用 notion_id 比對）
+    const retailCategoryNids = extractRelation(props["自對零售內容"]?.relation)
+      .map((id: string) => id.replace(/-/g, ""))
+      .filter(Boolean);
     return {
       notion_id: nid(page),
       name: extractTitle(props["對象名稱"]?.title) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
+      address_text: addressText,
+      retail_category_ids: retailCategoryNids,
       region: (() => {
         const ms = extractMultiSelect(props["行政區域"]?.multi_select);
         if (ms && ms.length) return ms;
