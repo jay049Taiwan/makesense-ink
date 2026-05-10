@@ -103,19 +103,26 @@ export default function Calendar({
 
   const todayStr = formatDate(today.getFullYear(), today.getMonth(), today.getDate());
 
-  // 自動載入台灣國定假日
+  // 自動載入台灣國定假日（含節日名稱）
+  // ruyut/TaiwanCalendar：每個週末也會 isHoliday=true 但 description="" — 不是真國定假日，要過濾掉
   const [autoHolidays, setAutoHolidays] = useState<Set<string>>(new Set());
+  const [autoHolidayNames, setAutoHolidayNames] = useState<Map<string, string>>(new Map());
   useEffect(() => {
     fetch(`https://cdn.jsdelivr.net/gh/ruyut/TaiwanCalendar/data/${viewYear}.json`)
       .then((r) => r.json())
       .then((data: { date: string; isHoliday: boolean; description: string }[]) => {
         const set = new Set<string>();
+        const names = new Map<string, string>();
         for (const d of data) {
-          if (d.isHoliday && d.description !== "星期六" && d.description !== "星期日") {
-            set.add(`${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}`);
+          // 條件：isHoliday + 有 description（排除空字串週末）+ 描述不是「星期六/日」
+          if (d.isHoliday && d.description && d.description !== "星期六" && d.description !== "星期日") {
+            const key = `${d.date.slice(0, 4)}-${d.date.slice(4, 6)}-${d.date.slice(6, 8)}`;
+            set.add(key);
+            names.set(key, d.description);
           }
         }
         setAutoHolidays(set);
+        setAutoHolidayNames(names);
       })
       .catch(() => {});
   }, [viewYear]);
@@ -291,6 +298,16 @@ export default function Calendar({
                   </span>
                 )}
               </div>
+              {/* 國定假日名稱 */}
+              {autoHolidayNames.has(dateStr) && (
+                <div
+                  className="text-[8px] sm:text-[9px] mt-0.5 truncate leading-tight"
+                  style={{ color: "var(--color-cal-holiday-text, #c97540)", fontFamily: "var(--font-serif)" }}
+                  title={autoHolidayNames.get(dateStr)}
+                >
+                  {autoHolidayNames.get(dateStr)}
+                </div>
+              )}
 
               {/* ── mode="default": 活動列表 ── */}
               {mode === "default" && dayActivities.length > 0 && (
