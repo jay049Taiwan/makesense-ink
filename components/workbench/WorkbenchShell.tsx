@@ -48,31 +48,6 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
         <div className="flex flex-wrap items-center gap-3 text-sm" style={{ color: "rgba(255,255,255,0.7)" }}>
           <span>📧 {email}</span>
         </div>
-        {/* 管理工具入口（admin/duplicates、admin/people） */}
-        <div className="flex flex-wrap gap-2 mt-3">
-          <a
-            href="/admin/duplicates"
-            style={{
-              padding: "6px 12px", fontSize: 12,
-              background: "rgba(78,205,196,0.2)", color: "#4ECDC4",
-              borderRadius: 6, textDecoration: "none",
-              border: "1px solid rgba(78,205,196,0.4)",
-            }}
-          >
-            🗑️ 相似照片清理
-          </a>
-          <a
-            href="/admin/people"
-            style={{
-              padding: "6px 12px", fontSize: 12,
-              background: "rgba(78,205,196,0.2)", color: "#4ECDC4",
-              borderRadius: 6, textDecoration: "none",
-              border: "1px solid rgba(78,205,196,0.4)",
-            }}
-          >
-            👤 人臉群組命名
-          </a>
-        </div>
       </div>
 
       {/* 工作台內容 */}
