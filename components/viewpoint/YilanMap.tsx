@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { TOWNSHIPS, type Township } from "@/lib/yilan-townships";
 
@@ -42,6 +42,20 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
   const [hoverId, setHoverId] = useState<string | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [hoverV, setHoverV] = useState<string | null>(null);
+  const [expanded, setExpanded] = useState(false);
+
+  // 全螢幕模式：鎖背景 scroll + Esc 關閉
+  useEffect(() => {
+    if (!expanded) return;
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setExpanded(false); };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prevOverflow;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, [expanded]);
 
   const counts = useMemo(() => {
     const m: Record<string, number> = {};
@@ -81,15 +95,50 @@ export default function YilanMap({ viewpoints, fullSize = 5, zoomSize = 13, heig
 
   const zoomScale = 1000 / viewBox.w;
 
+  const containerStyle: React.CSSProperties = expanded
+    ? {
+        position: "fixed", inset: 0, zIndex: 9999,
+        width: "100vw", height: "100vh",
+        background: C.paper, fontFamily: SERIF, color: C.ink,
+        overflow: "hidden", display: "flex",
+      }
+    : {
+        width: "100%", height,
+        background: C.paper, fontFamily: SERIF, color: C.ink,
+        border: `1px solid ${C.rule}`,
+        boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(80,60,40,0.08), 0 24px 60px rgba(80,60,40,0.06)",
+        position: "relative", overflow: "hidden",
+        display: "flex",
+      };
+
   return (
-    <div style={{
-      width: "100%", height,
-      background: C.paper, fontFamily: SERIF, color: C.ink,
-      border: `1px solid ${C.rule}`,
-      boxShadow: "0 1px 0 rgba(0,0,0,0.04), 0 4px 24px rgba(80,60,40,0.08), 0 24px 60px rgba(80,60,40,0.06)",
-      position: "relative", overflow: "hidden",
-      display: "flex",
-    }}>
+    <div style={containerStyle}>
+      {/* 放大 / 關閉 按鈕（永遠顯示） */}
+      <button
+        onClick={() => setExpanded(v => !v)}
+        aria-label={expanded ? "關閉放大" : "放大地圖"}
+        title={expanded ? "關閉（Esc）" : "放大地圖"}
+        style={{
+          position: "absolute",
+          top: expanded ? 16 : 12,
+          right: expanded ? 20 : 12,
+          zIndex: 50,
+          width: expanded ? 40 : 34,
+          height: expanded ? 40 : 34,
+          borderRadius: expanded ? 20 : 6,
+          border: `1px solid ${C.brown}`,
+          background: C.paper,
+          color: C.brown,
+          cursor: "pointer",
+          fontSize: expanded ? 20 : 16,
+          lineHeight: 1,
+          display: "flex", alignItems: "center", justifyContent: "center",
+          boxShadow: "0 2px 8px rgba(80,60,40,0.16)",
+          fontFamily: SERIF,
+        }}
+      >
+        {expanded ? "✕" : "⛶"}
+      </button>
       {/* Sidebar：宜蘭縣 + 12 鄉鎮 */}
       <aside style={{
         width: 140, flexShrink: 0,
