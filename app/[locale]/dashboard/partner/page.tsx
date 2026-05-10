@@ -494,14 +494,14 @@ function ItemDetailModal({ item, onClose, vendorProducts, selected, setSelected,
             {type === "activity" && (
               <>
                 <InfoCell label="活動日期" value={data.date} />
-                <InfoCell label="活動類型" value={data.type} />
+                <InfoCell label="活動形式" value={data.type} />
                 <InfoCell label="報名人數" value={`${data.registered} / ${data.capacity} 人`} />
               </>
             )}
             {type === "participation" && (
               <>
                 <InfoCell label="活動日期" value={data.eventDate || "日期待定"} />
-                <InfoCell label="活動類型" value={data.eventType || "—"} />
+                <InfoCell label="活動形式" value={data.eventType || "—"} />
                 <InfoCell label="申請狀態" value={data.status === "pending" ? "受理中" : "已通過"} />
                 <InfoCell label="申請時間" value={data.createdAt} />
               </>

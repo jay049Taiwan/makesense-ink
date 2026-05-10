@@ -181,7 +181,7 @@ async function syncArticles() {
 
   let totalUpserted = 0, totalErrors = 0;
 
-  const total = await queryAndProcess(DB.DB05, { property: "文案細項", select: { equals: "官網內容" } },
+  const total = await queryAndProcess(DB.DB05, { property: "文案選項", select: { equals: "官網內容" } },
     async (pages) => {
       const rows = pages.map(page => {
         const props = p(page);
@@ -192,7 +192,7 @@ async function syncArticles() {
           title: extractTitle(props["內容名稱"]?.title) || "未命名文章",
           cover_url: fileUrl(props["上傳檔案"]) || null,
           related_event_id: eNid ? (eMap[eNid] || null) : null,
-          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "發佈更新": "published", "已完成": "published", "待發佈": "draft", "草稿": "draft" }),
+          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "draft", "不發佈": "draft" }),
           published_at: dateInfo.start || null,
         };
       });

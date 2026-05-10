@@ -101,7 +101,7 @@ export async function POST(req: NextRequest) {
         "明細名稱": { title: [{ text: { content: title } }] },
         "明細類型": { select: { name: "報名登記" } },
       };
-      // 2026/05/08：DB06「登記選項」option「預約報名」schema 已改名「填寫報名」，但 DB06 schema 此欄位狀態待確認，先省略寫入避免 throw
+      // DB06 不寫 登記類別 / 報名選項 欄位（這兩個屬 DB05），DB06 只保留 明細類型=報名登記 + 數量價格
       if (price !== null && !isNaN(price)) props["登記單價"] = { number: price };
       if (qty !== null && !isNaN(qty)) props["登記數量"] = { number: qty };
       if (details) props["明細內容"] = { rich_text: [{ text: { content: details.slice(0, 1900) } }] };

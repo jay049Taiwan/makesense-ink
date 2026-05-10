@@ -445,7 +445,7 @@ export async function checkIsStaff(email: string): Promise<boolean> {
 }
 
 // ══════════════════════════════════════════
-// DB09: 範圍日期（時間軸、發展歷程）
+// DB09: 範圍日期（時間軸、發展歷程）(DB09 = 日期紀錄；其中 date 欄位仍叫範圍日期)
 // ══════════════════════════════════════════
 export interface DateRangeItem {
   id: string;

@@ -3,6 +3,7 @@ import { getPage, getPageContent, extractTitle, extractText, extractSelect, extr
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { translateRow } from "@/lib/translate";
 import { processAdmission } from "@/lib/admission-notify";
+import { toTraditional } from "@/lib/zh-convert";
 
 const SITE_URL = (process.env.NEXT_PUBLIC_SITE_URL || "https://makesense.ink").trim();
 
@@ -323,6 +324,7 @@ async function syncSingleDB05(nid: string, props: any) {
   const stockAction = sel(props["庫存細項"]);  // 進貨 / 出貨 / 盤點
   const copyDetail = sel(props["文案選項"]);
   const registerCategory = sel(props["登記類別"]);
+  const registerOption = sel(props["報名選項"]);  // 活動 / 空間 / 意見
 
   // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項有值（進貨/出貨/盤點）
   // 與寫入端一致（lib/staff-helper.ts inventory + lib/admission-notify.ts + checkout direct mode）
@@ -330,9 +332,9 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncStockBatch(nid, props);
   }
 
-  // V2：登記類別=填寫報名 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
-  // （內容類型固定為「報名登記」，用 登記類別 區分 reservation / direct）
-  if (registerCategory === "填寫報名") {
+  // V2：登記類別=填寫報名 + 報名選項=活動 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
+  // （內容類型固定為「報名登記」；空間預約、意見回饋雖也走「填寫報名」但不走 admission flow）
+  if (registerCategory === "填寫報名" && registerOption === "活動") {
     return await syncSingleReservation(nid, props);
   }
 
@@ -342,7 +344,7 @@ async function syncSingleDB05(nid: string, props: any) {
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 內容類型=${formType}, 文案選項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 報名選項=${registerOption}, 內容類型=${formType}, 文案選項=${copyDetail}），跳過`, nid, skipped: true };
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知
@@ -883,12 +885,28 @@ async function syncSingleRelation(nid: string, props: any) {
       resolveIds("topics",   rel(props["自對標籤"])),
     ]);
 
+    // 地址：(a) 手填 → (b) opencc 簡轉繁 Notion Place
+    const handAddr = tx(props["地址"]);
+    let addressText: string | null = handAddr || null;
+    if (!addressText) {
+      const placeProp = props["地點"];
+      if (placeProp?.type === "place") {
+        addressText = toTraditional(placeProp.place?.address || null);
+      }
+    }
+    // 自對零售內容 → notion_id 陣列（給 /api/nearby 用）
+    const retailCategoryNids = rel(props["自對零售內容"])
+      .map((id: string) => id.replace(/-/g, ""))
+      .filter(Boolean);
+
     const row: Record<string, any> = {
       notion_id: nid,
       name: t(props["對象名稱"]) || "未命名",
       tag_type: category === "觀點" ? "viewpoint" : "tag",
       summary: tx(props["簡介摘要"]),
       cover_url: fileUrl(props["上傳檔案"]),
+      address_text: addressText,
+      retail_category_ids: retailCategoryNids,
       region: (() => {
         const ms = extractMultiSelect(props["行政區域"]?.multi_select);
         if (ms && ms.length) return ms;

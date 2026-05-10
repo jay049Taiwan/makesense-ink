@@ -95,7 +95,7 @@ async function main() {
     console.log(`   🗺️ 觀點漫遊 → ${liffUrl("liff/viewpoints")}`);
     console.log(`   📮 地方通訊 → ${liffUrl("liff/newsletter")}`);
     console.log(`   🎲 話題推薦 → postback (action=topic_suggest)`);
-    console.log(`   🛒 結帳確認 → ${liffUrl("liff/member")}`);
+    console.log(`   👤 會員中心 → ${liffUrl("liff/member")}`);
   } catch (err: any) {
     console.error("❌ 建立失敗:", err.message);
     if (err.statusCode === 401) {

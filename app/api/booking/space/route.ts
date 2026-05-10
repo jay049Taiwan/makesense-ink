@@ -37,6 +37,12 @@ export async function POST(request: NextRequest) {
       "內容類型": {
         select: { name: "報名登記" },
       },
+      "登記類別": {
+        select: { name: "填寫報名" },
+      },
+      "報名選項": {
+        select: { name: "空間" },
+      },
     });
 
     // 同步寫入 Supabase space_bookings（external = 會員官網預約）
