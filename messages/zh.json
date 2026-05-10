@@ -342,7 +342,7 @@
     "selectHandover": "點選左側交接項目",
     "execTime": "執行時間：",
     "assignee": "負責人：",
-    "relatedTxn": "相關進銷明細（DB06）—",
+    "relatedTxn": "相關清單明細（DB06）—",
     "allCompleted": "所有項目已完成，此工作已結案",
     "closed": "已結案"
   },
