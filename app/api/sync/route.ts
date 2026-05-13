@@ -307,9 +307,9 @@ async function syncTopics() {
         const placeAddr = placeProp.place?.address || null;
         addressText = toTraditional(placeAddr);
       }
-      // 抽 GPS 座標
-      const rawLat = placeProp.place?.latitude ?? placeProp.place?.lat ?? null;
-      const rawLng = placeProp.place?.longitude ?? placeProp.place?.lng ?? null;
+      // 抽 GPS 座標（Notion place API 用 lat / lon）
+      const rawLat = placeProp.place?.lat ?? null;
+      const rawLng = placeProp.place?.lon ?? null;
       if (rawLat != null && rawLng != null) {
         lat = parseFloat(rawLat);
         lng = parseFloat(rawLng);
