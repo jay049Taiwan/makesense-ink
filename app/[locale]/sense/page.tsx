@@ -31,7 +31,7 @@ export default async function SensePage() {
         </div>
         <div className="max-w-[1000px] mx-auto">
           <h1 className="text-3xl font-semibold mb-2" style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
-            現思文化創藝術
+            現思文化創藝
           </h1>
           <p className="text-lg mb-6" style={{ color: "var(--color-teal)", fontFamily: "var(--font-display)", fontStyle: "italic" }}>
             Culture Makes Sense

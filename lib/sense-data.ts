@@ -38,7 +38,7 @@ export const TIMELINE_EVENTS: TimelineEvent[] = [
   { date: "2012-06", title: "於宜蘭開啟文化走讀實驗", type: "event", phase: "seed", note: "還不是一間公司，只是一群人週末帶朋友走街。" },
   { date: "2013-04", title: "「現思文化」名稱正式定調", type: "milestone", phase: "seed", note: "以「把文化從博物館搬到街上」為起點。" },
   { date: "2013-11", title: "第一份宜蘭老街踏查紀錄成冊", type: "event", phase: "seed" },
-  { date: "2014-03", title: "現思文化創藝術正式登記成立", type: "milestone", phase: "founding", note: "從民間社群轉為正式組織。" },
+  { date: "2014-03", title: "現思文化創藝有限公司正式登記成立", type: "milestone", phase: "founding", note: "從民間社群轉為正式組織。" },
   { date: "2014-08", title: "首場公開走讀：宜蘭河沿岸", type: "event", phase: "founding" },
   { date: "2015-05", title: "承接第一個駐地策展案", type: "event", phase: "founding" },
   { date: "2016-04", title: "進駐舊宜蘭監獄門廳", type: "milestone", phase: "founding", note: "第一個被我們重新打開的歷史空間。" },
