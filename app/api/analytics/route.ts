@@ -1,7 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
+import { normalizeEmail } from "@/lib/email";
+
+function isL2OrHigher(role: string | null | undefined): boolean {
+  if (!role) return false;
+  const m = role.match(/L(\d+)/i);
+  return m ? parseInt(m[1]) >= 2 : false;
+}
 
 export async function GET(req: NextRequest) {
+  // L2+ 工作帳號才能存取
+  const session = await auth();
+  const email = normalizeEmail(session?.user?.email);
+  if (!email) return NextResponse.json({ error: "未登入" }, { status: 401 });
+
+  const sessionRole = (session as any)?.role;
+  if (sessionRole !== "staff" && sessionRole !== "admin") {
+    return NextResponse.json({ error: "權限不足" }, { status: 403 });
+  }
+
+  // 從 staff 表查 role（同步 DB08 職級細項）
+  const { data: staffRows } = await supabase.from("staff").select("role, name");
+  const memberName = session?.user?.name || "";
+  const myStaff = (staffRows || []).find(s => s.name && memberName && s.name === memberName);
+  if (myStaff && !isL2OrHigher(myStaff.role)) {
+    return NextResponse.json({ error: "需要 L2 以上職級" }, { status: 403 });
+  }
+
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString();
 
@@ -14,6 +40,11 @@ export async function GET(req: NextRequest) {
       ordersRes,
       membersRes,
       wishlistRes,
+      likesRes,
+      savesRes,
+      deviceRes,
+      sourceRes,
+      dailyRes,
     ] = await Promise.all([
       // Total page views (last 30 days)
       supabase
@@ -52,6 +83,16 @@ export async function GET(req: NextRequest) {
       supabase
         .from("wishlist")
         .select("id", { count: "exact", head: true }),
+      // page_likes count
+      supabase.from("page_likes").select("id", { count: "exact", head: true }),
+      // page_saves count
+      supabase.from("page_saves").select("id", { count: "exact", head: true }),
+      // device breakdown
+      supabase.from("page_views").select("device_type").gte("created_at", thirtyDaysAgo),
+      // source breakdown
+      supabase.from("page_views").select("source").gte("created_at", thirtyDaysAgo),
+      // daily views
+      supabase.from("page_views").select("created_at").gte("created_at", thirtyDaysAgo),
     ]);
 
     // Aggregate top pages from recent page views
@@ -90,9 +131,33 @@ export async function GET(req: NextRequest) {
       ordersBySource[src] = (ordersBySource[src] || 0) + 1;
     });
 
+    // Device breakdown
+    const deviceMap: Record<string, number> = {};
+    for (const row of (deviceRes.data || [])) {
+      const d = (row as any).device_type || "unknown";
+      deviceMap[d] = (deviceMap[d] || 0) + 1;
+    }
+    // Source breakdown
+    const sourceMap: Record<string, number> = {};
+    for (const row of (sourceRes.data || [])) {
+      const s = (row as any).source || "web";
+      sourceMap[s] = (sourceMap[s] || 0) + 1;
+    }
+    // Daily views
+    const dayMap: Record<string, number> = {};
+    for (const row of (dailyRes.data || [])) {
+      const day = (row as any).created_at?.slice(0, 10);
+      if (day) dayMap[day] = (dayMap[day] || 0) + 1;
+    }
+    const dailyViews = Object.entries(dayMap)
+      .sort((a, b) => a[0].localeCompare(b[0]))
+      .map(([date, views]) => ({ date, views }));
+
     return NextResponse.json({
       period: "last_30_days",
       pageViews: pageViewsCountRes.count || 0,
+      likes: likesRes.count || 0,
+      saves: savesRes.count || 0,
       topPages,
       searches: searchesCountRes.count || 0,
       topSearches,
@@ -103,6 +168,9 @@ export async function GET(req: NextRequest) {
       },
       members: membersRes.count || 0,
       wishlist: wishlistRes.count || 0,
+      deviceBreakdown: deviceMap,
+      sourceBreakdown: sourceMap,
+      dailyViews,
     }, {
       headers: { "Cache-Control": "private, s-maxage=60" },
     });

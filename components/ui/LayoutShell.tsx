@@ -5,6 +5,7 @@ import { Suspense } from "react";
 import Header from "./Header";
 import Footer from "./Footer";
 import FloatingCart from "./FloatingCart";
+import EngagementBar from "./EngagementBar";
 
 function LayoutShellInner({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -32,6 +33,7 @@ function LayoutShellInner({ children }: { children: React.ReactNode }) {
     <>
       <Header />
       <main className="flex-1">{children}</main>
+      <EngagementBar />
       <Footer />
     </>
   );

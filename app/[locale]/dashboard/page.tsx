@@ -507,6 +507,11 @@ function MemberOverview() {
                 style={{ background: "rgba(78,205,196,0.12)", color: "var(--color-teal)", border: "1px solid var(--color-teal)" }}>
                 ✨ 我的積點 →
               </Link>
+              <Link href="/dashboard/saves"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium hover:opacity-90"
+                style={{ background: "rgba(100,120,80,0.08)", color: "var(--color-moss)", border: "1px solid rgba(100,120,80,0.3)" }}>
+                🔖 我的收藏 →
+              </Link>
             </div>
           </div>
           <div className="flex px-6" style={{ borderBottom: "1px solid #e8e8e8" }}>
@@ -867,8 +872,22 @@ function StaffTabs() {
 
   if (role !== "staff" && role !== "vendor") return null;
 
+  // 解析職級數字（L2 以上可看 analytics）
+  function levelNum(r: string | null | undefined) {
+    const m = String(r || "").match(/L(\d+)/i);
+    return m ? parseInt(m[1]) : 0;
+  }
+  const staffRole = (session as any)?.staffRole ?? null;
+  const canViewAnalytics = role === "staff" && levelNum(staffRole) >= 2;
+
+  const staffTabs = [
+    { href: "/dashboard", label: "個人紀錄", exact: true },
+    { href: "/dashboard/workbench", label: "工作台", exact: false },
+    ...(canViewAnalytics ? [{ href: "/dashboard/analytics", label: "數據觀測", exact: false }] : []),
+  ];
+
   const tabs = role === "staff"
-    ? [{ href: "/dashboard", label: "個人紀錄", exact: true }, { href: "/dashboard/workbench", label: "工作台", exact: false }]
+    ? staffTabs
     : [{ href: "/dashboard", label: "個人紀錄", exact: true }, { href: "/dashboard/partner", label: "協作平台", exact: false }];
 
   return (
