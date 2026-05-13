@@ -72,7 +72,7 @@ export default function Footer() {
             <span style={{ fontSize: "inherit", color: "#8b7355" }}>{t("address")}</span>
           </div>
 
-          {/* Brand line */}
+          {/* Brand line + legal links */}
           <div style={{
             textAlign: "center",
             fontSize: 13,
@@ -84,6 +84,14 @@ export default function Footer() {
           }}>
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontStyle: "italic" }}>makesense</span>
             {" "}since 2012
+            <span style={{ margin: "0 8px", opacity: 0.5 }}>·</span>
+            <Link href="/terms" className="hover:text-[#5a4a3a] transition-colors" style={{ color: "#b0a090" }}>
+              服務條款
+            </Link>
+            <span style={{ margin: "0 8px", opacity: 0.5 }}>·</span>
+            <Link href="/privacy" className="hover:text-[#5a4a3a] transition-colors" style={{ color: "#b0a090" }}>
+              隱私政策
+            </Link>
           </div>
         </div>
       </footer>
