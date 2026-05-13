@@ -872,13 +872,8 @@ function StaffTabs() {
 
   if (role !== "staff" && role !== "vendor") return null;
 
-  // 解析職級數字（L2 以上可看 analytics）
-  function levelNum(r: string | null | undefined) {
-    const m = String(r || "").match(/L(\d+)/i);
-    return m ? parseInt(m[1]) : 0;
-  }
-  const staffRole = (session as any)?.staffRole ?? null;
-  const canViewAnalytics = role === "staff" && levelNum(staffRole) >= 2;
+  // staff 一律顯示數據觀測 tab；API 端有 L2 gate，不夠級會看到錯誤提示
+  const canViewAnalytics = role === "staff";
 
   const staffTabs = [
     { href: "/dashboard", label: "個人紀錄", exact: true },
