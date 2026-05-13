@@ -480,9 +480,9 @@ export async function POST(req: NextRequest) {
             "登記數量": { number: perPersonQty },
             "登記單價": { number: item.price },
           };
-          // 2026/05/08：對齊現行 schema 「登記類別=填寫報名 + 報名選項=活動」（DB05），DB06 此欄不再寫入避免 schema 不匹配
+          // DB05 登記類別=填寫報名 + 報名選項=活動；DB06 不寫入避免 schema 不匹配
           if (orderMode === "direct") {
-            // 2026/05/07：DB06「庫存選項」已刪；direct 模式只連對應庫存
+            // DB06「庫存選項」已刪；direct 模式只連對應庫存
             if (productNotionDashed) {
               db06Props["對應庫存"] = { relation: [{ id: productNotionDashed }] };
             }

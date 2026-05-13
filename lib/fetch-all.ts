@@ -240,7 +240,7 @@ export async function fetchTransactions(limit = 50): Promise<TransactionItem[]> 
 export interface KeywordItem {
   id: string;
   name: string;
-  type: string;        // 經營類型：觀點 / 標籤（DB08，2026/04/22 新選項）
+  type: string;        // 經營類型：觀點 / 標籤
   summary: string;     // 簡介摘要
   slug: string;
 }
@@ -399,7 +399,7 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
       name: extractTitle(props["對象名稱"]?.title),
       email: extractText(props["Email"]?.rich_text),
       since: extractDate(props["建立時間"]?.date) || page.created_time?.substring(0, 10) || "",
-      phone: extractText(props["電話"]?.rich_text) || "",  // 2026/04/17：「聯繫電話」不存在，統一用「電話」
+      phone: extractText(props["電話"]?.rich_text) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
     };
   };
