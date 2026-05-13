@@ -189,18 +189,15 @@ export default function Header() {
           <div className="relative hidden sm:block" ref={langRef}>
             <button
               onClick={() => setLangOpen(!langOpen)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:bg-gray-100"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:bg-gray-100"
               style={{
                 color: "#5a4a3a",
                 border: "1px solid #ddd",
                 background: langOpen ? "#f5f0ea" : "transparent",
               }}
             >
-              🌐
               <span>{localeLongNames[currentLocale]}</span>
-              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ opacity: 0.5, transition: "transform 0.15s", transform: langOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
-                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+              <span>🌐</span>
             </button>
             {langOpen && (
               <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg py-1.5 z-50" style={{ border: "1px solid #ede8e0", minWidth: 130 }}>
