@@ -15,7 +15,7 @@ export const MOCK_PROFILES = {
     displayName: "林四九",
     email: "jay049@gmail.com",
     phone: "0988-049-049",
-    lineUid: "U1238838c4a865f4160f974802671a2f8",
+    lineUid: "U_MOCK_LINE_UID_PLACEHOLDER",
     lineConnected: true,
   },
   vendor: {
