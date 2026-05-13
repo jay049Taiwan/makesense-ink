@@ -147,7 +147,7 @@ export default function EventPage({
     }),
     organizer: {
       "@type": "Organization",
-      name: "現思文化創藝術有限公司",
+      name: "現思文化創藝有限公司",
       url: "https://makesense.ink",
     },
     ...(event.tickets.length > 0 && {

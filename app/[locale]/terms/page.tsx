@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "服務條款與退換貨政策",
-  description: "現思文化創藝術有限公司 — 服務條款與退換貨政策。",
+  description: "現思文化創藝有限公司 — 服務條款與退換貨政策。",
 };
 
 export default function TermsPage() {
@@ -89,7 +89,7 @@ export default function TermsPage() {
         <section>
           <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>十二、聯絡資訊</h2>
           <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "var(--color-bark)" }}>
-            <li>現思文化創藝術有限公司</li>
+            <li>現思文化創藝有限公司</li>
             <li>Email：travelerbookstore@gmail.com</li>
             <li>電話：039-325957</li>
             <li>LINE 官方帳號：@964ervay</li>
@@ -98,7 +98,7 @@ export default function TermsPage() {
         </section>
 
         <p className="text-xs pt-4" style={{ color: "var(--color-mist)", borderTop: "1px solid var(--color-dust)" }}>
-          現思文化創藝術有限公司 © 2012–{new Date().getFullYear()}
+          現思文化創藝有限公司 © 2012–{new Date().getFullYear()}
         </p>
       </div>
     </div>

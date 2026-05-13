@@ -128,7 +128,7 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
 }
 
 /** 自營產品：發行商為旅人書店/現思文化/宜蘭文化俱樂部 */
-const OWN_BRAND_NAMES = ["旅人書店", "現思文化創藝術有限公司", "宜蘭文化俱樂部"];
+const OWN_BRAND_NAMES = ["旅人書店", "現思文化創藝有限公司", "宜蘭文化俱樂部"];
 
 export async function fetchSBOwnProducts(limit = 24) {
   // 先查三個自家品牌的 persons.id

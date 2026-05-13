@@ -134,7 +134,7 @@ export default function ProductPage({ params }: { params: Promise<{ slug: string
       url: `https://makesense.ink/product/${slug}`,
       seller: {
         "@type": "Organization",
-        name: "現思文化創藝術有限公司",
+        name: "現思文化創藝有限公司",
       },
     },
   };

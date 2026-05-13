@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "隱私政策",
-  description: "現思文化創藝術有限公司 — 隱私政策。",
+  description: "現思文化創藝有限公司 — 隱私政策。",
 };
 
 export default function PrivacyPage() {
@@ -73,7 +73,7 @@ export default function PrivacyPage() {
         </section>
 
         <p className="text-xs pt-4" style={{ color: "var(--color-mist)", borderTop: "1px solid var(--color-dust)" }}>
-          現思文化創藝術有限公司 © 2012–{new Date().getFullYear()}
+          現思文化創藝有限公司 © 2012–{new Date().getFullYear()}
         </p>
       </div>
     </div>

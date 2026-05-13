@@ -3,7 +3,7 @@ import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "旅人書店/宜蘭文化俱樂部",
-  description: "現思文化創藝術有限公司 — 旅人書店、宜蘭文化俱樂部，以宜蘭在地文化為核心，打造地方文化永續生態系。",
+  description: "現思文化創藝有限公司 — 旅人書店、宜蘭文化俱樂部，以宜蘭在地文化為核心，打造地方文化永續生態系。",
 };
 
 export default function HomePage() {
