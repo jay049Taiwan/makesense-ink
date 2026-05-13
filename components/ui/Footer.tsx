@@ -88,6 +88,7 @@ export default function Footer() {
             borderTop: "1px solid #ede8e0",
             letterSpacing: "0.05em",
           }}>
+            sense{" "}
             <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontStyle: "italic" }}>makesense</span>
             {" "}since 2012
             <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
