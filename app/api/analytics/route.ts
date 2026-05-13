@@ -20,11 +20,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "權限不足" }, { status: 403 });
   }
 
-  // 從 staff 表查 role（同步 DB08 職級細項）
+  // 從 staff 表查 role（用 name 比對；DB08 Email 欄可直接對應，TODO: staff 加 email 欄後改精確查法）
   const { data: staffRows } = await supabase.from("staff").select("role, name");
-  const memberName = session?.user?.name || "";
-  const myStaff = (staffRows || []).find(s => s.name && memberName && s.name === memberName);
-  if (myStaff && !isL2OrHigher(myStaff.role)) {
+  const myStaff = (staffRows || []).find(s =>
+    s.name === (session?.user?.name || "") ||
+    s.notion_id === (session as any)?.staffNotionId
+  );
+  if (!myStaff || !isL2OrHigher(myStaff.role)) {
     return NextResponse.json({ error: "需要 L2 以上職級" }, { status: 403 });
   }
 
