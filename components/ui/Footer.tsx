@@ -81,9 +81,9 @@ export default function Footer() {
             <span className="hidden sm:inline-block" style={{ width: 1, height: 14, background: "#d0c8bc" }} />
 
             {/* Brand tagline */}
-            <span style={{ fontSize: 13, color: "#b0a090", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+            <span className="text-xs sm:text-lg" style={{ color: "#7a6248", letterSpacing: "0.02em", whiteSpace: "nowrap" }}>
               sense{" "}
-              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontStyle: "italic" }}>makesense</span>
+              <span style={{ fontFamily: "'Playfair Display', serif", fontStyle: "italic" }}>makesense</span>
               {" "}since 2012
             </span>
           </div>
