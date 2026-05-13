@@ -299,11 +299,20 @@ async function syncTopics() {
     // 地址：(a) DB08「地址」rich_text 優先（手填，已是繁體）→ (b) 否則用 Notion Place 抽，opencc 簡轉繁
     const handAddr = extractText(props["地址"]?.rich_text);
     let addressText: string | null = handAddr || null;
-    if (!addressText) {
-      const placeProp = props["地點"];
-      if (placeProp?.type === "place") {
+    let lat: number | null = null;
+    let lng: number | null = null;
+    const placeProp = props["地點"];
+    if (placeProp?.type === "place") {
+      if (!addressText) {
         const placeAddr = placeProp.place?.address || null;
         addressText = toTraditional(placeAddr);
+      }
+      // 抽 GPS 座標
+      const rawLat = placeProp.place?.latitude ?? placeProp.place?.lat ?? null;
+      const rawLng = placeProp.place?.longitude ?? placeProp.place?.lng ?? null;
+      if (rawLat != null && rawLng != null) {
+        lat = parseFloat(rawLat);
+        lng = parseFloat(rawLng);
       }
     }
     // 自對零售內容 → notion_id 陣列（不轉 supabase id，給 /api/nearby 用 notion_id 比對）
@@ -317,6 +326,9 @@ async function syncTopics() {
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       address_text: addressText,
+      lat,
+      lng,
+      heritage_type: extractSelect(props["文資雜項"]?.select) || null,
       retail_category_ids: retailCategoryNids,
       region: (() => {
         const ms = extractMultiSelect(props["行政區域"]?.multi_select);
