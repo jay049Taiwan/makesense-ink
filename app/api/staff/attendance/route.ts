@@ -3,7 +3,7 @@ import { requireStaff } from "../_guard";
 import { writeStaffDB05Record, getStaffIdByEmail } from "@/lib/staff-helper";
 import { supabaseAdmin } from "@/lib/supabase";
 
-// 子類型 → DB05 紀錄細項 select option 值（2026/05/07 紀錄備項→紀錄細項，options 移除「紀錄」後綴）
+// 子類型 → DB05 紀錄細項 select option 值
 const SUB_TYPE_TO_DETAIL: Record<string, string> = {
   打卡: "打卡",
   日誌: "日誌",

@@ -459,7 +459,7 @@ export async function POST(req: NextRequest) {
       // 7-1. DB06 明細
       //   reservation：報名類訂單（DB05 登記類別=填寫報名 + 報名選項=活動），不連 DB07（對應庫存留空，避免跟真實庫存混淆）
       //   direct：庫存類訂單（DB05 登記類別=紀錄庫存 + 庫存細項=出貨）+ 對應庫存→DB07（實際扣庫存）
-      //   ※ DB06 寫入時不寫 登記類別 / 庫存細項 欄位（庫存選項 2026/05/07 已刪；登記類別屬 DB05 不在 DB06）
+      //   ※ DB06 寫入時不寫 登記類別 / 庫存細項 欄位（登記類別屬 DB05 不在 DB06）
       const db06PageIds: string[] = [];
       for (const { item, productInfo } of resolvedItems) {
         const productNotionDashed = toDashedNotionId(productInfo?.notion_id || item.productId);
