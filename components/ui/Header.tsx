@@ -7,9 +7,17 @@ import type { SearchResults } from "./SearchDropdown";
 import { useDevRole } from "@/components/providers/DevRoleProvider";
 // Cart badge is in the floating button (CartBadge), not in Header
 import { trackSearch } from "@/lib/tracking";
-import { useTranslations } from "next-intl";
+import { useTranslations, useLocale } from "next-intl";
 import { Link, useRouter, usePathname } from "@/i18n/routing";
-import { locales, localeNames, type Locale } from "@/i18n/config";
+import { locales, type Locale } from "@/i18n/config";
+
+// 語言完整顯示名稱（按鈕上用）
+const localeLongNames: Record<Locale, string> = {
+  zh: "繁體中文",
+  en: "English",
+  ja: "日本語",
+  ko: "한국어",
+};
 
 function truncate(str: string, max: number) {
   return str.length > max ? str.slice(0, max) + "..." : str;
@@ -35,6 +43,7 @@ export default function Header() {
   const userName = isDev ? devRole.displayName : session?.user?.name;
   const router = useRouter();
   const pathname = usePathname();
+  const currentLocale = useLocale() as Locale;
 
   // Language switcher
   const [langOpen, setLangOpen] = useState(false);
@@ -178,14 +187,32 @@ export default function Header() {
 
           {/* 語言切換 */}
           <div className="relative hidden sm:block" ref={langRef}>
-            <button onClick={() => setLangOpen(!langOpen)} className="flex items-center gap-1 px-2 py-1.5 rounded text-xs font-medium hover:bg-gray-50 transition-colors" style={{ color: "#666" }}>
+            <button
+              onClick={() => setLangOpen(!langOpen)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium transition-colors hover:bg-gray-100"
+              style={{
+                color: "#5a4a3a",
+                border: "1px solid #ddd",
+                background: langOpen ? "#f5f0ea" : "transparent",
+              }}
+            >
               🌐
+              <span>{localeLongNames[currentLocale]}</span>
+              <svg width="10" height="6" viewBox="0 0 10 6" fill="none" style={{ opacity: 0.5, transition: "transform 0.15s", transform: langOpen ? "rotate(180deg)" : "rotate(0deg)" }}>
+                <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
             </button>
             {langOpen && (
-              <div className="absolute right-0 top-full mt-1 bg-white rounded shadow-lg border py-1 min-w-[100px] z-50">
+              <div className="absolute right-0 top-full mt-1.5 bg-white rounded-xl shadow-lg py-1.5 z-50" style={{ border: "1px solid #ede8e0", minWidth: 130 }}>
                 {locales.map((loc) => (
-                  <button key={loc} onClick={() => switchLocale(loc)} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-50" style={{ color: "#333" }}>
-                    {localeNames[loc]}
+                  <button
+                    key={loc}
+                    onClick={() => switchLocale(loc)}
+                    className="flex items-center justify-between w-full text-left px-4 py-2 text-sm hover:bg-gray-50 transition-colors"
+                    style={{ color: loc === currentLocale ? "var(--color-teal)" : "#333", fontWeight: loc === currentLocale ? 600 : 400 }}
+                  >
+                    {localeLongNames[loc]}
+                    {loc === currentLocale && <span style={{ fontSize: 10 }}>✓</span>}
                   </button>
                 ))}
               </div>
@@ -249,7 +276,7 @@ export default function Header() {
             <div className="flex gap-2 pl-3">
               {locales.map((loc) => (
                 <button key={loc} onClick={() => { switchLocale(loc); setMenuOpen(false); }} className="text-xs px-2 py-1 rounded" style={{ color: "#666", border: "1px solid #ddd" }}>
-                  {localeNames[loc]}
+                  {localeLongNames[loc]}
                 </button>
               ))}
             </div>
