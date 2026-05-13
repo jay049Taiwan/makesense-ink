@@ -236,8 +236,8 @@ async function syncSingleEvent(nid: string, props: any) {
     [...guideRels, ...publisherRels].map(id => id.replace(/-/g, "")).filter(Boolean)
   )];
 
-  // 對應表單 relation → DB05 → 篩「內容名稱=路線腳本」= route stops
-  const formRels = rel(props["對應表單"]);
+  // 對應內容 relation → DB05 → 篩「內容名稱=路線腳本」= route stops
+  const formRels = rel(props["對應內容"]);
   const stopPages = (await Promise.all(
     formRels.map(async (id) => {
       try {
