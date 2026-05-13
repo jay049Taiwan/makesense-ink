@@ -6,7 +6,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  category: string; // 選書細項 / 選物細項 (2026/04/22 改名，原「選書備項」「選物備項」)
+  category: string; // 選書細項 / 選物細項
   photo: string | null;
   author: string;
   publisher: string;
