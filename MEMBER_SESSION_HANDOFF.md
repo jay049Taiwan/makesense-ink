@@ -1,6 +1,6 @@
 # 官網現況摘要 — 會員中心 Session 交接文件
 
-> ⚠️ **已過時（2026/05/09 更新）**：本文件為 2026/04/13 snapshot。本文「⬜ 待接 / ⬜ 規劃中」項目（LIFF、多語言、Notion-Supabase 同步、訂單 LINE 推播、會員等級系統等）多數已完工。dashboard 路由已搬到 `/app/[locale]/dashboard/...`，工作台 Tab「考勤」已改名「紀錄」（DB05 紀錄細項），「請款請購」已改「紀錄費用」。**現行狀態以 makesense-ink/CLAUDE.md 為準**，本檔僅供歷史脈絡。
+> ⚠️ **已過時（2026/05/09 更新）**：本文件為 2026/04/13 snapshot。本文「⬜ 待接 / ⬜ 規劃中」項目（LIFF、多語言、Notion-Supabase 同步、訂單 LINE 推播、會員等級系統等）多數已完工。dashboard 路由已搬到 `/app/[locale]/dashboard/...`，工作台 Tab「考勤」已改名「紀錄」（DB05 紀錄細項）。**現行狀態以 makesense-ink/CLAUDE.md 為準**，本檔僅供歷史脈絡。
 
 **整理日期**：2026/04/13
 **用途**：讓負責會員中心介面的 Claude Chat session 了解官網從 WP 遷移到 Vercel 後的技術架構與現況

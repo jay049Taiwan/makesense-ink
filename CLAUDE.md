@@ -218,19 +218,19 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 - sync route 自動忽略 X引用 + X被引 共 18 個 relation
 - 全文搜尋（articles_search_v）三條都看
 
-### DB04 重要欄位（2026/05/04 schema 校正）
+### DB04 重要欄位
 - title：**協作名稱**
 - 主題名稱（rich_text）：官網顯示用
-- **協作類別**（select，2 項）：活動辦理 / 內容製作（**舊名「協作選項」已改名**）
+- **協作類別**（select，2 項）：活動辦理 / 內容製作
 - 交接類型（select）：專案協作 / 庫存門市
-- **門市類別**（select，4 項）：盤點檢查 / 使用場地 / 保養維護 / 值班顧店（**舊名「門市選項」已改名**；場地租借同步條件 = 使用場地）
-- **活動選項**（select，10 項）：工坊手作/陳列展售/數位活動/典禮儀式/文化冊展/講座課程/園遊市集/導覽走讀/藝文表演/其他 — 對應 events.event_type / theme（**舊名「活動細項」已改名**；走讀行旅 → 導覽走讀）
-- **實際總價**（formula）→ events.price（**舊欄位「實際單價」「預計單價」已刪除**）
+- **門市類別**（select，4 項）：盤點檢查 / 使用場地 / 保養維護 / 值班顧店（場地租借同步條件 = 使用場地）
+- **活動選項**（select，10 項）：工坊手作/陳列展售/數位活動/典禮儀式/文化冊展/講座課程/園遊市集/導覽走讀/藝文表演/其他 — 對應 events.event_type / theme
+- **實際總價**（formula）→ events.price
 - 數量上限 / 最低數量（number）→ events.capacity / min_capacity
 - 距離km（number，無括號）→ events.distance_km
 - 簡介摘要（rich_text）→ events.description
-- **發佈狀態**（status：待發佈/已發佈/不發佈）→ events.status（**舊欄位「登記發佈」已撤回**，現在跟其他 DB 統一叫「發佈狀態」）
-- **交接回覆**（text）：交接備註與回覆統一用此欄（**舊欄位「交接備註」已刪除**）
+- **發佈狀態**（status：待發佈/已發佈/不發佈）→ events.status
+- **交接回覆**（text）：交接備註與回覆統一用此欄
 - 對應辦理單位（relation→DB08）：承辦廠商
 - 對應對象（relation→DB08）：講師/帶路人
 

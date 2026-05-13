@@ -3,7 +3,7 @@
 > ⚠️ **狀態（2026/05/04）：本文件大部分內容已過時，僅保留作歷史參考。**
 > - 文中規劃的 `vendor_products` / `market_events` / `market_vendor_slots` / `market_slot_products` / `activity_addon_products` / `preorders` 6 張表 **均未建立**。
 > - 實際採用的是統一商品表 `products`（DB07 庫存控管）+ `events`（DB04 協作交接）+ `vendor_preorders` / `vendor_preorder_items` / `market_applications`。
-> - DB05 名稱現為「登記內容」（不是「登記內容明細」），DB07 為「庫存控管」（不是「庫存資產」）。
+> - DB05 名稱現為「登記內容」，DB07 為「庫存控管」。
 > - 現行欄位對應請改參考 `CLAUDE.md` 的「Notion 資料庫」與「Notion ↔ Supabase 同步」章節。
 
 **整理日期**：2026/04/13  
