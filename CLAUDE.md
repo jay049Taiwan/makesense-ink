@@ -230,7 +230,7 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 - 距離km（number，無括號）→ events.distance_km
 - 簡介摘要（rich_text）→ events.description
 - **發佈狀態**（status：待發佈/已發佈/不發佈）→ events.status
-- **交接回覆**（text）：交接備註與回覆統一用此欄
+- **交接回覆**（text）
 - 對應辦理單位（relation→DB08）：承辦廠商
 - 對應對象（relation→DB08）：講師/帶路人
 
