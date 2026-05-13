@@ -76,25 +76,16 @@ export default function Footer() {
                 <path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/>
               </svg>
             </a>
-          </div>
 
-          {/* Brand line */}
-          <div style={{
-            textAlign: "center",
-            fontSize: 13,
-            color: "#b0a090",
-            marginTop: 14,
-            paddingTop: 12,
-            borderTop: "1px solid #ede8e0",
-            letterSpacing: "0.05em",
-          }}>
-            sense{" "}
-            <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 15, fontStyle: "italic" }}>makesense</span>
-            {" "}since 2012
-            <span style={{ margin: "0 8px", opacity: 0.4 }}>·</span>
-            <Link href="/privacy" className="hover:text-[#5a4a3a] transition-colors" style={{ color: "#b0a090" }}>
-              隱私政策
-            </Link>
+            {/* 視覺分隔 */}
+            <span className="hidden sm:inline-block" style={{ width: 1, height: 14, background: "#d0c8bc" }} />
+
+            {/* Brand tagline */}
+            <span style={{ fontSize: 13, color: "#b0a090", letterSpacing: "0.05em", whiteSpace: "nowrap" }}>
+              sense{" "}
+              <span style={{ fontFamily: "'Playfair Display', serif", fontSize: 14, fontStyle: "italic" }}>makesense</span>
+              {" "}since 2012
+            </span>
           </div>
         </div>
       </footer>
