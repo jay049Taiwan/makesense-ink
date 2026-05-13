@@ -8,6 +8,7 @@ import { useSession, signIn } from "next-auth/react";
 const EXCLUDED_PREFIXES = [
   "/checkout", "/dashboard", "/liff", "/dev", "/buy", "/telegram",
   "/login", "/privacy", "/terms",
+  "/product", // 商品頁用 InlineEngagement（書名旁邊），不用底部 bar
 ];
 const EXCLUDED_EXACT = [
   "/", "/bookstore", "/cultureclub", "/sense",
