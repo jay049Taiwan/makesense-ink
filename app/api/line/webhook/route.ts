@@ -45,7 +45,11 @@ export async function POST(req: NextRequest) {
     }, { status: 401 });
   }
 
-  // 3. 解析事件
+  // 3. Bot 暫停開關（true = 不回應任何訊息，LINE 仍收到 200）
+  const BOT_DISABLED = true;
+  if (BOT_DISABLED) return NextResponse.json({ ok: true, disabled: true });
+
+  // 4. 解析事件
   let events: any[];
   try {
     const body = JSON.parse(rawBody);
@@ -54,7 +58,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // 4. 處理每個事件（必須 await，否則 Vercel serverless 會在回應後立刻 terminate，reply 來不及送出）
+  // 5. 處理每個事件（必須 await，否則 Vercel serverless 會在回應後立刻 terminate，reply 來不及送出）
   await Promise.all(events.map(async (event) => {
     await supabase.from("line_message_log").insert({
       user_id: event.source?.userId || "unknown",
