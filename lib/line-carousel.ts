@@ -7,20 +7,16 @@
 import { supabaseAdmin } from "@/lib/supabase";
 import { buildLiffUrl } from "@/lib/line";
 
-const CLOUD_NAME = "drypcu6lg";
 const BRAND_BROWN = "7a5c40";
 const BRAND_CREAM = "faf8f4";
 
-/** 把任何圖片 URL 轉成 LINE image_carousel 接受的 1024x1024 JPG */
+/** 把任何圖片 URL 轉成 LINE image_carousel 接受的 HTTPS URL */
 export function toSquareImage(url: string | null | undefined, fallbackText = "旅人書店"): string {
   if (!url || typeof url !== "string") {
     return dynamicPlaceholder(fallbackText);
   }
-  if (url.includes("res.cloudinary.com") && url.includes("/upload/")) {
-    return url.replace("/upload/", "/upload/c_fill,ar_1:1,w_1024,q_auto,f_jpg/");
-  }
-  // 外部圖：透過 Cloudinary fetch 裁切優化
-  return `https://res.cloudinary.com/${CLOUD_NAME}/image/fetch/c_fill,ar_1:1,w_1024,q_auto,f_jpg/${encodeURIComponent(url)}`;
+  // R2 或其他永久 URL 直接用
+  return url;
 }
 
 /** 動態產生 1024x1024 品牌色 banner（自家 /api/placeholder，支援中文） */

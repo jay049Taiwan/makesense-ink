@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { supabaseAdmin } from "@/lib/supabase";
 import { normalizeEmail } from "@/lib/email";
-import { uploadBufferToCloudinary } from "@/lib/cloudinary";
+import { uploadBufferToR2 } from "@/lib/r2";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -43,7 +43,7 @@ export async function GET(req: NextRequest) {
 /**
  * POST /api/vendor-photos
  * multipart/form-data: file + category
- * 上傳新照片到 Cloudinary 並寫入 vendor_photos
+ * 上傳新照片到 R2 並寫入 vendor_photos
  */
 export async function POST(req: NextRequest) {
   const memberId = await getMemberId();
@@ -63,8 +63,8 @@ export async function POST(req: NextRequest) {
 
     const buf = Buffer.from(await file.arrayBuffer());
     const folder = `makesense/vendor-photos/${memberId}/${category}`;
-    const url = await uploadBufferToCloudinary(buf, folder);
-    if (!url) return NextResponse.json({ error: "Cloudinary 上傳失敗" }, { status: 500 });
+    const url = await uploadBufferToR2(buf, folder);
+    if (!url) return NextResponse.json({ error: "R2 上傳失敗" }, { status: 500 });
 
     const { data, error } = await supabaseAdmin
       .from("vendor_photos")

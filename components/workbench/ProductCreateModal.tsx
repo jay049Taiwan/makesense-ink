@@ -43,7 +43,7 @@ interface PersonOption {
  * 選填：作者、出版發行（從 Supabase persons 下拉選）
  *
  * 提交後：
- *   1. 上傳照片 → /api/upload-image → Cloudinary URL
+ *   1. 上傳照片 → /api/upload-image → R2 URL
  *   2. POST /api/staff/products/create → 同時寫 Notion DB07（待發佈）+ Supabase products（draft）
  *   3. onCreated() 回傳新商品給上層
  */

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { uploadBufferToCloudinary } from "@/lib/cloudinary";
+import { uploadBufferToR2 } from "@/lib/r2";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "missing file" }, { status: 400 });
     }
     const buf = Buffer.from(await file.arrayBuffer());
-    const url = await uploadBufferToCloudinary(buf, folder);
+    const url = await uploadBufferToR2(buf, folder);
     if (!url) return NextResponse.json({ error: "upload failed" }, { status: 500 });
     return NextResponse.json({ url });
   } catch (e: any) {

@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToR2 } from "@/lib/r2";
 
 export const maxDuration = 300;
 
+const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+
 /**
- * POST /api/sync/images — 批次遷移 Notion 圖片到 Cloudinary
+ * POST /api/sync/images — 批次遷移 Notion 圖片到 R2
  *
  * Query params:
  *   ?table=events   (events, articles, products)
@@ -19,11 +21,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "table must be events, articles, or products" }, { status: 400 });
   }
 
+  function isR2Url(url: string) {
+    return R2_PUBLIC_URL ? url.startsWith(R2_PUBLIC_URL) : false;
+  }
+
   try {
     let processed = 0, skipped = 0, errors = 0;
 
     if (table === "products") {
-      // products.images 是 JSON 陣列
       const { data: rows } = await supabase
         .from("products")
         .select("id, notion_id, images")
@@ -38,13 +43,12 @@ export async function POST(req: NextRequest) {
           try { imgs = JSON.parse(row.images); } catch { continue; }
           if (imgs.length === 0) continue;
 
-          // 只遷移 Notion 臨時 URL
           let changed = false;
           const newImgs = await Promise.all(imgs.map(async (url, i) => {
-            if (url.includes("res.cloudinary.com")) return url;
+            if (isR2Url(url)) return url;
             if (!url.includes("notion-static") && !url.includes("prod-files-secure")) return url;
-            const cdnUrl = await uploadToCloudinary(url, "makesense/products", `${row.notion_id}_${i}`);
-            if (cdnUrl && cdnUrl !== url) { changed = true; return cdnUrl; }
+            const r2Url = await uploadToR2(url, "makesense/products", `${row.notion_id}_${i}`);
+            if (r2Url && r2Url !== url) { changed = true; return r2Url; }
             return url;
           }));
 
@@ -58,7 +62,6 @@ export async function POST(req: NextRequest) {
         await new Promise(r => setTimeout(r, 300));
       }
     } else {
-      // events/articles 用 cover_url
       const { data: rows } = await supabase
         .from(table)
         .select("id, notion_id, cover_url")
@@ -69,12 +72,12 @@ export async function POST(req: NextRequest) {
       for (const row of rows || []) {
         try {
           if (!row.cover_url) { skipped++; continue; }
-          if (row.cover_url.includes("res.cloudinary.com")) { skipped++; continue; }
+          if (isR2Url(row.cover_url)) { skipped++; continue; }
           if (!row.cover_url.includes("notion-static") && !row.cover_url.includes("prod-files-secure")) { skipped++; continue; }
 
-          const cdnUrl = await uploadToCloudinary(row.cover_url, `makesense/${table}`, row.notion_id);
-          if (cdnUrl && cdnUrl !== row.cover_url) {
-            await supabase.from(table).update({ cover_url: cdnUrl }).eq("id", row.id);
+          const r2Url = await uploadToR2(row.cover_url, `makesense/${table}`, row.notion_id);
+          if (r2Url && r2Url !== row.cover_url) {
+            await supabase.from(table).update({ cover_url: r2Url }).eq("id", row.id);
             processed++;
           } else {
             skipped++;

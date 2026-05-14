@@ -533,7 +533,7 @@ function LineBindButton() {
    ═══════════════════════════════════════════════════════ */
 interface MarketProduct {
   name: string; price: string; intro: string; photo: File | null; preorder_limit: string;
-  photoUrl?: string | null; // 上次上傳的 Cloudinary URL（沿用）
+  photoUrl?: string | null; // 上次上傳的 R2 URL（沿用）
 }
 interface MarketExperience {
   name: string; price: string; desc: string; duration: string; capacity: string;
@@ -611,7 +611,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
       const readFile = (name: string) =>
         (document.querySelector(`input[name="${name}"]`) as HTMLInputElement | null)?.files?.[0] || null;
 
-      // 品牌 Logo / 情境照：有新檔就上傳 Cloudinary，沒有則沿用上次儲存的 URL
+      // 品牌 Logo / 情境照：有新檔就上傳 R2，沒有則沿用上次儲存的 URL
       const logoFile = readFile("brand_logo");
       const imageFile = readFile("brand_image");
       const [newLogoUrl, newImageUrl] = await Promise.all([
@@ -621,7 +621,7 @@ const MarketFields = forwardRef<{ getData: () => Promise<any> }, { brandDefaults
       const logoUrl = newLogoUrl || brandDefaults?.logoUrl || null;
       const imageUrl = newImageUrl || brandDefaults?.imageUrl || null;
 
-      // 每個商品的照片：有新檔就上傳 Cloudinary，沒有就沿用上次的 photoUrl
+      // 每個商品的照片：有新檔就上傳 R2，沒有就沿用上次的 photoUrl
       const productsWithUrl = await Promise.all(
         products
           .filter((p) => p.name?.trim())

@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { queryDatabase, DB, extractTitle, extractText, extractSelect, extractMultiSelect, extractDate, extractRelation, extractNumber, extractStatus, extractUrl, updatePage, getPageContent, getPage } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
-import { uploadToCloudinary } from "@/lib/cloudinary";
+import { uploadToR2 } from "@/lib/r2";
 import { toTraditional } from "@/lib/zh-convert";
 
 export const maxDuration = 300; // Vercel timeout 5 min
@@ -12,7 +12,7 @@ export const maxDuration = 300; // Vercel timeout 5 min
  * Query params:
  *   ?tables=products,events,articles — 只同步指定表（逗號分隔）
  *   ?writeback=true — 回寫 Notion（發佈狀態 + 對應連結）
- *   ?skip-images=true — 跳過 Cloudinary 圖片上傳（純資料補寫，避免 Vercel 5 min timeout）
+ *   ?skip-images=true — 跳過 R2 圖片上傳（純資料補寫，避免 Vercel 5 min timeout）
  */
 export async function POST(req: NextRequest) {
   const doWriteback = req.nextUrl.searchParams.get("writeback") === "true";
@@ -94,29 +94,31 @@ function ms(val: string | null, map: Record<string, string>): string | null {
 
 const SITE_URL = "https://makesense.ink";
 const BATCH_SIZE = 200; // 每批 upsert 筆數
-const ENABLE_CLOUDINARY = true; // 同步時自動上傳圖片到 Cloudinary（可被 ?skip-images=true 覆寫）
+const ENABLE_R2 = true; // 同步時自動上傳圖片到 R2（可被 ?skip-images=true 覆寫）
+const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
+const isR2Url = (url: string) => R2_PUBLIC_URL ? url.startsWith(R2_PUBLIC_URL) : false;
 
-/** 批次遷移 cover_url 到 Cloudinary（並行處理，每 5 張一組避免限流） */
+/** 批次遷移 cover_url 到 R2（並行處理，每 5 張一組避免限流） */
 async function migrateCoverUrls(rows: Record<string, any>[], table: string): Promise<void> {
-  if (!ENABLE_CLOUDINARY) return;
+  if (!ENABLE_R2) return;
   const CONCURRENCY = 5;
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
     const chunk = rows.slice(i, i + CONCURRENCY);
     await Promise.all(chunk.map(async (row) => {
       if (!row.cover_url) return;
-      if (row.cover_url.includes("res.cloudinary.com")) return;
+      if (isR2Url(row.cover_url)) return;
       if (!row.cover_url.includes("notion-static") && !row.cover_url.includes("prod-files-secure")) return;
       try {
-        const cdnUrl = await uploadToCloudinary(row.cover_url, `makesense/${table}`, row.notion_id);
-        if (cdnUrl) row.cover_url = cdnUrl;
+        const r2Url = await uploadToR2(row.cover_url, `makesense/${table}`, row.notion_id);
+        if (r2Url) row.cover_url = r2Url;
       } catch (e: any) { console.warn(`[img] ${row.notion_id}: ${e.message}`); }
     }));
   }
 }
 
-/** 批次遷移 products.images 到 Cloudinary */
+/** 批次遷移 products.images 到 R2 */
 async function migrateProductImages(rows: Record<string, any>[]): Promise<void> {
-  if (!ENABLE_CLOUDINARY) return;
+  if (!ENABLE_R2) return;
   const CONCURRENCY = 3;
   for (let i = 0; i < rows.length; i += CONCURRENCY) {
     const chunk = rows.slice(i, i + CONCURRENCY);
@@ -127,11 +129,11 @@ async function migrateProductImages(rows: Record<string, any>[]): Promise<void> 
       if (imgs.length === 0) return;
       let changed = false;
       const newImgs = await Promise.all(imgs.map(async (url, idx) => {
-        if (url.includes("res.cloudinary.com")) return url;
+        if (isR2Url(url)) return url;
         if (!url.includes("notion-static") && !url.includes("prod-files-secure")) return url;
         try {
-          const cdnUrl = await uploadToCloudinary(url, "makesense/products", `${row.notion_id}_${idx}`);
-          if (cdnUrl && cdnUrl !== url) { changed = true; return cdnUrl; }
+          const r2Url = await uploadToR2(url, "makesense/products", `${row.notion_id}_${idx}`);
+          if (r2Url && r2Url !== url) { changed = true; return r2Url; }
         } catch (e: any) { console.warn(`[img] ${row.notion_id}_${idx}: ${e.message}`); }
         return url;
       }));
@@ -266,7 +268,7 @@ async function syncTopics() {
     const props = p(page);
     extractRelation(props["對應標籤庫存"]?.relation).forEach((id: string) => needProdNids.add(id.replace(/-/g, "")));
     extractRelation(props["對應標籤協作"]?.relation).forEach((id: string) => needEventNids.add(id.replace(/-/g, "")));
-    extractRelation(props["對應標籤表單"]?.relation).forEach((id: string) => needArticleNids.add(id.replace(/-/g, "")));
+    extractRelation(props["對應標籤內容"]?.relation).forEach((id: string) => needArticleNids.add(id.replace(/-/g, "")));
     extractRelation(props["自對標籤"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
     extractRelation(props["自對零售內容"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
   }
@@ -338,7 +340,7 @@ async function syncTopics() {
       })(),
       related_product_ids: resolveRel(props["對應標籤庫存"], productIdByNid),
       related_event_ids: resolveRel(props["對應標籤協作"], eventIdByNid),
-      related_article_ids: resolveRel(props["對應標籤表單"], articleIdByNid),
+      related_article_ids: resolveRel(props["對應標籤內容"], articleIdByNid),
       related_tag_ids: resolveRel(props["自對標籤"], topicIdByNid),
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
     };
@@ -494,7 +496,7 @@ async function syncProducts(wb = false, skipImages = false) {
   const validRows = rows.filter(r => r.status !== null);
   console.log(`[sync] products: ${rows.length} total, ${validRows.length} with publish status`);
 
-  // 圖片遷移到 Cloudinary（在 upsert 前；?skip-images=true 時略過）
+  // 圖片遷移到 R2（在 upsert 前；?skip-images=true 時略過）
   if (!skipImages) await migrateProductImages(validRows);
 
   const result = await batchUpsert("products", validRows, "notion_id");

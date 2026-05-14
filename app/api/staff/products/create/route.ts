@@ -13,7 +13,7 @@ export const runtime = "nodejs";
  *   sku       : string  必填，商品 ID（多半是 ISBN-13，掃條碼自動帶入）
  *   name      : string  必填，商品名稱
  *   price     : number  必填，售價
- *   photoUrl  : string  必填，已經上傳到 Cloudinary 的圖片 URL
+ *   photoUrl  : string  必填，已經上傳到 R2 的圖片 URL
  *   authorId    : string  選填，DB08 person notion_id（作者）
  *   publisherId : string  選填，DB08 person notion_id（出版發行）
  *   subCategory : "選書"|"選物"|"數位"  選填，沒給則由 sku 自動判斷（978/979 = 選書）

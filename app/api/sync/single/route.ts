@@ -881,7 +881,7 @@ async function syncSingleRelation(nid: string, props: any) {
     const [relatedProductIds, relatedEventIds, relatedArticleIds, relatedTagIds] = await Promise.all([
       resolveIds("products", rel(props["對應標籤庫存"])),
       resolveIds("events",   rel(props["對應標籤協作"])),
-      resolveIds("articles", rel(props["對應標籤表單"])),
+      resolveIds("articles", rel(props["對應標籤內容"])),
       resolveIds("topics",   rel(props["自對標籤"])),
     ]);
 
