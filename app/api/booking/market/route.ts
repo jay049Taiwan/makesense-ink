@@ -31,7 +31,7 @@ function toDashedNotionId(id: string | null | undefined): string | null {
  * - DB05 主報名紀錄（內容類型=報名登記、登記類別=填寫報名、報名選項=活動）
  * - DB06 每個商品一筆（明細名稱「商品-xxx」）、每個體驗一筆（「體驗-xxx」）
  * - DB06 設備三筆（「設備-桌」、「設備-椅」、「設備-電源」）
- * - 全部以「對應表單」relation 連回 DB05
+ * - 全部以「對應內容」relation 連回 DB05
  */
 export async function POST(req: NextRequest) {
   try {
@@ -105,7 +105,7 @@ export async function POST(req: NextRequest) {
       if (price !== null && !isNaN(price)) props["登記單價"] = { number: price };
       if (qty !== null && !isNaN(qty)) props["登記數量"] = { number: qty };
       if (details) props["明細內容"] = { rich_text: [{ text: { content: details.slice(0, 1900) } }] };
-      if (db05Dashed) props["對應表單"] = { relation: [{ id: db05Dashed }] };
+      if (db05Dashed) props["對應內容"] = { relation: [{ id: db05Dashed }] };
       if (photoUrl) {
         props["上傳檔案"] = { files: [{ name: title, type: "external", external: { url: photoUrl } }] };
       }

@@ -785,8 +785,8 @@ async function syncSingleProduct(nid: string, props: any) {
     relatedTopicIds = (topics || []).map((t: any) => t.id);
   }
 
-  // 對應表單 → DB05 articles（對應內容）
-  const articleRels = rel(props["對應表單"]);
+  // 對應內容 → DB05 articles
+  const articleRels = rel(props["對應內容"]);
   const articleNotionIds = articleRels.map((r: string) => r.replace(/-/g, ""));
   let relatedArticleIds: string[] = [];
   if (articleNotionIds.length > 0) {
