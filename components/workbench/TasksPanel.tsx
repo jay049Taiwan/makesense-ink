@@ -36,6 +36,16 @@ type ApiResponse = {
   error?: string;
 };
 
+// DB06 清單明細 AI 欄位型別（僅工作台內部使用）
+type DB06Item = {
+  id: string;
+  title: string;
+  aiMode: string;   // ai模式 select：1.構想/2.搜查/.../7.檢核
+  aiStatus: string; // ai狀態 status：待執行/無執行/完成
+  aiNote: string;   // ai備註 rich_text（唯讀）
+  aiMeta: string;   // ai_meta rich_text（唯讀）
+};
+
 // ── 設計 token ────────────────────────────────────────
 const C = {
   primary: "#7a5c40",
@@ -179,13 +189,17 @@ export default function TasksPanel(_props: { userEmail?: string }) {
             </div>
           )}
           {selected && (
-            // 右欄縱向切：上 1/3 是 DB04 detail、下 2/3 是 DB05 列表
+            // 右欄縱向切：DB04 detail → DB05 列表 → DB06 AI 細流（視覺分隔）
             <div className="flex flex-col gap-3">
               <section style={{ flex: "0 0 33%" }}>
                 <DB04Detail task={selected} onPatch={patchTask} />
               </section>
               <section style={{ flex: "1 1 67%" }}>
                 <DB05List parent={selected} onPatch={patchTask} onPick={setPopupTask} />
+              </section>
+              {/* DB06 AI 細流面板 — 視覺上與 DB05 明顯區隔 */}
+              <section style={{ flex: "0 0 auto" }}>
+                <DB06Panel db04Id={selected.id} />
               </section>
             </div>
           )}
@@ -569,6 +583,217 @@ function DB05Popup({ task, onClose }: { task: Task; onClose: () => void }) {
           )}
         </footer>
       </div>
+    </div>
+  );
+}
+
+// ── DB06 AI 細流面板 ──────────────────────────────────────
+// 只掛在 DB04 detail 頁下方，視覺上與 DB05 明細區隔（不同底色 + 分隔線）
+// 只在 L2 staff portal 工作台可見（由 requireStaff 在 API 層把關）
+
+const AI_MODE_OPTIONS = [
+  "1.構想", "2.搜查", "3.分析", "4.聯想", "5.企劃", "6.文案", "7.檢核",
+];
+
+const AI_STATUS_OPTIONS: { label: string; value: string; color: string; bg: string }[] = [
+  { label: "待執行", value: "待執行", color: "#1a6dbf", bg: "#e8f0fa" },
+  { label: "無執行", value: "無執行", color: "#888",    bg: "#f0f0f0" },
+  { label: "完成",   value: "完成",   color: "#2d6a1f", bg: "#e6f4e0" },
+];
+
+function DB06Panel({ db04Id }: { db04Id: string }) {
+  const [items, setItems] = useState<DB06Item[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState<string | null>(null);
+
+  // db04Id 換時重抓
+  useEffect(() => {
+    let abort = false;
+    setLoading(true);
+    setErr(null);
+    setItems([]);
+    staffFetch(`/api/staff/db06?db04Id=${db04Id}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (abort) return;
+        if (j.error) throw new Error(j.error);
+        setItems(j.items || []);
+      })
+      .catch((e: any) => { if (!abort) setErr(e.message); })
+      .finally(() => { if (!abort) setLoading(false); });
+    return () => { abort = true; };
+  }, [db04Id]);
+
+  const patchItem = (id: string, patch: Partial<DB06Item>) => {
+    setItems((prev) => prev.map((item) => item.id === id ? { ...item, ...patch } : item));
+  };
+
+  if (loading) {
+    return (
+      <div className="rounded p-3 text-xs" style={{ borderTop: `2px solid #d0e8d0`, background: "#f4faf4", color: "#888" }}>
+        嗨嗨 AI 細流載入中…
+      </div>
+    );
+  }
+
+  if (err) {
+    return (
+      <div className="rounded p-3 text-xs" style={{ borderTop: `2px solid #d0e8d0`, background: "#f4faf4", color: "#c0392b" }}>
+        DB06 載入失敗：{err}
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded" style={{ borderTop: `2px solid #b8d8b8`, background: "#f4faf4", border: `1px solid #c8dfc8` }}>
+      {/* Panel header */}
+      <div className="flex items-center justify-between px-3 py-2 rounded-t"
+        style={{ background: "#e0f0e0", borderBottom: "1px solid #c8dfc8" }}>
+        <div className="text-xs font-bold" style={{ color: "#2d6a1f" }}>
+          🤖 嗨嗨 AI 細流（{items.length} 筆）
+        </div>
+        <div className="text-[10px]" style={{ color: "#5a8a5a" }}>DB06 清單明細</div>
+      </div>
+
+      {items.length === 0 && (
+        <div className="text-xs text-center py-4" style={{ color: "#7aaa7a" }}>
+          此交接尚無 DB06 細流紀錄
+        </div>
+      )}
+
+      <div className="divide-y" style={{ borderColor: "#d4ead4" }}>
+        {items.map((item) => (
+          <DB06Row key={item.id} item={item} onPatch={patchItem} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function DB06Row({ item, onPatch }: { item: DB06Item; onPatch: (id: string, patch: Partial<DB06Item>) => void }) {
+  const [savingMode, setSavingMode] = useState(false);
+  const [savingStatus, setSavingStatus] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const showMsg = (text: string) => {
+    setMsg(text);
+    setTimeout(() => setMsg(null), 2000);
+  };
+
+  const onChangeMode = async (newMode: string) => {
+    if (savingMode) return;
+    setSavingMode(true);
+    const prev = item.aiMode;
+    onPatch(item.id, { aiMode: newMode }); // 樂觀更新
+    try {
+      const res = await staffFetch(`/api/staff/db06/${item.id}/ai`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiMode: newMode }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "更新失敗");
+      showMsg("ai模式已儲存");
+    } catch (e: any) {
+      onPatch(item.id, { aiMode: prev }); // 回滾
+      showMsg("失敗：" + e.message);
+    } finally {
+      setSavingMode(false);
+    }
+  };
+
+  const onChangeStatus = async (newStatus: string) => {
+    if (savingStatus) return;
+    setSavingStatus(true);
+    const prev = item.aiStatus;
+    onPatch(item.id, { aiStatus: newStatus }); // 樂觀更新
+    try {
+      const res = await staffFetch(`/api/staff/db06/${item.id}/ai`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ aiStatus: newStatus }),
+      });
+      const j = await res.json();
+      if (!res.ok) throw new Error(j.error || "更新失敗");
+      showMsg(newStatus === "待執行" ? "已通知 AI 執行 🤖" : "ai狀態已儲存");
+    } catch (e: any) {
+      onPatch(item.id, { aiStatus: prev }); // 回滾
+      showMsg("失敗：" + e.message);
+    } finally {
+      setSavingStatus(false);
+    }
+  };
+
+  const currentStatus = AI_STATUS_OPTIONS.find((s) => s.value === item.aiStatus);
+
+  return (
+    <div className="px-3 py-2.5">
+      {/* 明細名稱 */}
+      <div className="text-sm font-medium mb-2" style={{ color: "#2d4a2d" }}>
+        {item.title || "（無標題）"}
+      </div>
+
+      {/* ai模式 select + ai狀態 buttons — 同一行 */}
+      <div className="flex items-center gap-2 flex-wrap mb-1.5">
+        {/* ai模式 */}
+        <select
+          value={item.aiMode || ""}
+          disabled={savingMode}
+          onChange={(e) => onChangeMode(e.target.value)}
+          className="text-xs rounded border px-1.5 py-1 outline-none"
+          style={{ borderColor: "#b8d8b8", background: "#fff", color: "#2d6a1f", cursor: savingMode ? "wait" : "pointer" }}
+        >
+          <option value="">— ai模式 —</option>
+          {AI_MODE_OPTIONS.map((opt) => (
+            <option key={opt} value={opt}>{opt}</option>
+          ))}
+        </select>
+
+        {/* ai狀態 按鈕組 */}
+        <div className="flex gap-1">
+          {AI_STATUS_OPTIONS.map((s) => {
+            const active = item.aiStatus === s.value;
+            return (
+              <button
+                key={s.value}
+                disabled={savingStatus}
+                onClick={() => onChangeStatus(s.value)}
+                className="text-[11px] px-2 py-0.5 rounded border transition-colors"
+                style={{
+                  background: active ? s.bg : "#fff",
+                  color: active ? s.color : "#aaa",
+                  borderColor: active ? s.color : "#d0d0d0",
+                  fontWeight: active ? 600 : 400,
+                  cursor: savingStatus ? "wait" : "pointer",
+                }}
+              >
+                {s.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* 狀態訊息 */}
+        {msg && (
+          <span className="text-[11px]" style={{ color: msg.startsWith("失敗") ? "#c0392b" : "#2d6a1f" }}>
+            {msg}
+          </span>
+        )}
+      </div>
+
+      {/* ai備註（唯讀） */}
+      {item.aiNote && (
+        <div className="text-[11px] px-2 py-1 rounded" style={{ background: "#eaf5ea", color: "#3a6a3a", whiteSpace: "pre-wrap" }}>
+          {item.aiNote}
+        </div>
+      )}
+
+      {/* ai_meta（唯讀，小字灰色） */}
+      {item.aiMeta && (
+        <div className="text-[10px] mt-1 px-1" style={{ color: "#7aaa7a", whiteSpace: "pre-wrap" }}>
+          {item.aiMeta}
+        </div>
+      )}
     </div>
   );
 }
