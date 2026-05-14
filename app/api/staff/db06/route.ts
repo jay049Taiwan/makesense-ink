@@ -45,7 +45,6 @@ export async function GET(req: Request) {
         aiMode: getSelect(props["ai模式"]),
         aiStatus: getStatus(props["ai狀態"]),
         aiNote: getRichText(props["ai備註"]),
-        aiMeta: getRichText(props["ai_meta"]),
       };
     });
 
