@@ -114,7 +114,7 @@ export async function POST(req: Request) {
       "內容名稱": { title: [{ text: { content: eventTitle } }] },
       "內容類型": { select: { name: "報名登記" } },
       "登記類別": { select: { name: "紀錄庫存" } },
-      "庫存細項": { select: { name: operation } },
+      "庫存選項": { select: { name: operation } },
     };
     if (notionUserId) db05Props["責任執行"] = { people: [{ id: notionUserId }] };
     if (counterpart_id) db05Props["對應對象"] = { relation: [{ id: counterpart_id }] };

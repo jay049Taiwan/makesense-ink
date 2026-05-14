@@ -321,12 +321,12 @@ async function syncSingleEvent(nid: string, props: any) {
 // ── DB05 分流：文章 / 庫存批次 / 填寫報名 ──
 async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["內容類型"]);
-  const stockAction = sel(props["庫存細項"]);  // 進貨 / 出貨 / 盤點
+  const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點
   const copyDetail = sel(props["文案選項"]);
   const registerCategory = sel(props["登記類別"]);
   const registerOption = sel(props["報名選項"]);  // 活動 / 空間 / 意見
 
-  // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項有值（進貨/出貨/盤點）
+  // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存選項有值（進貨/出貨/盤點）
   // 與寫入端一致（lib/staff-helper.ts inventory + lib/admission-notify.ts + checkout direct mode）
   if (formType === "報名登記" && registerCategory === "紀錄庫存" && stockAction) {
     return await syncStockBatch(nid, props);
@@ -537,9 +537,9 @@ async function syncSingleReservation(nid: string, props: any) {
 
 // ── DB05 庫存批次（一次更新所有關聯 DB06 的庫存）──
 async function syncStockBatch(nid: string, props: any) {
-  const action = sel(props["庫存細項"]); // 進貨 / 出貨 / 盤點
+  const action = sel(props["庫存選項"]); // 進貨 / 出貨 / 盤點
   if (!action) {
-    return { table: "stock_batch", note: "缺少庫存細項（進貨/出貨/盤點）", nid, skipped: true };
+    return { table: "stock_batch", note: "缺少庫存選項（進貨/出貨/盤點）", nid, skipped: true };
   }
 
   // 讀取「對應明細」relation → DB06 page IDs

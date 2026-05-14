@@ -225,7 +225,7 @@ async function createConfirmedEntries(args: {
     "內容名稱": { title: [{ text: { content: `報名錄取 ${orderNumber}` } }] },
     "內容類型": { select: { name: "報名登記" } },
     "登記類別": { select: { name: "紀錄庫存" } },
-    "庫存細項": { select: { name: "出貨" } },
+    "庫存選項": { select: { name: "出貨" } },
   };
 
   // 從原 預約 DB05 複製聯絡人欄位（若有抓到）
