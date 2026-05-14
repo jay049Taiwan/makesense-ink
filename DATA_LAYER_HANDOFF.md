@@ -59,7 +59,7 @@ CREATE TABLE vendor_products (
   price       integer NOT NULL,          -- 單位：新台幣
   stock       integer DEFAULT 0,
   note        text,                      -- 備註（選填）
-  photo_url   text,                      -- Cloudinary 圖片 URL
+  photo_url   text,                      -- Cloudflare R2 圖片 URL
   active      boolean DEFAULT true,      -- false = 下架（顯示但不可加購）
   sort_order  integer DEFAULT 0,         -- 廠商自訂排序
   created_at  timestamptz DEFAULT now(),

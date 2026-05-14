@@ -7,8 +7,7 @@ const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "pub-23c93c89519e48958e84298739337568.r2.dev" },
-      { protocol: "https", hostname: "res.cloudinary.com" }, // 舊 URL 向後相容
-      { protocol: "https", hostname: "*.notion-static.com" },
+{ protocol: "https", hostname: "*.notion-static.com" },
       { protocol: "https", hostname: "prod-files-secure.s3.us-west-2.amazonaws.com" },
     ],
   },

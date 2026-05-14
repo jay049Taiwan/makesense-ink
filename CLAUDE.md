@@ -250,7 +250,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 ### 其他欄位
 - 行政區域（select；DB08）
 - 單價（number；DB04 活動）
-- 庫存異動規則：DB05 內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存細項=進/出/盤 → DB06（明細類型=庫存紀錄）→ DB07
+- 庫存異動規則：DB05 內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存選項=進/出/盤 → DB06（明細類型=庫存紀錄）→ DB07
 
 ## Notion ↔ Supabase 同步
 - 狀態：**已建好同步 API，已完成首次同步（706 筆資料）**
@@ -266,7 +266,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 - 獨立漸進式同步腳本：scripts/run-sync.mjs（邊查邊存，Notion 不穩也不怕丟資料）
 - 圖片代理 API：/api/notion-image?pageId=xxx — 解決 Notion 內部檔案 URL 1 小時過期問題
 - 文章正文同步 API：/api/sync/content?table=articles — 批次抓 Notion blocks→HTML 存入 Supabase
-- 圖片遷移 API：/api/sync/images?table=events — 批次遷移 Notion 圖片到 Cloudinary CDN
+- 圖片遷移 API：/api/sync/images?table=events — 批次遷移 Notion 圖片到 Cloudflare R2
 - n8n Daily sync：每天 8AM 自動全量同步（workflow ID: C8Tc2zIoSW4THUr2，已啟用）
 - 前端 fallback：/post/[slug] 先讀 Supabase content，沒有才即時查 Notion API 並自動回存
 - 同步方向：Notion 提供內容 → Supabase；Supabase 提供交易數據 → Notion
@@ -334,7 +334,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 | 空值（未設定） | 不同步 | — | — |
 
 ### Supabase 新增欄位
-- products: `sub_category`（商品選項）、`supplier_type`（進貨屬性）、`related_topic_ids`（jsonb，對應標籤→topics）、`related_article_ids`（jsonb，對應表單→articles）
+- products: `sub_category`（商品選項）、`supplier_type`（進貨屬性）、`related_topic_ids`（jsonb，對應標籤→topics）、`related_article_ids`（jsonb，對應內容→articles）
 - topics: `region`（行政區域 multi_select → text[]）、`content`（頁面正文 HTML）、`parent_id`（自對關係）
 - articles: `content`（文章正文 HTML，由 /api/sync/content 或前端 fallback 寫入）
 - translations: 多語言翻譯表（table_name + row_id + locale + field）
@@ -347,7 +347,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 | 商品名稱/ID/價格/簡介/照片/分類 | DB07 庫存控管 | DB07 按「發佈更新」→ 同步全部欄位 |
 | 作者/發行商 | DB07 對應作者/對應發行 → DB08 | DB07 同步時自動反查 |
 | 相關觀點 | DB07 對應標籤 → DB08 topics | DB07 同步時存入 related_topic_ids |
-| 對應文章 | DB07 對應表單 → DB05 articles | DB07 同步時存入 related_article_ids |
+| 對應文章 | DB07 對應內容 → DB05 articles | DB07 同步時存入 related_article_ids |
 
 ### B5 地方通訊變更（2026/04/13）
 - 書店首頁 B5 從「最新消息」改為「地方通訊」，只顯示文章，不顯示活動
@@ -466,8 +466,8 @@ npm run lint   # ESLint
 ## 圖片處理（2026/04/14 建立）
 - `components/ui/ImagePlaceholder.tsx` — 品牌漸層 placeholder（7 種 type：event/article/product/topic/space/market/default）
 - `components/ui/SafeImage.tsx` — 圖片載入失敗自動 fallback 到 ImagePlaceholder
-- 同步管線自動上傳 Cloudinary（`migrateCoverUrls` + `migrateProductImages` in sync/route.ts）
-- 下次 Notion sync 時圖片自動存為 Cloudinary 永久 URL
+- 同步管線自動上傳 Cloudflare R2（`migrateCoverUrls` + `migrateProductImages` in sync/route.ts）
+- 下次 Notion sync 時圖片自動存為 R2 永久 URL
 
 ## Supabase 安全
 - `lib/supabase.ts` 提供兩個 client：
@@ -496,7 +496,7 @@ npm run lint   # ESLint
 ### DB05 / DB06 cascade 機制（2026/04/29 釐清，2026/05/04 完工）
 - 不是 Notion automation，是 **code-driven**
 - 範例：`/api/staff/inventory/route.ts` 庫存異動由 Next.js API 同時寫 DB05+DB06
-- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存細項=進貨/出貨/盤點` + `對應明細→DB06`
+- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存選項=進貨/出貨/盤點` + `對應明細→DB06`
 - 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 紀錄費用 區分
 - 統一封裝在 `lib/staff-helper.ts`：`getStaffNotionPageId` / `getStaffIdByEmail` / `writeStaffDB05Record({type, detail, title, staffEmail, amount?, content?, ...})`
 - 紀錄類同步到 Supabase `staff_activities`（task_type / notion_db05_id / detail jsonb），讀取走 Supabase 避免每次打 Notion API

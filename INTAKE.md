@@ -19,7 +19,7 @@
 | 資料庫 | Supabase (PostgreSQL, project: `zgwdomvauuxaxtgqqvrn`) |
 | CMS | Notion API (`@notionhq/client` 5.17) — 9 個 DB（DB01~DB09） |
 | 國際化 | next-intl 4.9（架構備好，翻譯資料尚未完整） |
-| 圖片 CDN | Cloudinary（新版照片管線正在改用 Cloudflare R2，但 makesense.ink 站內目前還是 Cloudinary） |
+| 圖片 CDN | Cloudflare R2（2026/04/29 從 Cloudinary 遷移過來；Supabase 中仍有舊 Cloudinary URL 向後相容） |
 | LIFF SDK | `@line/liff` 2.28 |
 | LINE Bot | `@line/bot-sdk` 11 |
 | 條碼掃描 | `html5-qrcode` 2.3 |
@@ -337,7 +337,7 @@ public/
 ```
 
 **動態圖片來源**（不在 public）：
-- 文章 / 商品 / 活動圖：Cloudinary（同步 pipeline 自動上傳，URL 寫進 Supabase）
+- 文章 / 商品 / 活動圖：Cloudflare R2（同步 pipeline 自動上傳，URL 寫進 Supabase）
 - Notion 內部圖片：`/api/notion-image?pageId=xxx` 代理 API（解 1 小時過期問題）
 
 字型：Google Fonts CDN（沒有自託管）
@@ -361,7 +361,7 @@ Icon：直接 inline SVG 寫在元件裡（沒有用 icon library）
 ### 第三方嵌入
 
 - Google Fonts CDN（外部依賴）
-- Cloudinary（圖片 CDN）
+- Cloudflare R2（圖片 CDN，2026/04/29 從 Cloudinary 遷移過來）
 - LIFF SDK（LINE 內 JS 注入）
 - next-auth Google/LINE OAuth flow
 
@@ -385,7 +385,7 @@ JSON-LD：Organization 全域、Event detail、Product detail
 6. **/dashboard/* 是純功能介面** — 沒有設計感，用 Tailwind utility 堆出來的
 7. **行事曆元件（Calendar）配色偏軟、可讀性中等** — 假日/活動色塊較難分辨
 8. **卡片設計不統一** — bookstore / cultureclub / market-booking 各自不同 Card 樣式
-9. **Hero 圖片載入慢** — Cloudinary 的圖檔太大，沒做 srcset
+9. **Hero 圖片載入慢** — 圖檔太大，沒做 srcset
 10. **改版要保留**：暖色 + 土系基調、雙品牌色（bark棕褐 + teal青）、Noto Sans/Serif 字體
 
 ### 想保留的功能
@@ -397,7 +397,7 @@ JSON-LD：Organization 全域、Event detail、Product detail
 - Bottom Sheet 推薦互動
 - Footer 浮動 LINE + 購物車按鈕（最近加了「滑到 footer 自動上推」邏輯）
 - DevRoleProvider 開發環境角色切換
-- 所有 Cloudinary URL 管線
+- 所有 R2 URL 管線
 
 ---
 
