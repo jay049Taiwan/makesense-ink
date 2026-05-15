@@ -38,7 +38,7 @@ function fileUrl(prop) {
   if (!f || !Array.isArray(f) || f.length === 0) return null;
   return f[0]?.file?.url || f[0]?.external?.url || null;
 }
-function ms(val, map) { return val ? (map[val] || "draft") : "draft"; }
+function ms(val, map) { return val ? (map[val] || null) : null; }
 
 // ── Notion 漸進式查詢（每頁拿到就立刻回呼處理） ──
 async function queryAndProcess(dbId, filter, processBatch) {
