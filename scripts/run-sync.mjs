@@ -127,7 +127,7 @@ async function syncEvents() {
 
   let totalUpserted = 0, totalErrors = 0;
 
-  const total = await queryAndProcess(DB.DB04, { property: "協作類別", select: { equals: "活動辦理" } },
+  const total = await queryAndProcess(DB.DB04, { property: "協作類別", select: { equals: "辦理活動" } },
     async (pages) => {
       const rows = pages.map(page => {
         const props = p(page);

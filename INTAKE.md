@@ -238,7 +238,7 @@ LayoutShell（沒 Telegram 環境會有 Header）
 | Supabase 表 | 來源 | 用途 |
 |-------------|------|------|
 | `articles` | DB05（文案選項=網頁社群 + 社群細項=Sense官網） | 文章 / 通訊 |
-| `events` | DB04（協作類別=活動辦理） | 活動 |
+| `events` | DB04（協作類別=辦理活動） | 活動 |
 | `products` | DB07 | 商品 / 票券 |
 | `topics` | DB08（經營類型=觀點/標籤） | 觀點 / 標籤 |
 | `persons` | DB08（會員狀態=會員 + 關係選項=個人） | 帶路老師 / 創作者 |

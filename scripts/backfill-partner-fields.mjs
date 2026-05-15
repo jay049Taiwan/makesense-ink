@@ -104,7 +104,7 @@ async function backfillProducts() {
 // ── DB04 events → 邊抓邊寫，避開壞 cursor ──
 async function processDB04Page(page, stats) {
   const props = p(page);
-  if (extractSelect(props["協作類別"]?.select) !== "活動辦理") return;
+  if (extractSelect(props["協作類別"]?.select) !== "辦理活動") return;
   const guideRel = extractRelation(props["對應對象"]?.relation);
   const pubRel = extractRelation(props["對應辦理單位"]?.relation);
   const relatedPartnerIds = [...new Set([
