@@ -466,6 +466,7 @@ export async function fetchTimeline(limit = 100): Promise<DateRangeItem[]> {
     );
     return results.map((page: any) => {
       const props = page.properties;
+      // DB09 date 欄位，現行仍叫「範圍日期」，確認 2026-05-15
       const dateRange = props["範圍日期"]?.date;
       return {
         id: page.id,

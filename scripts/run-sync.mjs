@@ -146,6 +146,7 @@ async function syncEvents() {
           title: extractText(props["主題名稱"]?.rich_text) || extractTitle(props["協作名稱"]?.title) || "未命名活動",
           theme: extractSelect(props["活動選項"]?.select) || null,
           event_type: extractSelect(props["活動選項"]?.select) || null,
+          event_category: extractSelect(props["交接類型"]?.select) || null,
           event_date: dateInfo.start || null,
           distance_km: extractNumber(props["距離km"]?.number) ?? null,
           price: Number(props["實際總價"]?.formula?.number) || 0,

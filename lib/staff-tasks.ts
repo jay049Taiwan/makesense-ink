@@ -64,7 +64,7 @@ export function extractDB04(page: any): TaskItem {
     executionTime: getDate(p["執行時間"]),
     topicName: getRichText(p["主題名稱"]),
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
-    handoverNote: getRichText(p["交接回覆"]),
+    handoverNote: getRichText(p["交接回覆"]), // TODO: deduplicate — handoverNote 與 handoverReply 讀同一欄位「交接回覆」
     handoverReply: getRichText(p["交接回覆"]),
     taskType: getSelect(p["交接類型"]),
     childRelations: getRelationIds(p["對應明細"]),
@@ -90,7 +90,7 @@ export function extractDB05(page: any): TaskItem {
     deadline: getDate(p["截止時間"]),
     topicName: getRichText(p["主題名稱"]),
     crossSummary: p["跨類摘要"]?.formula?.string || getRichText(p["跨類摘要"]) || "",
-    handoverNote: getRichText(p["交接回覆"]),
+    handoverNote: getRichText(p["交接回覆"]), // TODO: deduplicate — handoverNote 與 handoverReply 讀同一欄位「交接回覆」
     handoverReply: getRichText(p["交接回覆"]),
     checkOption: getSelect(p["點交備項"]),
     attrSummary: p["屬性整合"]?.formula?.string || p["屬性整合"]?.formula?.number?.toString() || "",

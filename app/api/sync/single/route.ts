@@ -123,12 +123,12 @@ function fileUrls(prop: any): string[] {
 /**
  * 狀態映射：
  * 「已發佈」「待發佈」→ active/published（上架）
- * 「無發佈」「不發佈」→ "draft"（下架）
+ * 「不發佈」→ "draft"（下架）
  * 空值（從未設定）→ null（不同步）
  */
 function mapStatus(val: string | null, map: Record<string, string>): string | null {
   if (!val) return null; // 從未設定，不同步
-  if (val === "無發佈" || val === "不發佈") return "draft"; // 下架
+  if (val === "不發佈") return "draft"; // 下架
   return map[val] || "draft";
 }
 
