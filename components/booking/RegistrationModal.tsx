@@ -172,7 +172,7 @@ export default function RegistrationModal({
   const updateAttendee = (idx: number, patch: Partial<Attendee>) => {
     // 若是 attendee[0] 而且正處於同步狀態，手動改內容就解除同步（避免 UX 衝突）
     if (idx === 0 && syncFirst) setSyncFirst(false);
-    setAttendees((prev) => prev.map((a, i) => (i === idx ? { ...a, ...patch } : a)));
+    setAttendees((prev) => prev.map((a, i) => (i === idx ? ({ ...a, ...patch } as Attendee) : a)));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {

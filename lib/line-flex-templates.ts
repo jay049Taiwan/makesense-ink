@@ -1,5 +1,8 @@
-import { FlexMessage, FlexBubble } from "@line/bot-sdk";
+import { messagingApi } from "@line/bot-sdk";
 import { buildLiffUrl } from "./line";
+
+type FlexMessage = messagingApi.FlexMessage;
+type FlexBubble = messagingApi.FlexBubble;
 
 // ═══════════════════════════════════════════
 // 活動卡片
@@ -239,7 +242,7 @@ export function buildOrderConfirmFlex(order: {
   total: number;
   hasEvent: boolean;
 }): FlexMessage {
-  const itemLines = order.items.slice(0, 3).map((item) => ({
+  const itemLines: messagingApi.FlexBox[] = order.items.slice(0, 3).map((item) => ({
     type: "box" as const,
     layout: "horizontal" as const,
     contents: [

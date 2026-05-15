@@ -21,7 +21,7 @@ export async function GET(req: NextRequest) {
   }
 
   // 從 staff 表查 role（用 name 比對；DB08 Email 欄可直接對應，TODO: staff 加 email 欄後改精確查法）
-  const { data: staffRows } = await supabase.from("staff").select("role, name");
+  const { data: staffRows } = await supabase.from("staff").select("role, name, notion_id");
   const myStaff = (staffRows || []).find(s =>
     s.name === (session?.user?.name || "") ||
     s.notion_id === (session as any)?.staffNotionId

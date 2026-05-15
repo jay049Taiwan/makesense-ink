@@ -289,8 +289,8 @@ async function renderChildDatabase(block: any): Promise<string> {
     // 1. 拿 data_source_id（Notion API v5 把 db 跟 data_source 拆開了）
     let dsId: string | null = null;
     try {
-      const dsList: any = await notion.dataSources.list({ database_id: dbId });
-      dsId = dsList.data_sources?.[0]?.id || null;
+      const dbInfo: any = await notion.databases.retrieve({ database_id: dbId });
+      dsId = dbInfo.data_sources?.[0]?.id || null;
     } catch {
       // fallback: 嘗試直接用 dbId 當 data_source_id
       dsId = dbId;

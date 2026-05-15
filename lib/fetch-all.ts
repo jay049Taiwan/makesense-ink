@@ -399,7 +399,7 @@ export async function fetchVendorProfile(email: string): Promise<VendorProfile |
       id: page.id,
       name: extractTitle(props["對象名稱"]?.title),
       email: extractText(props["Email"]?.rich_text),
-      since: extractDate(props["建立時間"]?.date) || page.created_time?.substring(0, 10) || "",
+      since: extractDate(props["建立時間"]?.date).start || page.created_time?.substring(0, 10) || "",
       phone: extractText(props["電話"]?.rich_text) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
     };

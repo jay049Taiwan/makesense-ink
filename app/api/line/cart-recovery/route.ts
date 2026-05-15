@@ -2,7 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 import { lineClient, buildLiffUrl } from "@/lib/line";
 import { checkPushLimit } from "@/lib/line-ratelimit";
-import { FlexBubble, FlexMessage } from "@line/bot-sdk";
+import { messagingApi } from "@line/bot-sdk";
+
+type FlexMessage = messagingApi.FlexMessage;
+type FlexBubble = messagingApi.FlexBubble;
 
 export const dynamic = "force-dynamic";
 

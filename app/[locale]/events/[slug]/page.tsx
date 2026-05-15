@@ -102,6 +102,7 @@ export default function EventPage({
   const [ticketQtys, setTicketQtys] = useState<Record<string, number>>({});
   const [addonQtys, setAddonQtys] = useState<Record<string, number>>({});
   const [added, setAdded] = useState(false);
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     async function load() {
@@ -339,7 +340,7 @@ export default function EventPage({
           <aside className="mx-auto w-full" style={{ maxWidth: 520 }}>
             {(() => {
               // 判斷活動是否已過期
-              const isExpired = event.rawDate ? new Date(event.rawDate).getTime() < Date.now() : false;
+              const isExpired = event.rawDate ? new Date(event.rawDate).getTime() < now : false;
 
               if (isExpired) {
                 return <ExpiredEventPanel eventTitle={event.title} eventSlug={slug} />;
