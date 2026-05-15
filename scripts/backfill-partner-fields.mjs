@@ -179,7 +179,7 @@ async function backfillEvents() {
 // ── DB05 articles → related_partner_ids ──
 async function backfillArticles() {
   console.log("\n[articles] 查詢 DB05...");
-  const pages = await queryAllPages(DB.DB05, { property: "文案選項", select: { equals: "官網內容" } });
+  const pages = await queryAllPages(DB.DB05, { and: [{ property: "文案選項", select: { equals: "網頁社群" } }, { property: "社群細項", select: { equals: "Sense官網" } }] });
   console.log(`  ${pages.length} 筆文章`);
 
   let updated = 0, skipped = 0;

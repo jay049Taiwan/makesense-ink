@@ -19,11 +19,10 @@ export const revalidate = 300;
 const eventCatStyles: Record<string, { bg: string; text: string }> = {
   園遊市集: { bg: "#FFF3E0", text: "#E65100" },
   講座課程: { bg: "#E3F2FD", text: "#1565C0" },
-  工坊手作: { bg: "#FCE4EC", text: "#C62828" },
   陳列展售: { bg: "#E0F2F1", text: "#00695C" },
   文化冊展: { bg: "#F3E5F5", text: "#6A1B9A" },
-  數位活動: { bg: "#FFF8E1", text: "#F57F17" },
-  典禮儀式: { bg: "#E8F5E9", text: "#2E7D32" },
+  導覽走讀: { bg: "#FCE4EC", text: "#C62828" },
+  會議展演: { bg: "#E8F5E9", text: "#2E7D32" },
 };
 
 export default async function CultureClubPage() {

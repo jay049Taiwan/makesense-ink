@@ -511,7 +511,7 @@ async function syncProducts(wb = false, skipImages = false) {
 
 // ── DB04 → events ──
 async function syncEvents(wb = false, skipImages = false) {
-  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作類別", select: { equals: "活動辦理" } });
+  const pages = await queryDatabase(DB.DB04_COLLABORATION, { property: "協作類別", select: { equals: "辦理活動" } });
 
   // 批次反查 relation → persons 名字
   const locIds: string[] = [], guideIds: string[] = [];
@@ -754,7 +754,7 @@ async function syncSpaceBookings() {
 
 // ── DB05 → articles ──
 async function syncArticles(wb = false, skipImages = false) {
-  const pages = await queryDatabase(DB.DB05_REGISTRATION, { property: "文案選項", select: { equals: "官網內容" } });
+  const pages = await queryDatabase(DB.DB05_REGISTRATION, { and: [{ property: "文案選項", select: { equals: "網頁社群" } }, { property: "社群細項", select: { equals: "Sense官網" } }] });
 
   const eIds: string[] = [];
   const pIds: string[] = [];

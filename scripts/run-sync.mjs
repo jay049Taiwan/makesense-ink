@@ -181,7 +181,7 @@ async function syncArticles() {
 
   let totalUpserted = 0, totalErrors = 0;
 
-  const total = await queryAndProcess(DB.DB05, { property: "文案選項", select: { equals: "官網內容" } },
+  const total = await queryAndProcess(DB.DB05, { and: [{ property: "文案選項", select: { equals: "網頁社群" } }, { property: "社群細項", select: { equals: "Sense官網" } }] },
     async (pages) => {
       const rows = pages.map(page => {
         const props = p(page);

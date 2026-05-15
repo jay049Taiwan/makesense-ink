@@ -306,7 +306,7 @@ async function syncSingleEvent(nid: string, props: any) {
     guide: guideName,
     related_partner_ids: relatedPartnerIds.length > 0 ? relatedPartnerIds : null,
     event_category: sel(props["交接類型"]) || null,   // 專案協作 / 庫存門市
-    collab_type:    sel(props["協作類別"]) || null,   // 活動辦理 / 內容製作
+    collab_type:    sel(props["協作類別"]) || null,   // 辦理活動 / 製作內容
     // owner_staff_notion_id：DB04「責任執行」第一位（用於工作台「個人營收」歸屬）
     owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
@@ -323,6 +323,7 @@ async function syncSingleDB05(nid: string, props: any) {
   const formType = sel(props["內容類型"]);
   const stockAction = sel(props["庫存選項"]);  // 進貨 / 出貨 / 盤點
   const copyDetail = sel(props["文案選項"]);
+  const socialDetail = sel(props["社群細項"]);
   const registerCategory = sel(props["登記類別"]);
   const registerOption = sel(props["報名選項"]);  // 活動 / 空間 / 意見
 
@@ -338,13 +339,13 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncSingleReservation(nid, props);
   }
 
-  // 官網文章：文案選項=官網內容
-  if (copyDetail === "官網內容") {
+  // 官網文章：文案選項=網頁社群 + 社群細項=Sense官網
+  if (copyDetail === "網頁社群" && socialDetail === "Sense官網") {
     return await syncSingleArticle(nid, props);
   }
 
   // 其他類型不同步為文章
-  return { table: "db05", note: `非官網內容（登記類別=${registerCategory}, 報名選項=${registerOption}, 內容類型=${formType}, 文案選項=${copyDetail}），跳過`, nid, skipped: true };
+  return { table: "db05", note: `非官網文章（登記類別=${registerCategory}, 報名選項=${registerOption}, 內容類型=${formType}, 文案選項=${copyDetail}, 社群細項=${socialDetail}），跳過`, nid, skipped: true };
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知

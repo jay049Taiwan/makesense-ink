@@ -49,8 +49,8 @@ async function main() {
     query(DB07, { property: "庫存售價", number: { greater_than: 0 } }, [{ property: "更新時間", direction: "descending" }]),
     // 活動：有活動選項的
     query(DB04, { property: "活動選項", select: { is_not_empty: true } }, [{ property: "執行時間", direction: "descending" }]),
-    // 文章：文案選項 = 官網內容
-    query(DB05, { property: "文案選項", select: { equals: "官網內容" } }, [{ property: "建立時間", direction: "descending" }]),
+    // 文章：文案選項=網頁社群 + 社群細項=Sense官網
+    query(DB05, { and: [{ property: "文案選項", select: { equals: "網頁社群" } }, { property: "社群細項", select: { equals: "Sense官網" } }] }, [{ property: "建立時間", direction: "descending" }]),
     // 觀點與標籤：經營類型 IN (觀點, 標籤)（DB08，2026/04/22 新 select 選項，取代舊「主題標籤」）
     query(DB08, {
       or: [

@@ -110,13 +110,13 @@ export default function PartnerPage() {
       }
 
       if (notionId) {
-        // ── 合作活動（交接類型=專案協作 + 協作類別=活動辦理 + 含此廠商）──
+        // ── 合作活動（交接類型=專案協作 + 協作類別=辦理活動 + 含此廠商）──
         const { data: evts } = await supabase
           .from("events")
           .select("id, notion_id, title, event_date, theme, capacity, status")
           .contains("related_partner_ids", [notionId])
           .eq("event_category", "專案協作")
-          .eq("collab_type", "活動辦理")
+          .eq("collab_type", "辦理活動")
           .order("event_date", { ascending: false })
           .limit(50);
 

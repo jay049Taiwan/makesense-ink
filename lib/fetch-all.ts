@@ -121,7 +121,8 @@ export async function fetchArticles(limit = 10): Promise<Registration[]> {
       DB.DB05_REGISTRATION,
       {
         and: [
-          { property: "文案選項", select: { equals: "官網內容" } },
+          { property: "文案選項", select: { equals: "網頁社群" } },
+          { property: "社群細項", select: { equals: "Sense官網" } },
         ],
       },
       [{ property: "建立時間", direction: "descending" as const }],
