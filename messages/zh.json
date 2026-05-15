@@ -114,10 +114,10 @@
     "eventTypes": {
       "walkingTour": "導覽走讀",
       "lecture": "講座課程",
-      "workshop": "工坊手作",
       "market": "園遊市集",
-      "exhibition": "展覽策展",
-      "screening": "放映分享",
+      "exhibition": "陳列展售",
+      "bookFair": "文化冊展",
+      "conference": "會議展演",
       "other": "其他活動"
     }
   },
