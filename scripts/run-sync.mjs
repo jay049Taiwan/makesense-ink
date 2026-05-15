@@ -156,7 +156,7 @@ async function syncEvents() {
           description: extractText(props["簡介摘要"]?.rich_text) || null,
           location: locationName,
           guide: guideName,
-          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "inactive" }),
+          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "draft" }),
         };
       });
 

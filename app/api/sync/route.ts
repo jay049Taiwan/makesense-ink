@@ -492,7 +492,7 @@ async function syncProducts(wb = false, skipImages = false) {
     };
   });
 
-  // 過濾掉無發佈狀態的（不送到 Supabase）
+  // 過濾掉未設發佈狀態的（不送到 Supabase）
   const validRows = rows.filter(r => r.status !== null);
   console.log(`[sync] products: ${rows.length} total, ${validRows.length} with publish status`);
 
