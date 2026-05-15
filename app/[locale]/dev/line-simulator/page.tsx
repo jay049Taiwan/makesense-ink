@@ -37,6 +37,11 @@ export default function LineSimulatorPage() {
   const [source, setSource] = useState("liff_mode=true");
   const iframeRef = useRef<HTMLIFrameElement>(null);
 
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(null), 1800);
+  };
+
   // 監聽 iframe 的 postMessage（購物車更新）
   useEffect(() => {
     const handler = (e: MessageEvent) => {
@@ -51,11 +56,6 @@ export default function LineSimulatorPage() {
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
   }, []);
-
-  const showToast = (msg: string) => {
-    setToast(msg);
-    setTimeout(() => setToast(null), 1800);
-  };
 
   const openPage = (btn: typeof MENU_BUTTONS[0]) => {
     if (btn.path) {
