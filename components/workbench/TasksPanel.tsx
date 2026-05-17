@@ -42,7 +42,7 @@ type DB06Item = {
   title: string;
   aiMode: string;   // ai模式 select：1.構想/2.搜查/.../7.檢核
   aiStatus: string; // ai狀態 status：待執行/無執行/完成
-  aiNote: string;   // ai備註 rich_text（唯讀）
+  aiNote: string;   // 分析備註 rich_text（唯讀）
 };
 
 // ── 設計 token ────────────────────────────────────────
@@ -780,7 +780,7 @@ function DB06Row({ item, onPatch }: { item: DB06Item; onPatch: (id: string, patc
         )}
       </div>
 
-      {/* ai備註（唯讀） */}
+      {/* 分析備註（唯讀） */}
       {item.aiNote && (
         <div className="text-[11px] px-2 py-1 rounded" style={{ background: "#eaf5ea", color: "#3a6a3a", whiteSpace: "pre-wrap" }}>
           {item.aiNote}
