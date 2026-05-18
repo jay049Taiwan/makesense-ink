@@ -7,6 +7,10 @@ export const dynamic = "force-dynamic";
 /**
  * POST /api/line-pay/reserve
  * 建立 LINE Pay 付款請求
+ *
+ * Security:
+ * - amount 從 DB 讀取（不接受 client 傳入），防止用戶竄改付款金額
+ * - 已 confirmed 的訂單不允許再次發起付款
  */
 export async function POST(req: NextRequest) {
   if (!isLinePayConfigured()) {
@@ -17,10 +21,33 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const { orderId, amount, productName } = await req.json();
+    // 只接受 orderId 和 productName，amount 不從 client 取
+    const { orderId, productName } = await req.json();
 
-    if (!orderId || !amount) {
-      return NextResponse.json({ error: "Missing orderId or amount" }, { status: 400 });
+    if (!orderId) {
+      return NextResponse.json({ error: "Missing orderId" }, { status: 400 });
+    }
+
+    // 從 DB 取得真實訂單金額（防止 client 竄改 amount）
+    const { data: order } = await supabase
+      .from("orders")
+      .select("id, total, status")
+      .eq("id", orderId)
+      .single();
+
+    if (!order) {
+      return NextResponse.json({ error: "訂單不存在" }, { status: 404 });
+    }
+
+    // 已付款完成的訂單不允許再次發起付款（防止重複扣款）
+    if (order.status === "confirmed") {
+      return NextResponse.json({ error: "此訂單已付款完成" }, { status: 409 });
+    }
+
+    // 使用 DB 真實金額
+    const amount = Number(order.total);
+    if (!amount || amount <= 0) {
+      return NextResponse.json({ error: "訂單金額無效" }, { status: 400 });
     }
 
     const origin = req.nextUrl.origin;
