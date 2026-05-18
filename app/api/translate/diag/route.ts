@@ -1,11 +1,14 @@
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/app/api/staff/_guard";
 
 /**
  * GET /api/translate/diag
- * 診斷 ANTHROPIC_API_KEY 設定與 Anthropic API 連線狀態
+ * 診斷 ANTHROPIC_API_KEY 設定與 Anthropic API 連線狀態（僅 L2 工作人員）
  * 不會寫資料；只拿一句話打 Haiku，把回傳/錯誤直接吐出來。
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
   const key = process.env.ANTHROPIC_API_KEY;
 
   if (!key) {

@@ -15,6 +15,13 @@ export const maxDuration = 300; // Vercel timeout 5 min
  *   ?skip-images=true — 跳過 R2 圖片上傳（純資料補寫，避免 Vercel 5 min timeout）
  */
 export async function POST(req: NextRequest) {
+  // CRON_SECRET 保護：未設定或 token 不符一律拒絕
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const doWriteback = req.nextUrl.searchParams.get("writeback") === "true";
   const skipImages = req.nextUrl.searchParams.get("skip-images") === "true";
   const tablesParam = req.nextUrl.searchParams.get("tables");

@@ -24,12 +24,18 @@ export async function GET(req: NextRequest) {
     // 查訂單金額
     const { data: order } = await supabase
       .from("orders")
-      .select("id, total, status")
+      .select("id, total, status, payment_transaction_id")
       .eq("id", orderId)
       .single();
 
     if (!order) {
       return NextResponse.redirect(new URL("/checkout?error=order_not_found", req.url));
+    }
+
+    // 驗證 transactionId 與訂單的綁定關係（防止用別人的 transactionId 確認不屬於他的訂單）
+    if (order.payment_transaction_id && order.payment_transaction_id !== transactionId) {
+      console.warn(`[line-pay/confirm] transactionId mismatch — orderId=${orderId} stored=${order.payment_transaction_id} got=${transactionId}`);
+      return NextResponse.redirect(new URL("/checkout?error=invalid_transaction", req.url));
     }
 
     // 確認付款

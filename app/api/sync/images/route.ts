@@ -14,6 +14,12 @@ const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || "").replace(/\/$/, "");
  *   ?limit=20       (每次處理幾筆)
  */
 export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const table = req.nextUrl.searchParams.get("table") || "events";
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "20");
 

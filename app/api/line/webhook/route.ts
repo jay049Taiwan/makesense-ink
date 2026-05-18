@@ -34,15 +34,7 @@ export async function POST(req: NextRequest) {
       template: "error",
       payload: { signature, body_preview: rawBody.slice(0, 200) },
     });
-    return NextResponse.json({
-      error: "Invalid signature",
-      _debug: {
-        hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
-        hasAnonKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-        hasUrl: !!process.env.NEXT_PUBLIC_SUPABASE_URL,
-        insertError: ins1.error?.message || null,
-      },
-    }, { status: 401 });
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
   }
 
   // 3. Bot 暫停開關（true = 不回應任何訊息，LINE 仍收到 200）

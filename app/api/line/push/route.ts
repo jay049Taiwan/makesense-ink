@@ -18,7 +18,8 @@ export async function POST(req: NextRequest) {
   // 驗證 token
   const authHeader = req.headers.get("authorization");
   const secret = process.env.WEBHOOK_SECRET;
-  if (secret && authHeader !== `Bearer ${secret}`) {
+  // secret 未設定時也拒絕，避免環境變數漏設時直接放行
+  if (!secret || authHeader !== `Bearer ${secret}`) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

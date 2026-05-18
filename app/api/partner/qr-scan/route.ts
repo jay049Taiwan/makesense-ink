@@ -23,6 +23,27 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === "confirm") {
+      // 若有提供 partnerNotionId，先驗證此訂單確實包含該廠商的商品（與 lookup 一致）
+      if (partnerNotionId) {
+        const { data: items } = await supabase
+          .from("order_items")
+          .select("item_id")
+          .eq("order_id", orderId)
+          .eq("item_type", "product");
+        const prodIds = (items || []).map((i: any) => i.item_id).filter(Boolean);
+        if (prodIds.length === 0) {
+          return NextResponse.json({ ok: false, error: "此訂單無商品明細" }, { status: 403 });
+        }
+        const { data: prods } = await supabase
+          .from("products")
+          .select("id, publisher_notion_id")
+          .in("id", prodIds);
+        const hasMyItem = (prods || []).some((p: any) => p.publisher_notion_id === partnerNotionId);
+        if (!hasMyItem) {
+          return NextResponse.json({ ok: false, error: "此訂單不包含你的商品" }, { status: 403 });
+        }
+      }
+
       const { error } = await supabase
         .from("orders")
         .update({ checkin_status: "checked_in" })

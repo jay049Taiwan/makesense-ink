@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { reservePayment, isLinePayConfigured } from "@/lib/line-pay";
+import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 export const dynamic = "force-dynamic";
 
@@ -32,6 +33,12 @@ export async function POST(req: NextRequest) {
     });
 
     if (result.returnCode === "0000") {
+      // 把 transactionId 存到 orders，confirm 時用來驗證綁定（防 IDOR）
+      await supabase
+        .from("orders")
+        .update({ payment_transaction_id: String(result.info.transactionId) })
+        .eq("id", orderId);
+
       return NextResponse.json({
         paymentUrl: result.info.paymentUrl.web,
         appPaymentUrl: result.info.paymentUrl.app,

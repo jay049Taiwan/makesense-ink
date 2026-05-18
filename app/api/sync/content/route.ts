@@ -13,6 +13,12 @@ export const maxDuration = 300; // 5 min
  *   ?force=true      (強制重抓已有 content 的)
  */
 export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   const table = req.nextUrl.searchParams.get("table") || "articles";
   const limit = parseInt(req.nextUrl.searchParams.get("limit") || "50");
   const force = req.nextUrl.searchParams.get("force") === "true";
