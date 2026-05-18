@@ -15,6 +15,12 @@ export const maxDuration = 300; // Pro 方案最大 5 分鐘
  * 或 query: ?pageId=xxx&db=DB07
  */
 export async function POST(req: NextRequest) {
+  const cronSecret = process.env.CRON_SECRET;
+  const authHeader = req.headers.get("authorization");
+  if (!cronSecret || authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     // 支援 JSON body 或 query params
     let pageId: string | null = null;
