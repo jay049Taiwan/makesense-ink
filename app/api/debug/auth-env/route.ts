@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
+import { requireStaff } from "@/app/api/staff/_guard";
 
 /**
  * /api/debug/auth-env — 臨時診斷 endpoint，確認 Vercel 環境變數有正確設定。
- * 不會回傳實際值，只回傳「有沒有設」。
+ * 不會回傳實際值，只回傳「有沒有設」。僅限 L2 工作人員。
  */
-export async function GET() {
+export async function GET(req: Request) {
+  const guard = await requireStaff(req);
+  if ("error" in guard) return guard.error;
   const keys = [
     "AUTH_SECRET",
     "NEXTAUTH_SECRET",

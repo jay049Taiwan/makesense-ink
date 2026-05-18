@@ -41,7 +41,7 @@ export function verifyWebhookSignature(body: string, signature: string): boolean
 }
 
 /** LIFF base URL */
-const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || "2009300819-5OyjRae6";
+const LIFF_ID = process.env.NEXT_PUBLIC_LIFF_ID || "";
 export const LIFF_BASE_URL = `https://liff.line.me/${LIFF_ID}`;
 
 /** 產生 LIFF 連結（帶 liff_mode 參數） */

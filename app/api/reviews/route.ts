@@ -1,19 +1,48 @@
 import { NextRequest, NextResponse } from "next/server";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
+import { auth } from "@/lib/auth";
+import { normalizeEmail } from "@/lib/email";
 
 /**
- * POST /api/reviews — 建立評價
+ * POST /api/reviews — 建立評價（需登入，只能對自己的訂單明細評價）
  */
 export async function POST(req: NextRequest) {
-  try {
-    const { orderItemId, memberId, rating, comment } = await req.json();
+  // 驗證登入
+  const session = await auth();
+  if (!session?.user?.email) {
+    return NextResponse.json({ error: "未登入" }, { status: 401 });
+  }
 
-    if (!orderItemId || !memberId || !rating) {
+  try {
+    const { orderItemId, rating, comment } = await req.json();
+
+    if (!orderItemId || !rating) {
       return NextResponse.json({ error: "缺少必要欄位" }, { status: 400 });
     }
 
     if (rating < 1 || rating > 5) {
       return NextResponse.json({ error: "評分需為 1-5" }, { status: 400 });
+    }
+
+    // 從 session 取 memberId（不信任 client 傳入的 memberId）
+    const { data: member } = await supabase
+      .from("members")
+      .select("id")
+      .eq("email", normalizeEmail(session.user.email) || "")
+      .maybeSingle();
+    if (!member) {
+      return NextResponse.json({ error: "找不到會員資料" }, { status: 404 });
+    }
+    const memberId = member.id;
+
+    // 驗證 orderItemId 確實屬於此會員（防 IDOR）
+    const { data: orderItem } = await supabase
+      .from("order_items")
+      .select("id, order_id, orders!inner(member_id)")
+      .eq("id", orderItemId)
+      .maybeSingle();
+    if (!orderItem || (orderItem.orders as any)?.member_id !== memberId) {
+      return NextResponse.json({ error: "無法對此商品評價" }, { status: 403 });
     }
 
     const { data, error } = await supabase

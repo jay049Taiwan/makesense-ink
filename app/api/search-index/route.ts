@@ -11,10 +11,12 @@ export const dynamic = "force-dynamic";
  * 搜尋範圍：title + description/summary，相關性排序（標題符合 > 內文符合）
  */
 export async function GET(req: NextRequest) {
-  const q = req.nextUrl.searchParams.get("q")?.trim();
-  if (!q || q.length < 1) {
+  const raw = req.nextUrl.searchParams.get("q")?.trim();
+  if (!raw || raw.length < 1) {
     return NextResponse.json({ products: [], events: [], articles: [], topics: [] });
   }
+  // 限制最大長度（防止超長字串寫入 DB / 造成 LIKE 效能問題）
+  const q = raw.slice(0, 100);
 
   const like = `%${q}%`;
 

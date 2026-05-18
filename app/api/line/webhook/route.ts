@@ -17,25 +17,19 @@ export async function POST(req: NextRequest) {
   const rawBody = await req.text();
   const signature = req.headers.get("x-line-signature") || "";
 
-  // 先記錄收到的 webhook（簽章驗證前，方便除錯）
+  // 1. 先驗簽名，防止垃圾請求在驗證前就汙染 DB
+  if (!verifyWebhookSignature(rawBody, signature)) {
+    console.warn("[line/webhook] Invalid signature");
+    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
+  }
+
+  // 2. 簽名通過才記錄（減少垃圾資料寫入）
   const ins1 = await supabase.from("line_message_log").insert({
     user_id: "webhook_entry",
     message_type: "webhook_received",
-    template: signature ? "with_signature" : "no_signature",
-    payload: { body_length: rawBody.length, has_signature: !!signature, body_preview: rawBody.slice(0, 200) },
+    template: "with_signature",
+    payload: { body_length: rawBody.length, body_preview: rawBody.slice(0, 200) },
   });
-
-  // 2. 驗證簽名
-  if (!verifyWebhookSignature(rawBody, signature)) {
-    console.warn("[line/webhook] Invalid signature");
-    await supabase.from("line_message_log").insert({
-      user_id: "webhook_entry",
-      message_type: "webhook_invalid_sig",
-      template: "error",
-      payload: { signature, body_preview: rawBody.slice(0, 200) },
-    });
-    return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
-  }
 
   // 3. Bot 暫停開關（true = 不回應任何訊息，LINE 仍收到 200）
   const BOT_DISABLED = true;

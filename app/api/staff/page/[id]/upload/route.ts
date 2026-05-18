@@ -1,7 +1,17 @@
 import { NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
+import nodePath from "path";
 import { requireStaff } from "../../../_guard";
 import { supabaseAdmin } from "@/lib/supabase";
+
+// 允許的副檔名白名單（防止上傳可執行檔或危險格式）
+const ALLOWED_EXTENSIONS = new Set([
+  ".jpg", ".jpeg", ".png", ".gif", ".webp", ".avif", ".svg",
+  ".mp4", ".mov", ".avi", ".webm",
+  ".mp3", ".wav", ".m4a", ".ogg",
+  ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+  ".txt", ".csv", ".zip",
+]);
 
 const notion = new Client({ auth: process.env.NOTION_API_KEY });
 
@@ -26,6 +36,12 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
   }
   if (file.size > MAX_BYTES) {
     return NextResponse.json({ error: `檔案超過 ${MAX_BYTES / 1024 / 1024} MB 上限` }, { status: 413 });
+  }
+
+  // 副檔名白名單驗證
+  const ext = nodePath.extname(file.name || "").toLowerCase();
+  if (!ALLOWED_EXTENSIONS.has(ext)) {
+    return NextResponse.json({ error: `不支援此檔案格式（${ext || "無副檔名"}）` }, { status: 400 });
   }
 
   // 1. 上傳到 Supabase Storage

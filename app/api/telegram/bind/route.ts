@@ -7,6 +7,13 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
  * body: { email: string, telegramUid: string }
  */
 export async function POST(req: NextRequest) {
+  // 伺服器對伺服器端點，使用 WEBHOOK_SECRET 保護（Telegram bot 須帶 Bearer token）
+  const secret = process.env.WEBHOOK_SECRET;
+  const authHeader = req.headers.get("authorization");
+  if (!secret || authHeader !== `Bearer ${secret}`) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
     const { email, telegramUid } = await req.json();
 
