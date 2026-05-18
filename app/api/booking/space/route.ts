@@ -3,7 +3,33 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPage, DB } from "@/lib/notion";
 import { supabaseAdmin as supabase } from "@/lib/supabase";
 
+/** 每個 IP 每 10 分鐘最多 3 次預約（防垃圾表單）*/
+const BOOKING_LIMIT = 3;
+const WINDOW_MS = 10 * 60 * 1000;
+
+async function checkSpaceBookingRateLimit(ip: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - WINDOW_MS);
+  try {
+    const { count } = await supabase
+      .from("line_message_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", `ip:${ip}`)
+      .eq("message_type", "booking_space")
+      .gte("created_at", windowStart.toISOString());
+    return (count || 0) < BOOKING_LIMIT;
+  } catch {
+    return true; // 查不到時放行，不阻斷服務
+  }
+}
+
 export async function POST(request: NextRequest) {
+  // IP rate limiting
+  const ip = request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const allowed = await checkSpaceBookingRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json({ error: "請求太頻繁，請稍後再試" }, { status: 429 });
+  }
+
   try {
     const body = await request.json() as Record<string, any>;
 
@@ -25,6 +51,13 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // 記錄此次預約（供 rate limit 計數，fire-and-forget）
+    void supabase.from("line_message_log").insert({
+      user_id: `ip:${ip}`,
+      message_type: "booking_space",
+      template: "space_form",
+    });
 
     // Create entry in Notion DB05
     const page = await createPage(DB.DB05_REGISTRATION, {

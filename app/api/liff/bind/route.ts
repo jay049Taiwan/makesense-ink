@@ -3,15 +3,27 @@ import { supabaseAdmin as supabase } from "@/lib/supabase";
 
 /**
  * POST /api/liff/bind
- * Body: { lineUid: string, email: string }
- * Binds a LINE user to an existing member by email
+ * Body: { accessToken: string, email: string }
+ * Verifies LINE access token → binds confirmed lineUid to an existing member by email
+ *
+ * Security: lineUid is derived server-side from LINE API, cannot be spoofed by client.
  */
 export async function POST(req: NextRequest) {
   try {
-    const { lineUid, email } = await req.json();
-    if (!lineUid || !email) {
-      return NextResponse.json({ success: false, message: "缺少 lineUid 或 email" }, { status: 400 });
+    const { accessToken, email } = await req.json();
+    if (!accessToken || !email) {
+      return NextResponse.json({ success: false, message: "缺少 accessToken 或 email" }, { status: 400 });
     }
+
+    // Verify LINE access token → get real lineUid from LINE (cannot be faked)
+    const profileRes = await fetch("https://api.line.me/v2/profile", {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    if (!profileRes.ok) {
+      return NextResponse.json({ success: false, message: "LINE token 無效" }, { status: 401 });
+    }
+    const profile = await profileRes.json();
+    const lineUid: string = profile.userId;
 
     // Check if LINE UID already bound
     const { data: existing } = await supabase
@@ -28,7 +40,7 @@ export async function POST(req: NextRequest) {
     const { data: member } = await supabase
       .from("members")
       .select("id")
-      .eq("email", email)
+      .eq("email", email.toLowerCase().trim())
       .maybeSingle();
 
     if (!member) {

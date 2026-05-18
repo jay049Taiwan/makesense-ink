@@ -10,6 +10,24 @@ function t(prop: any): string { return prop?.title?.[0]?.plain_text || prop?.tit
 function tx(prop: any): string { return prop?.rich_text?.map((x: any) => x.plain_text).join("") || ""; }
 function rel(prop: any): string[] { return (prop?.relation || []).map((r: any) => r.id); }
 
+/** 每個 IP 每分鐘最多 5 筆預購（防垃圾單騷擾攤商）*/
+const PREORDER_LIMIT = 5;
+
+async function checkPreorderRateLimit(ip: string): Promise<boolean> {
+  const oneMinAgo = new Date(Date.now() - 60 * 1000);
+  try {
+    const { count } = await supabaseAdmin
+      .from("line_message_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", `ip:${ip}`)
+      .eq("message_type", "preorder_public")
+      .gte("created_at", oneMinAgo.toISOString());
+    return (count || 0) < PREORDER_LIMIT;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * POST /api/buy/preorder
  *
@@ -28,6 +46,13 @@ function rel(prop: any): string[] { return (prop?.relation || []).map((r: any) =
  * }
  */
 export async function POST(req: NextRequest) {
+  // IP rate limiting（防止垃圾單騷擾攤商）
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+  const allowed = await checkPreorderRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json({ error: "請求太頻繁，請稍後再試" }, { status: 429 });
+  }
+
   try {
     const body = await req.json();
     const { vendorDb05Id, contact, items } = body;
@@ -35,6 +60,28 @@ export async function POST(req: NextRequest) {
     if (!vendorDb05Id || !contact?.name || !contact?.phone || !Array.isArray(items) || items.length === 0) {
       return NextResponse.json({ error: "缺少必要欄位" }, { status: 400 });
     }
+
+    // 基本 item 合理性驗證（防垃圾資料）
+    if (items.length > 20) {
+      return NextResponse.json({ error: "單筆預購最多 20 個品項" }, { status: 400 });
+    }
+    for (const it of items) {
+      const price = Number(it.price);
+      const qty = Number(it.qty);
+      if (!isFinite(price) || price < 0) {
+        return NextResponse.json({ error: "品項價格無效" }, { status: 400 });
+      }
+      if (!isFinite(qty) || qty < 1 || qty > 99) {
+        return NextResponse.json({ error: "品項數量需介於 1～99" }, { status: 400 });
+      }
+    }
+
+    // 記錄（供 rate limit 計數，fire-and-forget）
+    void supabaseAdmin.from("line_message_log").insert({
+      user_id: `ip:${ip}`,
+      message_type: "preorder_public",
+      template: "vendor_preorder",
+    });
 
     // 從 Notion 取攤商 + 市集資訊（僅讀，不寫）
     const vendorPage: any = await getPage(vendorDb05Id.replace(/-/g, ""));
