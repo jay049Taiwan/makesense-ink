@@ -13,6 +13,7 @@ import { Suspense } from "react";
 import { GoogleAnalytics } from "@next/third-parties/google";
 import Script from "next/script";
 import PageViewTracker from "@/components/tracking/PageViewTracker";
+import CookieBanner from "@/components/CookieBanner";
 import type { Metadata } from "next";
 
 type Props = {
@@ -131,6 +132,20 @@ export default async function LocaleLayout({ children, params }: Props) {
             </CartProvider>
           </AuthProvider>
         </NextIntlClientProvider>
+        {/* GA Consent Mode v2：預設拒絕追蹤，使用者同意後再 update */}
+        <Script id="ga-consent-default" strategy="beforeInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('consent', 'default', {
+              analytics_storage: 'denied',
+              ad_storage: 'denied',
+              ad_user_data: 'denied',
+              ad_personalization: 'denied',
+              wait_for_update: 500
+            });
+          `}
+        </Script>
         <GoogleAnalytics gaId="G-51MHE2BT74" />
         <Script id="ga4-cross-domain" strategy="afterInteractive">
           {`
@@ -150,6 +165,7 @@ export default async function LocaleLayout({ children, params }: Props) {
             });
           `}
         </Script>
+        <CookieBanner />
       </body>
     </html>
   );

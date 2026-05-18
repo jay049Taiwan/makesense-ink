@@ -264,7 +264,7 @@ function MemberOverview() {
     categoryCount[p.category] = (categoryCount[p.category] || 0) + p.qty;
     if (p.author !== "—") authorCount[p.author] = (authorCount[p.author] || 0) + p.qty;
     if (p.publisher !== "—") publisherCount[p.publisher] = (publisherCount[p.publisher] || 0) + p.qty;
-    p.topics.forEach((t) => { topicCount[t] = (topicCount[t] || 0) + p.qty; });
+    p.topics.forEach((t: string) => { topicCount[t] = (topicCount[t] || 0) + p.qty; });
   });
   const totalQty = purchases.reduce((s, p) => s + p.qty, 0);
   const ratedCount = purchases.filter((p) => p.rating > 0 || submitted[p.id]).length;
@@ -739,16 +739,22 @@ function DonutChart({ data, colors }: { data: Record<string, number>; colors: st
   const stroke = 28;
   const radius = (size - stroke) / 2;
   const circumference = 2 * Math.PI * radius;
-  let offset = 0;
+
+  // 預先累加各段的起始偏移，避免在 render 期間 mutate 變數
+  const segments = entries.map(([label, value], idx) => {
+    const pct = value / total;
+    const startOffset = entries
+      .slice(0, idx)
+      .reduce((s, [, v]) => s + v / total, 0);
+    return { label, value, pct, startOffset };
+  });
 
   return (
     <div className="flex flex-col items-center gap-3">
       <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {entries.map(([label, value], i) => {
-          const pct = value / total;
+        {segments.map(({ label, pct, startOffset }, i) => {
           const dashArray = `${circumference * pct} ${circumference * (1 - pct)}`;
-          const dashOffset = -circumference * offset;
-          offset += pct;
+          const dashOffset = -circumference * startOffset;
           return (
             <circle
               key={label}

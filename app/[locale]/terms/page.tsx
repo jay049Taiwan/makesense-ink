@@ -13,7 +13,7 @@ export default function TermsPage() {
         服務條款、退換貨政策與隱私政策
       </h1>
       <p className="text-sm mb-8" style={{ color: "var(--color-mist)" }}>
-        最後更新日期：2026 年 4 月 1 日
+        最後更新日期：2026 年 5 月 19 日
       </p>
 
       <div className="text-[0.9em] leading-[1.8] space-y-6" style={{ color: "var(--color-ink)" }}>
@@ -104,7 +104,7 @@ export default function TermsPage() {
             隱私政策
           </h2>
           <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
-            最後更新日期：2026 年 4 月 1 日
+            最後更新日期：2026 年 5 月 19 日
           </p>
         </div>
 
@@ -119,8 +119,13 @@ export default function TermsPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>三、Cookie 使用</h2>
-          <p>本網站使用 Cookie 以提升您的瀏覽體驗。您可透過瀏覽器設定拒絕 Cookie，但部分功能可能因此受到限制。</p>
+          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>三、Cookie 與分析工具</h2>
+          <p>本網站使用以下 Cookie：</p>
+          <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
+            <li><strong>必要 Cookie</strong>（無需同意）：登入狀態維持（NextAuth session）、購物車資料、LINE LIFF 登入——這些是網站正常運作所必須的。</li>
+            <li><strong>分析 Cookie</strong>（可選擇拒絕）：本網站使用 Google Analytics（GA4）分析訪客流量，以改善使用體驗。GA 會記錄頁面瀏覽、停留時間等匿名統計資料，不會取得您的個人身份。</li>
+          </ul>
+          <p className="mt-2">首次造訪時，網站底部會出現 Cookie 同意橫幅，您可以選擇接受或拒絕分析 Cookie。選擇後可隨時清除瀏覽器的 LocalStorage（鍵值：<code className="text-xs bg-[#f0ebe3] px-1 py-0.5 rounded">cookie_consent</code>）以重置偏好設定。</p>
         </section>
 
         <section>

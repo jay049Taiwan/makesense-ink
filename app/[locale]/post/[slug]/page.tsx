@@ -154,7 +154,7 @@ export default async function PostPage({ params }: { params: Promise<{ slug: str
               className="text-[0.95em] leading-[1.8] mb-8"
               style={{ color: "var(--color-ink)" }}
             >
-              {article.summary.split("\n").map((line, i) => (
+              {article.summary.split("\n").map((line: string, i: number) => (
                 <p key={i} className="mb-3">{line}</p>
               ))}
             </div>

@@ -54,8 +54,9 @@ export async function POST(req: NextRequest) {
 
     const translatedIds = new Set((translated || []).map((t) => t.row_id));
 
-    const { data: rows } = await query;
-    const untranslated = (rows || []).filter((r) => !translatedIds.has(r.id));
+    const { data } = await query;
+    const rows = (data as ({ id: string } & Record<string, string | null>)[] | null) || [];
+    const untranslated = rows.filter((r) => !translatedIds.has(r.id));
 
     if (untranslated.length === 0) {
       return NextResponse.json({ success: true, message: "All rows already translated", translated: 0, errors: 0 });
@@ -71,8 +72,9 @@ export async function POST(req: NextRequest) {
   }
 
   // 強制翻譯
-  const { data: rows } = await query;
-  if (!rows || rows.length === 0) {
+  const { data } = await query;
+  const rows = (data as ({ id: string } & Record<string, string | null>)[] | null) || [];
+  if (rows.length === 0) {
     return NextResponse.json({ success: true, message: "No rows found", translated: 0, errors: 0 });
   }
 

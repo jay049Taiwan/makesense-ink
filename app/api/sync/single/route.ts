@@ -355,7 +355,7 @@ async function syncSingleDB05(nid: string, props: any) {
 }
 
 // 市集報名等沒有 Supabase order 的預約 → 靠 DB05 登記信箱找 LINE UID 推通知
-async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStatus: string, result: "accepted" | "rejected") {
+async function pushMarketAdmissionByEmail(nid: string, props: any, admissionStatus: string | null, result: "accepted" | "rejected") {
   const { lineClient } = await import("@/lib/line");
   const emailRaw = tx(props["登記信箱"]) || "";
   const email = emailRaw.trim().toLowerCase();
@@ -1031,11 +1031,12 @@ async function triggerTranslation(table: string, notionId: string, syncResult: a
   if (!fields) return;
 
   // 查 Supabase 取得 UUID 和欄位值
-  const { data: row } = await supabase
+  const { data } = await supabase
     .from(table)
     .select(`id, ${fields.join(", ")}`)
     .eq("notion_id", notionId)
     .maybeSingle();
+  const row = data as ({ id: string } & Record<string, string | null>) | null;
 
   if (!row) return;
 

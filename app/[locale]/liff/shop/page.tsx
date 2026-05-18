@@ -192,7 +192,7 @@ export default function LiffShopPage() {
       if (filtered1.length < 4) {
         const { data: fallback } = await supabase
           .from("products")
-          .select("id, notion_id, name, price, images, author_id")
+          .select("id, notion_id, name, price, images, author_id, category, description")
           .eq("status", "active")
           .gt("stock", 0)
           .or(catOrClause)
