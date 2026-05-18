@@ -48,13 +48,13 @@ async function resolveEvent(input: string) {
   const normalized = normalizeNotionId(input);
   const byNotion = await supabase
     .from("events")
-    .select("id, notion_id, title")
+    .select("id, notion_id, title, price")
     .eq("notion_id", normalized)
     .maybeSingle();
   if (byNotion.data) return byNotion.data;
   const byId = await supabase
     .from("events")
-    .select("id, notion_id, title")
+    .select("id, notion_id, title, price")
     .eq("id", input)
     .maybeSingle();
   return byId.data;
@@ -142,10 +142,54 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 2. 計算總金額
-    const total = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    // 2. 解析每個 item（從 Supabase 取得真實商品/活動資訊，含 server-side 價格）
+    //    必須在計算總金額前執行，確保使用資料庫定價而非 client 傳入值
+    const resolvedItems = await Promise.all(
+      items.map(async (item) => {
+        let supabaseId: string | null = null;
+        let productInfo: Awaited<ReturnType<typeof resolveProduct>> | null = null;
+        let eventInfo: Awaited<ReturnType<typeof resolveEvent>> | null = null;
 
-    // 3. 建立訂單（V2：有票券 → reservation 模式，pending 等錄取；純商品 → direct 模式，直接 confirmed）
+        if (item.productId) {
+          productInfo = await resolveProduct(item.productId);
+          if (productInfo) supabaseId = productInfo.id;
+        }
+        if (!supabaseId && item.eventId) {
+          eventInfo = await resolveEvent(item.eventId);
+          if (eventInfo) supabaseId = eventInfo.id;
+        }
+        if (!supabaseId && item.id) {
+          // fallback：item.id 可能已是 UUID
+          productInfo = await resolveProduct(item.id);
+          if (productInfo) {
+            supabaseId = productInfo.id;
+          } else {
+            eventInfo = await resolveEvent(item.id);
+            if (eventInfo) supabaseId = eventInfo.id;
+          }
+        }
+
+        return { item, supabaseId, productInfo, eventInfo };
+      })
+    );
+
+    // Fail fast：找不到對應商品/活動 → 建立訂單前就回錯，避免產出金額為 0 的孤兒訂單
+    const unresolved = resolvedItems.filter((r) => !r.supabaseId);
+    if (unresolved.length > 0) {
+      console.error("找不到對應的商品/活動:", unresolved.map((r) => r.item.name));
+      return NextResponse.json(
+        { error: `找不到商品：${unresolved.map((r) => r.item.name).join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    // 3. 計算總金額（使用 Supabase 真實定價，完全忽略 client 傳入的 price）
+    const total = resolvedItems.reduce((sum, { item, productInfo, eventInfo }) => {
+      const serverPrice = productInfo?.price ?? (eventInfo as any)?.price ?? 0;
+      return sum + serverPrice * item.qty;
+    }, 0);
+
+    // 4. 建立訂單（V2：有票券 → reservation 模式，pending 等錄取；純商品 → direct 模式，直接 confirmed）
     const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));
     const orderMode: "reservation" | "direct" = hasTickets ? "reservation" : "direct";
     const orderStatus = hasTickets ? "pending" : "confirmed";
@@ -182,53 +226,13 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "建立訂單失敗" }, { status: 500 });
     }
 
-    // 4. 解析每個 item 的 Supabase UUID（item_id 欄位型別是 UUID，不能存 notion_id）
-    //    同時記下 products/events 的完整資訊供後續扣庫存與 n8n webhook 使用
-    const resolvedItems = await Promise.all(
-      items.map(async (item) => {
-        let supabaseId: string | null = null;
-        let productInfo: Awaited<ReturnType<typeof resolveProduct>> | null = null;
-        let eventInfo: Awaited<ReturnType<typeof resolveEvent>> | null = null;
-
-        if (item.productId) {
-          productInfo = await resolveProduct(item.productId);
-          if (productInfo) supabaseId = productInfo.id;
-        }
-        if (!supabaseId && item.eventId) {
-          eventInfo = await resolveEvent(item.eventId);
-          if (eventInfo) supabaseId = eventInfo.id;
-        }
-        if (!supabaseId && item.id) {
-          // fallback：item.id 可能已是 UUID
-          productInfo = await resolveProduct(item.id);
-          if (productInfo) {
-            supabaseId = productInfo.id;
-          } else {
-            eventInfo = await resolveEvent(item.id);
-            if (eventInfo) supabaseId = eventInfo.id;
-          }
-        }
-
-        return { item, supabaseId, productInfo, eventInfo };
-      })
-    );
-
-    // 檢查是否有找不到對應的 item
-    const unresolved = resolvedItems.filter((r) => !r.supabaseId);
-    if (unresolved.length > 0) {
-      console.error("找不到對應的商品/活動:", unresolved.map((r) => r.item.name));
-      return NextResponse.json(
-        { error: `找不到商品：${unresolved.map((r) => r.item.name).join(", ")}` },
-        { status: 400 }
-      );
-    }
-
-    const orderItems = resolvedItems.map(({ item, supabaseId, productInfo }) => ({
+    // 5. 寫入 order_items（price 也使用 server-side 真實定價）
+    const orderItems = resolvedItems.map(({ item, supabaseId, productInfo, eventInfo }) => ({
       order_id: order.id,
       item_type: item.type,
       item_id: supabaseId!,
       quantity: item.qty,
-      price: item.price,
+      price: productInfo?.price ?? (eventInfo as any)?.price ?? 0,
       meta: {
         name: item.name,
         subtitle: item.subtitle || null,
@@ -387,7 +391,11 @@ export async function POST(req: NextRequest) {
         await notifyOrderCreated(
           order.id,
           memberId,
-          items.map(i => ({ name: i.name, qty: i.qty, price: i.price })),
+          resolvedItems.map(({ item, productInfo, eventInfo }) => ({
+            name: item.name,
+            qty: item.qty,
+            price: productInfo?.price ?? (eventInfo as any)?.price ?? 0,
+          })),
           total,
           hasTickets
         );
