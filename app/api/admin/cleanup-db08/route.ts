@@ -135,6 +135,75 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  if (mode === "list") {
+    const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10));
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
+    const filter = searchParams.get("filter") || "all"; // all | junk | keep
+
+    const norm = (s: string) =>
+      s.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "").trim();
+
+    let rows = pages.map((page) => {
+      const props = page.properties || {};
+      const a = analyze(page);
+      const relProps: string[] = [];
+      for (const k of Object.keys(props)) {
+        const pr = props[k];
+        if (pr?.type === "relation" && (pr.relation || []).length) relProps.push(k);
+      }
+      return {
+        id: page.id,
+        url: page.url,
+        title: a.title,
+        normTitle: norm(a.title),
+        hasCJK: a.hasCJK,
+        bizType: a.bizType,
+        relationOption: props["關係選項"]?.select?.name || null,
+        memberStatus: a.memberStatus,
+        email: props["Email"]?.rich_text?.map((x: any) => x.plain_text).join("") || null,
+        fb: props["FB粉專"]?.url || null,
+        ig: props["IG粉專"]?.url || null,
+        relCount: a.relCount,
+        relProps,
+        created: page.created_time,
+        creator: page.created_by?.id || null,
+        isJunkConservative: isJunk(a, "conservative", whitelist, page.id),
+      };
+    });
+
+    if (filter === "junk") rows = rows.filter((r) => r.isJunkConservative);
+    else if (filter === "keep") rows = rows.filter((r) => !r.isJunkConservative);
+
+    rows.sort((x, y) => (x.normTitle < y.normTitle ? -1 : x.normTitle > y.normTitle ? 1 : 0));
+
+    // 標記重複組（正規化後同名）
+    let groupSeq = 0;
+    const counts: Record<string, number> = {};
+    for (const r of rows) if (r.normTitle) counts[r.normTitle] = (counts[r.normTitle] || 0) + 1;
+    const groupId: Record<string, number> = {};
+    const out = rows.slice(offset, offset + limit).map((r) => {
+      let dupGroup: number | null = null;
+      if (r.normTitle && counts[r.normTitle] > 1) {
+        if (!(r.normTitle in groupId)) groupId[r.normTitle] = ++groupSeq;
+        dupGroup = groupId[r.normTitle];
+      }
+      return { ...r, dupGroup, dupCount: r.normTitle ? counts[r.normTitle] : 1 };
+    });
+
+    return NextResponse.json({
+      ok: true,
+      mode: "list",
+      filter,
+      offset,
+      limit,
+      totalAfterFilter: rows.length,
+      returned: out.length,
+      nextOffset: offset + limit < rows.length ? offset + limit : null,
+      rows: out,
+      elapsedMs: Date.now() - start,
+    });
+  }
+
   if (mode === "archive") {
     if (searchParams.get("confirm") !== "DELETE-DB08-JUNK") {
       return NextResponse.json({ ok: false, error: "缺少 confirm=DELETE-DB08-JUNK" }, { status: 400 });
