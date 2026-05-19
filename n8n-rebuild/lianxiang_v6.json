@@ -1,0 +1,1044 @@
+{
+ "name": "嗨嗨 聯想棒 v6 (relation 織網)",
+ "nodes": [
+  {
+   "id": "3f681ac9-73d3-4e3b-a115-78cc41b3cdd4",
+   "name": "Lianxiang Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "webhookId": "3e4fa481-414b-4e60-b193-94b652e345c6",
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "db06-lianxiang-traversal",
+    "responseMode": "onReceived"
+   }
+  },
+  {
+   "id": "ec3cef65-cb77-45c9-bf13-e7fe8bd005da",
+   "name": "Extract DB06 ID",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    220,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const body=$input.first().json.body||$input.first().json;\nconst db06_id=(body.db06_id||body.id||'').toString().replace(/-/g,'');\nif(!db06_id) throw new Error('missing db06_id');\nreturn [{ json:{ db06_id } }];"
+   }
+  },
+  {
+   "id": "20b59ec6-98ac-43b5-9ba9-50f0ce40ea67",
+   "name": "Fetch DB06",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    440,
+    0
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=https://api.notion.com/v1/pages/{{ $json.db06_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "7f60a50c-9450-4d4c-b46e-e5d50f16daa8",
+   "name": "Parse DB06",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    660,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const p=$input.first().json;\nconst T=[\"對應提案\", \"對應管考\", \"對應項目\", \"對應協作\", \"對應內容\", \"對應庫存\", \"對應對象\", \"對應標籤\", \"對應地點\", \"對應提供對象\"];\nlet target_id='',target_rel='';\nfor(const r of T){const a=p.properties[r]?.relation||[]; if(a.length){target_id=(a[0].id||'').replace(/-/g,'');target_rel=r;break;}}\nreturn [{ json:{\n  db06_id:p.id.replace(/-/g,''),\n  ai_mode:p.properties['ai模式']?.select?.name||'聯想',\n  exec_idea:p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('')||'',\n  db05_id:target_id, target_rel,\n  sort_num:p.properties['排序']?.number\n}}];"
+   }
+  },
+  {
+   "id": "a0e24281-92c1-4d7c-864b-91e082e822a1",
+   "name": "Fetch target",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    880,
+    -80
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=https://api.notion.com/v1/pages/{{ $('Parse DB06').first().json.db05_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "a5867038-d091-4b44-8704-bf259746457e",
+   "name": "Get PDF + context",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    -80
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const baton = $('Parse DB06').first().json;\nconst target = $('Fetch target').first().json;\nconst NHEAD = {'Authorization':'Bearer '+$env.NOTION_INTEGRATION_TOKEN,'Notion-Version':'2022-06-28','Content-Type':'application/json'};\nconst REL2XREF = {'對應提案':'提案引用','對應管考':'管考引用','對應項目':'項目引用','對應協作':'協作引用','對應內容':'內容引用','對應庫存':'庫存引用','對應對象':'對象引用','對應標籤':'對象引用','對應地點':'對象引用','對應提供對象':'對象引用'};\nconst xref_field = REL2XREF[baton.target_rel] || '內容引用';\nconst norm = id => (id||'').replace(/-/g,'');\nconst getPage = async id => { try { const r = await this.helpers.httpRequest({method:'GET',url:'https://api.notion.com/v1/pages/'+id,headers:NHEAD}); return (typeof r==='string')?JSON.parse(r):r; } catch(e){ return null; } };\nconst titleOf = p => { const tp = Object.values(p.properties||{}).find(v=>v&&v.type==='title'); return (tp?.title||[]).map(t=>t.plain_text).join(''); };\nconst rtOf = (p,k) => ((p.properties||{})[k]?.rich_text||[]).map(t=>t.plain_text).join('');\nconst relIdsOf = (p,k) => (((p.properties||{})[k]?.relation)||[]).map(r=>norm(r.id));\nconst duiYingRels = p => { const out=[]; for(const [k,v] of Object.entries(p.properties||{})){ if(v&&v.type==='relation'&&k.indexOf('對應')===0){ for(const r of (v.relation||[])) out.push(norm(r.id)); } } return out; };\nconst allRelTargets = p => { const out=[]; for(const v of Object.values(p.properties||{})){ if(v&&v.type==='relation'){ for(const r of (v.relation||[])) out.push(norm(r.id)); } } return out; };\n\nconst target_id = norm(target.id);\nconst target_idea = rtOf(target,'執行構想');\nconst target_name = titleOf(target);\nconst own_idea = baton.exec_idea || '';\n\nconst seen = new Set([target_id, norm(baton.db06_id)]);\nconst mainAxis = new Set();\nfor (const id of duiYingRels(target)) { if(!seen.has(id)){ seen.add(id); mainAxis.add(id); } }\nconst depth2 = [];\nfor (const id of [...mainAxis].slice(0,30)) {\n  const pg = await getPage(id); if(!pg) continue;\n  for (const nid of duiYingRels(pg)) { if(!seen.has(nid)){ seen.add(nid); depth2.push(nid); } }\n}\nfor (const id of depth2.slice(0,30)) mainAxis.add(id);\nconst axisArr = [...mainAxis].slice(0,40);\n\nconst tagIds = new Set();\nconst siblingDB06 = new Set();\nfor (const t of relIdsOf(target,'對應標籤')) tagIds.add(t);\nfor (const s of relIdsOf(target,'對應明細')) siblingDB06.add(s);\nfor (const id of axisArr) {\n  const pg = await getPage(id); if(!pg) continue;\n  for (const t of relIdsOf(pg,'對應標籤')) tagIds.add(t);\n  for (const s of relIdsOf(pg,'對應明細')) siblingDB06.add(s);\n}\n\nconst sibling_notes = [];\nfor (const sid of [...siblingDB06].slice(0,12)) {\n  if (sid === norm(baton.db06_id)) continue;\n  const pg = await getPage(sid); if(!pg) continue;\n  const nm=titleOf(pg), idea=rtOf(pg,'執行構想'), note=rtOf(pg,'執行備註');\n  if (idea||note) sibling_notes.push(nm+'｜構想:'+idea.slice(0,200)+'｜備註:'+note.slice(0,400));\n}\n\nconst candIds = new Set();\nfor (const tid of [...tagIds].slice(0,20)) {\n  const tp = await getPage(tid); if(!tp) continue;\n  for (const cid of allRelTargets(tp)) { if(!seen.has(cid)&&cid!==target_id) candIds.add(cid); }\n}\nconst candidates = [];\nlet skipped = 0;\nfor (const cid of [...candIds].slice(0,60)) {\n  const pg = await getPage(cid); if(!pg){ continue; }\n  const nm=titleOf(pg); const sm=rtOf(pg,'簡介摘要'); const an=rtOf(pg,'分析備註');\n  const txt = (sm||an||'').slice(0,300);\n  if (!nm && !txt) { skipped++; continue; }\n  candidates.push({ id:cid, name:nm||'(未命名)', text:txt });\n}\nreturn [{ json: { db06_id:baton.db06_id, target_id, target_name, target_idea, own_idea,\n  ai_mode:baton.ai_mode, sort_num:baton.sort_num, target_rel:baton.target_rel, xref_field,\n  sibling_notes, candidates, axis_count:axisArr.length, tag_count:tagIds.size,\n  cand_count:candidates.length, skipped_count:skipped, existing_xref: relIdsOf(target,xref_field) } }];"
+   }
+  },
+  {
+   "id": "5e26d26b-bc1c-4e59-8bea-ba9c9de37bc2",
+   "name": "Download PDF + build body",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1320,
+    -80
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const ctx = $input.first().json;\nconst sys = '你是 makesense 嗨嗨家族的嗨嗨聯想（織網棒）。職責:從候選池挑出與 target 相關的既有資料,連進 target 的引用欄位。\\n步驟:(1)先讀 target 的兩個執行構想(整體交辦 + 本棒特別交辦)與兄弟棒次執行備註,萃出 3-5 條「相關性判準」(例:同地點/同主題/同年度/同辦理單位/同系列)。(2)候選池逐筆套判準,命中≥1 條才選,命中 0 條丟掉。寧缺勿濫。\\n只回合法 JSON:{\"criteria\":[\"判準1\",\"判準2\",...],\"picks\":[{\"id\":\"候選id\",\"reason\":\"命中哪條判準\"}]}。picks 最多 50 筆。';\nconst cand = (ctx.candidates||[]).map(c=>'['+c.id+'] '+c.name+' — '+(c.text||'(無摘要)')).join('\\n') || '(候選池為空)';\nconst usr = 'target 名稱：'+ctx.target_name+'\\n\\n【target 執行構想 — 四九對整篇的交辦】\\n'+(ctx.target_idea||'(空)')+'\\n\\n【聯想棒執行構想 — 四九對本棒的特別交辦】\\n'+(ctx.own_idea||'(空)')+'\\n\\n【兄弟棒次軌跡】\\n'+((ctx.sibling_notes||[]).join('\\n')||'(無)')+'\\n\\n【候選池 '+(ctx.candidates||[]).length+' 筆】\\n'+cand+'\\n\\n先萃 3-5 條判準,再逐筆套判準挑 picks,回 JSON。';\nconst claude_body = JSON.stringify({ model:'claude-haiku-4-5-20251001', max_tokens:4096, system:sys, messages:[{role:'user',content:usr}] });\nreturn [{ json: { ...ctx, claude_body } }];"
+   }
+  },
+  {
+   "id": "5fb1a74d-e961-48b9-98b0-bddaacb0ae47",
+   "name": "Claude API",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1540,
+    -80
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "x-api-key",
+       "value": "={{ $env.ANTHROPIC_API_KEY }}"
+      },
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify($json.claude_body) }}",
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     },
+     "timeout": 240000
+    }
+   }
+  },
+  {
+   "id": "34744c53-ae6d-4b45-98e3-1620ab4cb50f",
+   "name": "Parse Claude",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1760,
+    -80
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const resp = $input.first().json;\nconst ctx = $('Download PDF + build body').first().json;\nconst text = resp.content?.[0]?.text || '';\nconst usage = resp.usage || {};\nlet parsed; try { const m=text.match(/\\{[\\s\\S]*\\}/); parsed=m?JSON.parse(m[0]):{criteria:[],picks:[]}; } catch(e){ parsed={criteria:[],picks:[]}; }\nconst criteria = Array.isArray(parsed.criteria)?parsed.criteria:[];\nconst picks = Array.isArray(parsed.picks)?parsed.picks:[];\nconst validIds = new Set((ctx.candidates||[]).map(c=>c.id));\nconst pickIds = [...new Set(picks.map(p=>(p.id||'').toString().replace(/-/g,'')).filter(id=>validIds.has(id)))];\nconst existing = ctx.existing_xref || [];\nconst before = existing.length;\nlet merged = [...new Set(existing.concat(pickIds))];\nlet overflow = 0;\nif (merged.length > 50) { overflow = merged.length-50; merged = merged.slice(0,50); }\nconst newCount = merged.length - before;\nconst it = parseInt(usage.input_tokens||0), ot = parseInt(usage.output_tokens||0);\nconst cost = ((it*0.8 + ot*4)/1000000*32).toFixed(2);\nconst usage_line = '進='+it+' 出='+ot+' 成本NT'+cost;\nconst d = new Date(); const tw = new Date(d.getTime()+8*3600*1000);\nconst ts = tw.getUTCFullYear()+'-'+String(tw.getUTCMonth()+1).padStart(2,'0')+'-'+String(tw.getUTCDate()).padStart(2,'0')+' '+String(tw.getUTCHours()).padStart(2,'0')+':'+String(tw.getUTCMinutes()).padStart(2,'0');\nlet note = '── '+ts+' 聯想 ──\\n工作對象：'+ctx.target_name+'\\n相關性判準：'+(criteria.join('；')||'(未萃出)')+'\\n織網結果：候選 '+ctx.cand_count+' 筆,篩選通過新增 '+newCount+' 筆 '+ctx.xref_field+'（主軸 '+ctx.axis_count+' 頁、標籤 '+ctx.tag_count+' 個、無可判讀文字略過 '+ctx.skipped_count+' 筆）';\nif (overflow>0) note += '\\n未做：超過 50 筆上限,'+overflow+' 筆未寫入,待四九決定';\nnote = note.slice(0,1990);\nconst sanitize = s => (s||'').toString().replace(/[\\/\\\\:<>#@\\[\\]\\{\\}\\|\\^\\`\\*_~\"']/g,' ').replace(/\\s+/g,' ').trim().slice(0,600);\nreturn [{ json: { db06_id:ctx.db06_id, db05_id:ctx.target_id, target_id:ctx.target_id, ai_mode:ctx.ai_mode, sort_num:ctx.sort_num, xref_field:ctx.xref_field, xref_relation: merged.map(id=>({id})), lianxiang_full:note, usage_line, safe_summary:sanitize(note), preview_text:'聯想新增 '+newCount+' 筆引用', validator_warning:'' } }];"
+   }
+  },
+  {
+   "id": "8a1611f7-1af3-4433-927f-bd8bda8beb87",
+   "name": "PATCH 執行備註",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1980,
+    -80
+   ],
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://api.notion.com/v1/pages/{{ $('Parse Claude').first().json.db06_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.lianxiang_full) }} } }] } } }",
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "77d6ce98-456f-45a7-9ea1-8a1e2357c4c3",
+   "name": "Read flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    896,
+    384
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $('Parse DB06').first().json.db05_id }}"
+      }
+     ]
+    },
+    "returnAll": false,
+    "limit": 1
+   }
+  },
+  {
+   "id": "81835529-5015-4de3-9325-b39ffc8110c6",
+   "name": "Telegram 處理中",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1120,
+    384
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: '⏳ 第 ' + ($('Parse DB06').first().json.sort_num != null ? $('Parse DB06').first().json.sort_num : '?') + ' 棒 (' + $('Parse DB06').first().json.ai_mode + ') 開始處理。\\n預計 15-60 秒,Claude 思考中。完成會自動發關卡B,免守畫面。', disable_web_page_preview: true, allow_sending_without_reply: true }, ((parseInt($json.last_msg_id || 0) || 0) > 0 ? { reply_to_message_id: parseInt($json.last_msg_id || 0) || 0 } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "0489bec5-d966-438f-9d11-1501eaa61aee",
+   "name": "Save msgid 處理中",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1344,
+    384
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Parse DB06').first().json.db05_id, last_msg_id: mid } }];"
+   }
+  },
+  {
+   "id": "a58df171-1565-415d-8b12-2400a6a172e4",
+   "name": "Update flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1568,
+    384
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    }
+   }
+  },
+  {
+   "id": "d1f9d99c-fef5-46ac-997c-6fb5bb4bc6ea",
+   "name": "Read flow_state B",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    4928,
+    192
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $('Parse Claude').first().json.db05_id }}"
+      }
+     ]
+    },
+    "returnAll": false,
+    "limit": 1
+   }
+  },
+  {
+   "id": "ce210101-8fb7-4c9c-82b3-f0dbbca5d586",
+   "name": "Build gateB",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5152,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const row = $input.first().json || {};\nconst pc = $('Parse Claude').first().json;\nconst auto_mode = row.auto_mode === true;\nconst reply_to = parseInt(row.last_msg_id || 0) || 0;\nconst base = '關卡B 成果確認\\n第 ' + (pc.sort_num != null ? pc.sort_num : '?') + ' 棒 (' + pc.ai_mode + ') 已完成。\\nDB06 頁面 ' + pc.db06_id + '\\n\\n執行備註:\\n' + pc.safe_summary + '\\n\\n' + pc.preview_text + (pc.validator_warning || '') + '\\ntokens ' + pc.usage_line;\nconst manual_msg = base + '\\n\\n按 OK 進下一棒,按 OK ALL 之後全自動。要 redo 重跑請打字 reply。\\ngateB db06=' + pc.db06_id;\nconst auto_msg = base + '\\n\\n[全自動模式] 自動進下一棒,免按。';\nreturn [{ json: { auto_mode, reply_to, flow_id: pc.db05_id, db05_id: pc.db05_id, db06_id: pc.db06_id, sort_num: pc.sort_num, ai_mode: pc.ai_mode, manual_msg, auto_msg, cb_ok: 'B1:' + pc.db06_id, cb_all: 'BA:' + pc.db06_id } }];"
+   }
+  },
+  {
+   "id": "e42f50b6-ecad-495c-bedd-d7bd5b08c63c",
+   "name": "auto_mode?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    5376,
+    192
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "1",
+       "leftValue": "={{ $json.auto_mode }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "b72f93ae-95c0-487d-b70a-44808ab52884",
+   "name": "Telegram 關卡B auto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5600,
+    96
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $('Build gateB').first().json.auto_msg, disable_web_page_preview: true, allow_sending_without_reply: true }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "5f7b7d35-178a-4044-aca7-09cb2489e3d8",
+   "name": "Save msgid B auto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5824,
+    96
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Build gateB').first().json.flow_id, last_msg_id: mid } }];"
+   }
+  },
+  {
+   "id": "94962024-494f-4ac9-8680-a9454f4f1086",
+   "name": "Update flow_state B auto",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    6048,
+    96
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    }
+   }
+  },
+  {
+   "id": "b609c3c2-bd16-4a85-ab01-d6be04ce424d",
+   "name": "PATCH DB06 完成 auto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    6272,
+    96
+   ],
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://api.notion.com/v1/pages/{{ $('Build gateB').first().json.db06_id }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"properties\": { \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "27acf362-8447-40d3-afb8-0c94b67ca474",
+   "name": "Query DB06 next auto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    6496,
+    96
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.notion.com/v1/databases/3469ff25fdab83c98ff98107ee6a6a1c/query",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      { \"or\": [\n        { \"property\": \"對應提案\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應管考\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應項目\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應協作\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應內容\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應庫存\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應標籤\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應地點\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應提供對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } }\n      ]},\n      { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }\n    ]\n  },\n  \"sorts\": [{ \"property\": \"排序\", \"direction\": \"ascending\" }]\n}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "da779208-ac2a-432e-a8dd-40ba5cda4c47",
+   "name": "Pick next auto",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    6720,
+    96
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const results = $input.first().json.results || [];\nconst g = $('Build gateB').first().json;\nconst pending = results.filter(p => (p.properties['ai狀態']?.status?.name||'') !== '完成');\nconst total = results.length;\nif (pending.length === 0) {\n  return [{ json: { has_next: false, tg_message: '全套完成 共 ' + total + ' 棒已全部通過 (全自動模式)。' } }];\n}\nconst p = pending[0];\nconst db06_id = p.id.replace(/-/g, '');\nconst ai_mode = p.properties['ai模式']?.select?.name || '';\nlet runner_url;\nif (ai_mode.includes('聯想')) runner_url = 'https://makesense.zeabur.app/webhook/db06-lianxiang-traversal';\nelse if (ai_mode.includes('搜查')) runner_url = 'https://makesense.zeabur.app/webhook/db06-search';\nelse runner_url = 'https://makesense.zeabur.app/webhook/db06-baton-runner';\nreturn [{ json: { has_next: true, db06_id, runner_url, tg_message: '' } }];"
+   }
+  },
+  {
+   "id": "6af7c34b-137d-40d2-8ba4-5229507e124d",
+   "name": "has next auto?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    6944,
+    96
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "strict"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "1",
+       "leftValue": "={{ $json.has_next }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "608c4b9c-f14d-44f4-816f-df43631bb731",
+   "name": "Run next baton auto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    7168,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ $json.runner_url }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"db06_id\": \"{{ $json.db06_id }}\" }",
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "36f1b797-0468-4fa3-8dec-89088215baa5",
+   "name": "Telegram 全套完成 auto",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    7168,
+    192
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $json.tg_message, disable_web_page_preview: true, allow_sending_without_reply: true }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "d50f442a-29e5-49b2-a971-0f7a55e66dc1",
+   "name": "Telegram 關卡B",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    5600,
+    288
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $('Build gateB').first().json.manual_msg, disable_web_page_preview: true, allow_sending_without_reply: true, reply_markup: { inline_keyboard: [[ { text: '✅ OK', callback_data: $('Build gateB').first().json.cb_ok }, { text: '⏩ OK ALL', callback_data: $('Build gateB').first().json.cb_all } ]] } }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "2876a8d0-3eaa-4fc6-818f-e86f3b4c3326",
+   "name": "Save msgid B",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    5824,
+    288
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Build gateB').first().json.flow_id, last_msg_id: mid } }];"
+   }
+  },
+  {
+   "id": "70e14298-efeb-427b-b152-787f0f25f5b3",
+   "name": "Update flow_state B",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    6048,
+    288
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    }
+   }
+  },
+  {
+   "id": "6f4f4c5d-5f8f-460c-b23c-452b5abbedc3",
+   "name": "PATCH target X引用",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    1850,
+    280
+   ],
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://api.notion.com/v1/pages/{{ $json.target_id }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"properties\": { {{ JSON.stringify($json.xref_field) }}: { \"relation\": {{ JSON.stringify($json.xref_relation) }} } } }",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      },
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Lianxiang Webhook": {
+   "main": [
+    [
+     {
+      "node": "Extract DB06 ID",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Extract DB06 ID": {
+   "main": [
+    [
+     {
+      "node": "Fetch DB06",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch DB06": {
+   "main": [
+    [
+     {
+      "node": "Parse DB06",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse DB06": {
+   "main": [
+    [
+     {
+      "node": "Read flow_state 處理中",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Fetch target",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read flow_state 處理中": {
+   "main": [
+    [
+     {
+      "node": "Telegram 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram 處理中": {
+   "main": [
+    [
+     {
+      "node": "Save msgid 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save msgid 處理中": {
+   "main": [
+    [
+     {
+      "node": "Update flow_state 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch target": {
+   "main": [
+    [
+     {
+      "node": "Get PDF + context",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Get PDF + context": {
+   "main": [
+    [
+     {
+      "node": "Download PDF + build body",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Download PDF + build body": {
+   "main": [
+    [
+     {
+      "node": "Claude API",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claude API": {
+   "main": [
+    [
+     {
+      "node": "Parse Claude",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse Claude": {
+   "main": [
+    [
+     {
+      "node": "PATCH target X引用",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH 執行備註": {
+   "main": [
+    [
+     {
+      "node": "Read flow_state B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read flow_state B": {
+   "main": [
+    [
+     {
+      "node": "Build gateB",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build gateB": {
+   "main": [
+    [
+     {
+      "node": "auto_mode?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "auto_mode?": {
+   "main": [
+    [
+     {
+      "node": "Telegram 關卡B auto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Telegram 關卡B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram 關卡B auto": {
+   "main": [
+    [
+     {
+      "node": "Save msgid B auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save msgid B auto": {
+   "main": [
+    [
+     {
+      "node": "Update flow_state B auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Update flow_state B auto": {
+   "main": [
+    [
+     {
+      "node": "PATCH DB06 完成 auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH DB06 完成 auto": {
+   "main": [
+    [
+     {
+      "node": "Query DB06 next auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Query DB06 next auto": {
+   "main": [
+    [
+     {
+      "node": "Pick next auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pick next auto": {
+   "main": [
+    [
+     {
+      "node": "has next auto?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "has next auto?": {
+   "main": [
+    [
+     {
+      "node": "Run next baton auto",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    [
+     {
+      "node": "Telegram 全套完成 auto",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram 關卡B": {
+   "main": [
+    [
+     {
+      "node": "Save msgid B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save msgid B": {
+   "main": [
+    [
+     {
+      "node": "Update flow_state B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH target X引用": {
+   "main": [
+    [
+     {
+      "node": "PATCH 執行備註",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ }
+}
