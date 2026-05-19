@@ -71,7 +71,7 @@
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const p = $input.first().json;\nreturn [{ json: {\n  db06_id: p.id.replace(/-/g, ''),\n  ai_mode: p.properties['ai模式']?.select?.name || '',\n  execute_idea_db06: p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '',\n  db05_id: (p.properties['對應內容']?.relation?.[0]?.id || '').replace(/-/g, ''),\n  mingxi_name: p.properties['明細名稱']?.title?.map(t=>t.plain_text).join('') || '',\n  sort_num: p.properties['排序']?.number\n}}];"
+    "jsCode": "const p = $input.first().json;\nreturn [{ json: {\n  db06_id: p.id.replace(/-/g, ''),\n  ai_mode: p.properties['ai模式']?.select?.name || '',\n  execute_idea_db06: p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '',\n  db05_id: (function(){ var T=[\"對應提案\", \"對應管考\", \"對應項目\", \"對應協作\", \"對應內容\", \"對應庫存\", \"對應對象\", \"對應標籤\", \"對應地點\", \"對應提供對象\"]; for(var i=0;i<T.length;i++){var a=p.properties[T[i]]?.relation||[]; if(a.length) return (a[0].id||'').replace(/-/g,'');} return ''; })(),\n  target_rel: (function(){ var T=[\"對應提案\", \"對應管考\", \"對應項目\", \"對應協作\", \"對應內容\", \"對應庫存\", \"對應對象\", \"對應標籤\", \"對應地點\", \"對應提供對象\"]; for(var i=0;i<T.length;i++){var a=p.properties[T[i]]?.relation||[]; if(a.length) return T[i];} return ''; })(),\n  mingxi_name: p.properties['明細名稱']?.title?.map(t=>t.plain_text).join('') || '',\n  sort_num: p.properties['排序']?.number\n}}];"
    }
   },
   {
@@ -113,7 +113,7 @@
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const target = $input.first().json;\nconst item = $('Parse DB06').first().json;\nconst tprops = target.properties || {};\nconst target_idea = tprops['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '';\nconst target_name = tprops['內容名稱']?.title?.map(t=>t.plain_text).join('') || '';\nconst target_theme = tprops['主題名稱']?.rich_text?.map(t=>t.plain_text).join('') || '';\nconst l1 = (tprops['對應對象']?.relation || []).map(r => r.id.replace(/-/g,''));\nconst base = { ...item, target_idea, target_name, target_theme };\nif (l1.length === 0) return [{ json: { ...base, has_l1: false, l1_id: null } }];\nreturn l1.map(id => ({ json: { ...base, has_l1: true, l1_id: id } }));"
+    "jsCode": "const target = $input.first().json;\nconst item = $('Parse DB06').first().json;\nconst tprops = target.properties || {};\nconst target_idea = tprops['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '';\nconst _tp = Object.values(tprops).find(v => v && v.type === 'title');\nconst target_name = (_tp?.title || []).map(t=>t.plain_text).join('') || '';\nconst target_theme = tprops['主題名稱']?.rich_text?.map(t=>t.plain_text).join('') || '';\nconst l1 = ((tprops['對應對象']?.relation) || (tprops['對應標籤']?.relation) || (tprops['自對標籤']?.relation) || []).map(r => r.id.replace(/-/g,''));\nconst base = { ...item, target_idea, target_name, target_theme };\nif (l1.length === 0) return [{ json: { ...base, has_l1: false, l1_id: null } }];\nreturn l1.map(id => ({ json: { ...base, has_l1: true, l1_id: id } }));"
    }
   },
   {
@@ -393,6 +393,13 @@
        "value": "2022-06-28"
       }
      ]
+    },
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
     }
    }
   },
@@ -836,7 +843,7 @@
     "url": "https://api.notion.com/v1/databases/3469ff25fdab83c98ff98107ee6a6a1c/query",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      { \"property\": \"對應內容\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n      { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }\n    ]\n  },\n  \"sorts\": [{ \"property\": \"排序\", \"direction\": \"ascending\" }]\n}",
+    "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      { \"or\": [\n        { \"property\": \"對應提案\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應管考\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應項目\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應協作\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應內容\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應庫存\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應標籤\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應地點\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應提供對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } }\n      ]},\n      { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }\n    ]\n  },\n  \"sorts\": [{ \"property\": \"排序\", \"direction\": \"ascending\" }]\n}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
