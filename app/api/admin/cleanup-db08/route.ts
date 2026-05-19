@@ -15,7 +15,7 @@
  */
 import { NextRequest, NextResponse } from "next/server";
 import { Client } from "@notionhq/client";
-import { supabaseAdmin } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
@@ -75,9 +75,14 @@ async function loadWhitelist(): Promise<Set<string>> {
   const set = new Set<string>();
   for (const t of ["persons", "partners", "members", "staff", "topics"]) {
     try {
-      const { data } = await supabaseAdmin.from(t).select("notion_id");
-      for (const row of data || []) {
-        if (row?.notion_id) set.add(String(row.notion_id).replace(/-/g, ""));
+      let from = 0;
+      for (;;) {
+        const { data } = await supabase.from(t).select("notion_id").range(from, from + 999);
+        for (const row of data || []) {
+          if (row?.notion_id) set.add(String(row.notion_id).replace(/-/g, ""));
+        }
+        if (!data || data.length < 1000) break;
+        from += 1000;
       }
     } catch {
       /* 白名單載入失敗不致命 */
@@ -87,8 +92,9 @@ async function loadWhitelist(): Promise<Set<string>> {
 }
 
 function isJunk(a: ReturnType<typeof analyze>, rule: Rule, whitelist: Set<string>, pageId: string) {
-  if (a.hasCJK) return false; // 名稱含中日韓字 → 視為真實資料，保留
+  // whitelist 規則：不在 Supabase 名單內即為垃圾（不看名稱語言）
   if (rule === "whitelist") return !whitelist.has(pageId.replace(/-/g, ""));
+  if (a.hasCJK) return false; // 保守規則：名稱含中日韓字 → 保留
   return !a.bizType && a.relCount === 0;
 }
 
@@ -238,12 +244,12 @@ export async function GET(req: NextRequest) {
         relCount: a.relCount,
         relProps,
         created: page.created_time,
-        isJunkConservative: isJunk(a, "conservative", whitelist, page.id),
+        isJunk: isJunk(a, rule, whitelist, page.id),
       };
     });
 
-    if (filter === "junk") rows = rows.filter((r) => r.isJunkConservative);
-    else if (filter === "keep") rows = rows.filter((r) => !r.isJunkConservative);
+    if (filter === "junk") rows = rows.filter((r) => r.isJunk);
+    else if (filter === "keep") rows = rows.filter((r) => !r.isJunk);
 
     rows.sort((x, y) => (x.normTitle < y.normTitle ? -1 : x.normTitle > y.normTitle ? 1 : 0));
 
