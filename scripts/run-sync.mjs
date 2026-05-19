@@ -149,14 +149,14 @@ async function syncEvents() {
           event_category: extractSelect(props["交接類型"]?.select) || null,
           event_date: dateInfo.start || null,
           distance_km: extractNumber(props["距離km"]?.number) ?? null,
-          price: Number(props["實際總價"]?.formula?.number) || 0,
+          price: Number(props["實際總價+營業額"]?.formula?.number) || 0,
           capacity: extractNumber(props["數量上限"]?.number) || null,
           min_capacity: extractNumber(props["最低數量"]?.number) || null,
           cover_url: fileUrl(props["上傳檔案"]) || null,
           description: extractText(props["簡介摘要"]?.rich_text) || null,
           location: locationName,
           guide: guideName,
-          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft", "不發佈": "draft" }),
+          status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active", "不發佈": "draft" }),
         };
       });
 

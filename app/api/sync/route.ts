@@ -798,7 +798,7 @@ async function syncArticles(wb = false, skipImages = false) {
         const v = extractSelect(props["官網備項"]?.select);
         return v ? [v] : null;
       })(),
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "draft" }),
       published_at: dateInfo.start || null,
     };
   });
