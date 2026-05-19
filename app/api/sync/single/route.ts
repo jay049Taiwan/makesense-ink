@@ -78,17 +78,15 @@ export async function POST(req: NextRequest) {
         topics: `${SITE_URL}/viewpoint/${cleanId}`,
       };
       const table = result.table;
-      const statusField = "發佈狀態";
-      // 話題推薦用的 DB05 文章不提供獨立頁面連結，只回寫發佈狀態，URL 設為 null
-      const isShowcaseOnly = table === "articles" && Array.isArray(result.webTag) && result.webTag.includes("話題推薦");
-      if (urlMap[table] && result.status !== "draft" && result.status !== null) {
-        if (isShowcaseOnly) {
-          await writebackPublishNoUrl(cleanId, statusField);
-        } else {
+      // DB05（articles）無「發佈狀態」欄位，不做回寫
+      // DB07（products）頁面狀態由使用者控制、不回寫
+      if (table !== "articles" && table !== "products") {
+        const statusField = "發佈狀態";
+        if (urlMap[table] && result.status !== "draft" && result.status !== null) {
           await writebackPublish(cleanId, urlMap[table], statusField);
+        } else if (result.status === "draft") {
+          await writebackUnpublish(cleanId, statusField);
         }
-      } else if (result.status === "draft") {
-        await writebackUnpublish(cleanId, statusField);
       }
 
       // AI 翻譯（非阻塞，背景做就好）
@@ -609,12 +607,6 @@ async function syncStockBatch(nid: string, props: any) {
     }
   }
 
-  // 回寫 DB05 發佈狀態
-  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
-  if (status && status !== "draft") {
-    // 庫存批次回寫在主函式統一處理
-  }
-
   return {
     table: "stock_batch",
     action,
@@ -683,7 +675,7 @@ async function syncSingleArticle(nid: string, props: any) {
       const v = extractSelect(props["官網備項"]?.select);
       return v ? [v] : null;
     })(),
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "待發佈": "published" }),
+    status: "published", // DB05 無「發佈狀態」欄位；有素材類別=文案且被觸發即表示需同步
     published_at: dateInfo.start || null,
   };
   if (content) row.content = content;
@@ -822,7 +814,7 @@ async function syncSingleProduct(nid: string, props: any) {
     supplier_type: sel(props["進貨屬性"]) || null,
     related_topic_ids: JSON.stringify(relatedTopicIds),
     related_article_ids: JSON.stringify(relatedArticleIds),
-    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
+    status: mapStatus(st(props["頁面狀態"]), { "有頁面": "active", "無頁面": "active", "無狀態": "active" }),
     page_status: st(props["頁面狀態"]) || "無頁面",
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
