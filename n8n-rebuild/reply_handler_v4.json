@@ -10,7 +10,7 @@
     0,
     288
    ],
-   "webhookId": "6514adc2-28f1-4294-92a2-f690e6a9f456",
+   "webhookId": "b8b368f6-df89-486c-a87c-9ee89c98e7b7",
    "parameters": {
     "httpMethod": "POST",
     "path": "hihi-tg-update",
@@ -1166,6 +1166,7 @@
   }
  },
  "settings": {
-  "executionOrder": "v1"
+  "executionOrder": "v1",
+  "availableInMCP": true
  }
 }

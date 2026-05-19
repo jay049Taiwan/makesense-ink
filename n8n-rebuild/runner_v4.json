@@ -15,7 +15,7 @@
     "path": "db06-baton-runner",
     "responseMode": "onReceived"
    },
-   "webhookId": "aa89148f-f590-4591-b37c-8922a56d6786"
+   "webhookId": "6a377b22-d1c6-41d8-aa06-886db345c77a"
   },
   {
    "id": "16ab997f-dc9f-4e40-a1c5-304f902ef889",
@@ -1459,6 +1459,7 @@
   }
  },
  "settings": {
-  "executionOrder": "v1"
+  "executionOrder": "v1",
+  "availableInMCP": true
  }
 }

@@ -15,7 +15,7 @@
     "path": "db06-lianxiang-traversal",
     "responseMode": "onReceived"
    },
-   "webhookId": "d799acda-c04e-4a6c-a3d5-18276e54ef93"
+   "webhookId": "72cb4c9f-da0c-4c12-adcc-997eeff377e9"
   },
   {
    "id": "e7813344-1b5f-4083-9c92-4ef7c466b5c5",
@@ -547,7 +547,7 @@
    }
   },
   {
-   "id": "4523e276-9645-419a-8df6-f20ba42b4992",
+   "id": "38a1fa4a-4195-41f1-9ba0-40bf2b7b5e93",
    "name": "Read flow_state 處理中",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
@@ -578,7 +578,7 @@
    }
   },
   {
-   "id": "cbba1a54-38b2-42c1-b1c2-df73ec8375b6",
+   "id": "de603afc-6d15-4542-a194-d6ef8702c460",
    "name": "Telegram 處理中",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
@@ -596,7 +596,7 @@
    }
   },
   {
-   "id": "6ffca09c-908f-437a-a41f-6ed0e23adcf5",
+   "id": "7a2b2a46-c7a0-4d8d-a95a-a4e7b858b9ec",
    "name": "Save msgid 處理中",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -611,7 +611,7 @@
    }
   },
   {
-   "id": "f5024392-a696-4f8e-bd55-52de6d7bb1d1",
+   "id": "6bcf0686-dc04-4f57-96c6-e32c3efcf536",
    "name": "Update flow_state 處理中",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
@@ -646,7 +646,7 @@
    }
   },
   {
-   "id": "11214bc6-b755-4e02-8e99-cdf2f441ae30",
+   "id": "23cefabb-0262-4c15-93b1-ce3bb0920354",
    "name": "Read flow_state B",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
@@ -674,10 +674,11 @@
     },
     "returnAll": false,
     "limit": 1
-   }
+   },
+   "executeOnce": true
   },
   {
-   "id": "28b484f1-eba6-4c4e-8b7f-06e9d84d852b",
+   "id": "cee777a1-d1a1-4c0a-928b-1d07cf1203b7",
    "name": "Build gateB",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -692,7 +693,7 @@
    }
   },
   {
-   "id": "441c2752-769b-41c7-9dc3-a08635333fdf",
+   "id": "e51802a8-4eee-4343-82d8-ccd99c9b631f",
    "name": "auto_mode?",
    "type": "n8n-nodes-base.if",
    "typeVersion": 2.2,
@@ -724,7 +725,7 @@
    }
   },
   {
-   "id": "e95e0ad0-56d4-42f9-8c89-1ae7e3adbb0e",
+   "id": "a8a2a876-fa08-436f-b976-41b73d02a302",
    "name": "Telegram 關卡B auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
@@ -742,7 +743,7 @@
    }
   },
   {
-   "id": "aabea152-7415-4ece-95d8-99e048b2e3d2",
+   "id": "3f3ffc00-f769-45e0-a3d1-b5ff08a76017",
    "name": "Save msgid B auto",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -757,7 +758,7 @@
    }
   },
   {
-   "id": "05b3f8cc-87e0-4a9a-a4e6-28eade0a3b63",
+   "id": "05d66e9a-b44b-40cd-88c8-125bb9056092",
    "name": "Update flow_state B auto",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
@@ -792,7 +793,7 @@
    }
   },
   {
-   "id": "f4630d36-a08a-4504-892e-ac2d82712a50",
+   "id": "03509a07-2775-4a73-a2d3-9e9dcfda6484",
    "name": "PATCH DB06 完成 auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
@@ -822,7 +823,7 @@
    }
   },
   {
-   "id": "407343d6-f468-4a3b-af27-26397b8737b9",
+   "id": "cc977eac-58b9-41ba-bf34-209491282719",
    "name": "Query DB06 next auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
@@ -852,7 +853,7 @@
    }
   },
   {
-   "id": "b7972292-7a0a-4876-a4a0-60324b7b645f",
+   "id": "b509ea29-cff8-40d1-9fce-7cb8a96a8483",
    "name": "Pick next auto",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -867,7 +868,7 @@
    }
   },
   {
-   "id": "8bd74f6e-d2db-46bb-a3ac-56602b6270cf",
+   "id": "7115f53c-7870-49fe-b77a-67a0a090b711",
    "name": "has next auto?",
    "type": "n8n-nodes-base.if",
    "typeVersion": 2.2,
@@ -899,7 +900,7 @@
    }
   },
   {
-   "id": "6889cdf4-ed54-4106-b584-9d4aeeb0a895",
+   "id": "7f127364-2741-490d-b61b-5c10cbd004be",
    "name": "Run next baton auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
@@ -923,7 +924,7 @@
    }
   },
   {
-   "id": "07dfff3f-6b34-4f77-b233-dcf09b0298ac",
+   "id": "436bb379-e773-4cba-b998-b9026d8baa6b",
    "name": "Telegram 全套完成 auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
@@ -941,7 +942,7 @@
    }
   },
   {
-   "id": "e86b6efc-ab51-4037-afc6-b81a9f9334c8",
+   "id": "a6cb5fbe-589e-48f9-9428-743b93971993",
    "name": "Telegram 關卡B",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
@@ -959,7 +960,7 @@
    }
   },
   {
-   "id": "a7e9b407-44a1-401f-9166-af0be6166cb5",
+   "id": "cd9ab732-2922-4625-98be-0927fa9a6d84",
    "name": "Save msgid B",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
@@ -974,7 +975,7 @@
    }
   },
   {
-   "id": "22a7f784-df44-4fbc-992e-6c9a34163403",
+   "id": "0f040d43-d20c-4d40-9938-f56c67888e72",
    "name": "Update flow_state B",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
@@ -1510,6 +1511,7 @@
   }
  },
  "settings": {
-  "executionOrder": "v1"
+  "executionOrder": "v1",
+  "availableInMCP": true
  }
 }
