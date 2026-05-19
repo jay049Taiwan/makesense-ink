@@ -1,0 +1,545 @@
+{
+ "name": "嗨嗨 檢核棒 v5 (照spec)",
+ "nodes": [
+  {
+   "id": "be408a1e-570f-4e3b-b809-1a5ab5c640c8",
+   "name": "Runner Webhook",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    0,
+    288
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "db06-check",
+    "responseMode": "onReceived"
+   },
+   "webhookId": "5aa304de-be60-4a7e-a748-9f59dd561ca1"
+  },
+  {
+   "id": "16ab997f-dc9f-4e40-a1c5-304f902ef889",
+   "name": "Extract DB06 ID",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    224,
+    288
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst db06_id = (body.db06_id || body.id || '').toString().replace(/-/g, '');\nif (!db06_id) throw new Error('missing db06_id');\nreturn [{ json: { db06_id } }];"
+   }
+  },
+  {
+   "id": "5814e0a4-7029-4e0b-b678-e9d5635378f7",
+   "name": "Fetch DB06",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    448,
+    288
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=https://api.notion.com/v1/pages/{{ $json.db06_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "e67cd73d-a917-4946-ba7a-6ef18f063fcd",
+   "name": "Parse DB06",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    672,
+    288
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const p=$input.first().json;\nconst T=['對應提案','對應管考','對應項目','對應協作','對應內容','對應庫存','對應對象','對應標籤','對應地點','對應提供對象'];\nlet tid='',trel='';\nfor(const r of T){const a=p.properties[r]?.relation||[];if(a.length){tid=(a[0].id||'').replace(/-/g,'');trel=r;break;}}\nreturn [{json:{db06_id:p.id.replace(/-/g,''),ai_mode:p.properties['ai模式']?.select?.name||'檢核',exec_idea_db06:(p.properties['執行構想']?.rich_text||[]).map(t=>t.plain_text).join(''),db06_check_note:(p.properties['檢核備註']?.rich_text||[]).map(t=>t.plain_text).join(''),db05_id:tid,target_rel:trel,sort_num:p.properties['排序']?.number}}];"
+   }
+  },
+  {
+   "id": "ed7bf286-5423-415e-82ba-d46dfa934fd2",
+   "name": "Fetch target DB05",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    896,
+    192
+   ],
+   "parameters": {
+    "method": "GET",
+    "url": "=https://api.notion.com/v1/pages/{{ $('Parse DB06').first().json.db05_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "60d4b619-0f22-4fec-a60d-0f3110ce2156",
+   "name": "Build Claude prompt",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1120,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const c=$input.first().json;\nconst system='你是 makesense 嗨嗨家族的嗨嗨檢核。只做一件事：判斷文案寫出來的頁面正文，是否完成了執行構想交辦的事。逐章對照：執行構想要求的章節/重點，正文有沒有對應寫到。只回合法 JSON：{\"語意對應\":\"符合\"或\"有偏離\",\"說明\":\"一兩句，偏離就指出哪裡沒對上\"}';\nconst user='【執行構想（交辦內容）】\\n'+(c.exec_idea||'(空)')+'\\n\\n【文案寫出的頁面正文（前段節錄）】\\n'+(c.blockText||'(空)')+'\\n\\n判斷正文是否完成執行構想交辦的事，回 JSON。';\nreturn [{json:{...c,system,user}}];"
+   }
+  },
+  {
+   "id": "664a0630-033b-465a-a30c-c894a3fd7362",
+   "name": "Claude API",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    1344,
+    192
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.anthropic.com/v1/messages",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "x-api-key",
+       "value": "={{ $env.ANTHROPIC_API_KEY }}"
+      },
+      {
+       "name": "anthropic-version",
+       "value": "2023-06-01"
+      },
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 1024,\n  \"system\": {{ JSON.stringify($json.system) }},\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.user) }} }]\n}"
+   }
+  },
+  {
+   "id": "904df227-71fe-4621-8195-47ab122d1127",
+   "name": "Parse Claude",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1568,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const resp=$input.first().json;\nconst c=$('檢核盤點').first().json;\nconst text=resp.content?.[0]?.text||'';\nlet sem; try{const m=text.match(/\\{[\\s\\S]*\\}/);sem=m?JSON.parse(m[0]):{};}catch(e){sem={};}\nconst semOK=(sem['語意對應']||'').indexOf('符合')>=0;\nconst semNote=(sem['說明']||'').toString();\nconst mk=b=>b?'✓':'⚠️';\nconst items=[['企劃',c.c1],['搜查',c.c2],['分析',c.c3],['聯想',c.c4],['文案',c.c5&&semOK]];\nconst allOK=items.every(x=>x[1])&&semOK;\nconst fails=[];\nif(!c.c1)fails.push('企劃(執行構想不足)');\nif(!c.c2)fails.push('搜查(無資料參考)');\nif(!c.c3)fails.push('分析(資料參考缺對應標籤'+(c.refNoTag.length?'：'+c.refNoTag.slice(0,5).join('、'):'')+')');\nif(!c.c4)fails.push('聯想(X引用不足3筆或未跨2DB)');\nif(!c.c5)fails.push('文案(正文或發佈狀態未到位)');\nif(!semOK)fails.push('文案語意偏離');\nconst d=new Date();const tw=new Date(d.getTime()+8*3600*1000);\nconst ts=tw.getUTCFullYear()+'-'+String(tw.getUTCMonth()+1).padStart(2,'0')+'-'+String(tw.getUTCDate()).padStart(2,'0')+' '+String(tw.getUTCHours()).padStart(2,'0')+':'+String(tw.getUTCMinutes()).padStart(2,'0');\nconst checkLine='企劃 '+mk(c.c1)+' / 搜查 '+mk(c.c2)+' / 分析 '+mk(c.c3)+' / 聯想 '+mk(c.c4)+' / 文案 '+mk(c.c5&&semOK);\nconst detail='搜查資料參考 '+c.refCount+' 筆、X引用共 '+c.xrefTotal+' 筆跨 '+c.xfWith+' 類、正文 '+c.blockLen+' 字、發佈狀態='+(c.pubStatus||'(空)');\nconst advice=allOK?'全項通過，可標完成':('建議補：'+fails.join('；'));\nconst execNote='── '+ts+' 檢核 ──\\n工作對象：'+c.target_name+'\\n完成度：'+checkLine+'\\n語意對應：'+(semOK?'符合':('有偏離 — '+semNote))+'\\n建議：'+advice;\nconst checkReport='── '+ts+' 檢核 ──\\n'+checkLine+'\\n'+detail+'\\n語意對應：'+(semOK?'符合':('有偏離 — '+semNote))+'\\n建議：'+advice;\nconst tgtCheck=(checkReport+(c.tgt_check_note?('\\n\\n'+c.tgt_check_note):'')).slice(0,1990);\nconst db06Check=(checkReport+(c.db06_check_note?('\\n\\n'+c.db06_check_note):'')).slice(0,1990);\nconst usage=resp.usage||{};\nconst it=parseInt(usage.input_tokens||0),ot=parseInt(usage.output_tokens||0);\nconst cost=((it*0.8+ot*4)/1000000*32).toFixed(2);\nreturn [{json:{target_id:c.target_id,db06_id:c.db06_id,target_name:c.target_name,\nexec_note:execNote.slice(0,1990),check_report:checkReport,\ntgt_check:tgtCheck,db06_check:db06Check,all_ok:allOK,usage_line:'進='+it+' 出='+ot+' 成本NT'+cost}}];"
+   }
+  },
+  {
+   "id": "77d6ce98-456f-45a7-9ea1-8a1e2357c4c3",
+   "name": "Read flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    896,
+    384
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $('Parse DB06').first().json.db05_id }}"
+      }
+     ]
+    },
+    "returnAll": false,
+    "limit": 1
+   }
+  },
+  {
+   "id": "81835529-5015-4de3-9325-b39ffc8110c6",
+   "name": "Telegram 處理中",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1120,
+    384
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: '⏳ 第 ' + ($('Parse DB06').first().json.sort_num != null ? $('Parse DB06').first().json.sort_num : '?') + ' 棒 (' + $('Parse DB06').first().json.ai_mode + ') 開始處理。\\n預計 15-60 秒,Claude 思考中。完成會自動發關卡B,免守畫面。', disable_web_page_preview: true, allow_sending_without_reply: true }, ((parseInt($json.last_msg_id || 0) || 0) > 0 ? { reply_to_message_id: parseInt($json.last_msg_id || 0) || 0 } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "0489bec5-d966-438f-9d11-1501eaa61aee",
+   "name": "Save msgid 處理中",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1344,
+    384
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Parse DB06').first().json.db05_id, last_msg_id: mid } }];"
+   }
+  },
+  {
+   "id": "a58df171-1565-415d-8b12-2400a6a172e4",
+   "name": "Update flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1568,
+    384
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    }
+   }
+  },
+  {
+   "id": "3752adf4-c8a1-47ff-958f-3d50876ed076",
+   "name": "檢核盤點",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1100,
+    280
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const baton=$('Parse DB06').first().json;\nconst target=$('Fetch target DB05').first().json;\nconst NHEAD={'Authorization':'Bearer '+$env.NOTION_INTEGRATION_TOKEN,'Notion-Version':'2022-06-28','Content-Type':'application/json'};\nconst norm=id=>(id||'').replace(/-/g,'');\nconst withTO=(p,ms)=>Promise.race([p,new Promise((_,r)=>setTimeout(()=>r(new Error('to')),ms))]);\nconst sleep=ms=>new Promise(r=>setTimeout(r,ms));\nconst getPage=async id=>{try{const r=await withTO(this.helpers.httpRequest({method:'GET',url:'https://api.notion.com/v1/pages/'+id,headers:NHEAD}),10000);return (typeof r==='string')?JSON.parse(r):r;}catch(e){return null;}};\nconst tp=target.properties||{};\nconst rt=k=>(tp[k]?.rich_text||[]).map(t=>t.plain_text).join('');\nconst target_id=norm(target.id);\nconst titleProp=Object.values(tp).find(v=>v&&v.type==='title');\nconst target_name=(titleProp?.title||[]).map(t=>t.plain_text).join('')||'(未命名)';\nconst exec_idea=rt('執行構想');\nconst theme=rt('主題名稱'); const summary=rt('簡介摘要');\nconst pubStatus=tp['發佈狀態']?.status?.name||'';\nconst tgt_check_note=rt('檢核備註');\nconst XF=['提案引用','管考引用','項目引用','協作引用','內容引用','明細引用','庫存引用','對象引用','日期引用'];\nlet xfWith=0; let xrefIds=[];\nfor(const f of XF){const a=(tp[f]&&tp[f].relation)||[];if(a.length)xfWith++;for(const r of a)xrefIds.push(norm(r.id));}\nxrefIds=[...new Set(xrefIds)];\nconst xrefTotal=xrefIds.length;\nconst DB06='3469ff25fdab83c98ff98107ee6a6a1c';\nlet refCount=0; const refNoTag=[];\nconst ids=xrefIds.slice(0,40);\nfor(let i=0;i<ids.length;i+=4){\n  const part=await Promise.all(ids.slice(i,i+4).map(getPage));\n  for(const pg of part){if(!pg)continue;\n    if(norm((pg.parent||{}).database_id||'')!==DB06)continue;\n    const mtype=pg.properties['明細類型']?.select?.name||'';\n    if(mtype==='資料參考'){refCount++;const tags=(pg.properties['對應標籤']?.relation||[]);if(!tags.length){const nm=(pg.properties['明細名稱']?.title||[]).map(t=>t.plain_text).join('');refNoTag.push(nm||norm(pg.id).slice(0,8));}}\n  }\n  if(i+4<ids.length)await sleep(320);\n}\nlet blockText='';\ntry{const b=await withTO(this.helpers.httpRequest({method:'GET',url:'https://api.notion.com/v1/blocks/'+target_id+'/children?page_size=100',headers:NHEAD}),12000);const bb=(typeof b==='string')?JSON.parse(b):b;for(const blk of (bb.results||[])){const t=blk[blk.type];if(t&&t.rich_text)blockText+=(t.rich_text.map(x=>x.plain_text).join(''))+'\\n';}}catch(e){}\nconst c1=exec_idea.length>=30;\nconst c2=refCount>=1;\nconst c3=refCount>0&&refNoTag.length===0;\nconst c4=xrefTotal>=3&&xfWith>=2;\nconst c5=blockText.trim().length>50&&pubStatus==='待發佈';\nreturn [{json:{target_id,target_name,db06_id:baton.db06_id,ai_mode:baton.ai_mode,sort_num:baton.sort_num,\ndb06_check_note:baton.db06_check_note||'',tgt_check_note,\nexec_idea,theme,summary,pubStatus,xfWith,xrefTotal,refCount,refNoTag,\nblockText:blockText.slice(0,4000),blockLen:blockText.length,c1,c2,c3,c4,c5}}];"
+   }
+  },
+  {
+   "id": "da2bc64c-b777-4158-9abc-ec647b32df0e",
+   "name": "PATCH target 備註",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    1760,
+    280
+   ],
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://api.notion.com/v1/pages/{{ $json.target_id }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($json.exec_note) }} } }] }, \"檢核備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($json.tgt_check) }} } }] } } }",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      },
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "4339d8f5-cfdd-44a2-82ac-81af87ab525f",
+   "name": "PATCH DB06 備註完成",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    1980,
+    280
+   ],
+   "parameters": {
+    "method": "PATCH",
+    "url": "=https://api.notion.com/v1/pages/{{ $('Parse Claude').first().json.db06_id }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.exec_note) }} } }] }, \"檢核備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.db06_check) }} } }] }, \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      },
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "494b2e57-d633-4ff6-9a3c-af8df6d6b109",
+   "name": "Telegram 檢核報告",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    2200,
+    280
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"chat_id\": 8523155253, \"text\": {{ JSON.stringify('✅ 嗨嗨檢核完成 — chain 收尾\\n\\n' + $('Parse Claude').first().json.target_name + '\\n\\n' + $('Parse Claude').first().json.check_report) }}, \"disable_web_page_preview\": true }",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Content-Type",
+       "value": "application/json"
+      }
+     ]
+    },
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "Runner Webhook": {
+   "main": [
+    [
+     {
+      "node": "Extract DB06 ID",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Extract DB06 ID": {
+   "main": [
+    [
+     {
+      "node": "Fetch DB06",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch DB06": {
+   "main": [
+    [
+     {
+      "node": "Parse DB06",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse DB06": {
+   "main": [
+    [
+     {
+      "node": "Read flow_state 處理中",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Fetch target DB05",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Read flow_state 處理中": {
+   "main": [
+    [
+     {
+      "node": "Telegram 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram 處理中": {
+   "main": [
+    [
+     {
+      "node": "Save msgid 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save msgid 處理中": {
+   "main": [
+    [
+     {
+      "node": "Update flow_state 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch target DB05": {
+   "main": [
+    [
+     {
+      "node": "檢核盤點",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "檢核盤點": {
+   "main": [
+    [
+     {
+      "node": "Build Claude prompt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build Claude prompt": {
+   "main": [
+    [
+     {
+      "node": "Claude API",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claude API": {
+   "main": [
+    [
+     {
+      "node": "Parse Claude",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse Claude": {
+   "main": [
+    [
+     {
+      "node": "PATCH target 備註",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH target 備註": {
+   "main": [
+    [
+     {
+      "node": "PATCH DB06 備註完成",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH DB06 備註完成": {
+   "main": [
+    [
+     {
+      "node": "Telegram 檢核報告",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ }
+}
