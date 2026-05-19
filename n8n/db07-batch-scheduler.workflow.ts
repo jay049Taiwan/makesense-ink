@@ -51,7 +51,8 @@ const pick = await notion.call(this, 'POST', '/databases/' + DB06_ID + '/query',
   filter: { and: [
     { property: '明細類型', select: { equals: '細部流程' } },
     { property: 'ai模式', select: { equals: '文案' } },
-    { property: 'ai狀態', status: { equals: '待執行' } }
+    { property: 'ai狀態', status: { equals: '待執行' } },
+    { property: '對應庫存', relation: { is_not_empty: true } }
   ] },
   sorts: [{ timestamp: 'created_time', direction: 'ascending' }],
   page_size: 1
@@ -64,9 +65,7 @@ if (!(pick.results || []).length) {
 const wenanGx = pick.results[0];
 const db07Rel = (wenanGx.properties['對應庫存'] && wenanGx.properties['對應庫存'].relation) || [];
 if (!db07Rel.length) {
-  await markBat.call(this, wenanGx, '完成', '文案工項無對應庫存，無法處理，跳過。');
-  try { await this.helpers.httpRequest({ method: 'POST', url: SELF_URL, body: { chained: true }, json: true, timeout: 3000, returnFullResponse: true, ignoreHttpStatusErrors: true }); } catch (e) {}
-  return [{ json: { done: false, skipped: true, reason: '文案工項無對應庫存' } }];
+  return [{ json: { done: true, message: '挑到的文案工項無對應庫存（理論上不會發生），停止以免誤動非批次資料' } }];
 }
 const db07Id = nodash(db07Rel[0].id);
 
@@ -196,7 +195,7 @@ try {
     '你的任務是為一件即將在 makesense.ink 官網上架販售的商品，撰寫一段「簡介摘要」。',
     '',
     '== 鐵律 ==',
-    '1. 字數嚴格落在 300 至 500 字（繁體中文，標點計入）。',
+    '1. 字數目標 380 至 460 字（繁體中文，標點計入），絕對不可超過 500 字、不可少於 300 字。',
     '2. 只能根據下方提供的商品資料與採集參考資料撰寫，嚴禁杜撰書中沒有的情節、得獎紀錄、名人推薦或評論。',
     '3. 不要寫「本書簡介」「以下是」這類開場白，直接進入內容。',
     '4. 語氣溫厚、有文化感，符合獨立書店選書的調性，不要電商促銷腔。',
