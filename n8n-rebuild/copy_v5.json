@@ -167,32 +167,17 @@
   },
   {
    "id": "4e0baa37-6665-41c9-8be2-952051af8fba",
-   "name": "Append blocks",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.3,
+   "name": "寫入正文(乙)",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
    "position": [
     4256,
     96
    ],
    "parameters": {
-    "method": "PATCH",
-    "url": "=https://api.notion.com/v1/blocks/{{ $('Parse Claude').first().json.target_id }}/children",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={ \"children\": {{ JSON.stringify($('Parse Claude').first().json.children) }} }",
-    "sendHeaders": true,
-    "headerParameters": {
-     "parameters": [
-      {
-       "name": "Authorization",
-       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
-      },
-      {
-       "name": "Notion-Version",
-       "value": "2022-06-28"
-      }
-     ]
-    }
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const pc = $('Parse Claude').first().json;\nconst NHEAD = {'Authorization':'Bearer '+$env.NOTION_INTEGRATION_TOKEN,'Notion-Version':'2022-06-28','Content-Type':'application/json'};\nconst target = pc.target_id;\nconst newBlocks = pc.children || [];\nconst HTYPES = ['heading_1','heading_2','heading_3','paragraph'];\n// read existing blocks\nlet old = [];\ntry {\n  let cursor, guard=0;\n  do {\n    const u='https://api.notion.com/v1/blocks/'+target+'/children?page_size=100'+(cursor?('&start_cursor='+cursor):'');\n    const r=await this.helpers.httpRequest({method:'GET',url:u,headers:NHEAD});\n    const rr=(typeof r==='string')?JSON.parse(r):r;\n    for(const b of (rr.results||[])) old.push(b);\n    cursor=rr.has_more?rr.next_cursor:null; guard++;\n  } while(cursor&&guard<12);\n} catch(e){}\n// recreate old block as a fresh child spec\nconst recreate = b => {\n  const t=b.type;\n  if(HTYPES.indexOf(t)<0) return null;\n  const rt=((b[t]||{}).rich_text||[]).map(x=>({text:{content:(x.plain_text||'').slice(0,2000)}}));\n  return {object:'block',type:t,[t]:{rich_text:rt.length?rt:[{text:{content:''}}]}};\n};\nconst oldSpecs = old.map(recreate).filter(Boolean);\nconst appendBatch = async (blocks) => {\n  for(let i=0;i<blocks.length;i+=50){\n    await this.helpers.httpRequest({method:'PATCH',url:'https://api.notion.com/v1/blocks/'+target+'/children',headers:NHEAD,body:JSON.stringify({children:blocks.slice(i,i+50)})});\n  }\n};\nlet note='';\ntry {\n  // 1. 寫新版 (此刻 page = [舊][新])\n  await appendBatch(newBlocks);\n  // 2. 若有舊版 → 複製舊版疊到最下、再刪原始舊版 → page = [新][舊複製]\n  if (oldSpecs.length) {\n    await appendBatch([{object:'block',type:'divider',divider:{}},{object:'block',type:'paragraph',paragraph:{rich_text:[{text:{content:'── 以下為前一版（舊）──'}}]}}]);\n    await appendBatch(oldSpecs);\n    for (const b of old) {\n      try { await this.helpers.httpRequest({method:'DELETE',url:'https://api.notion.com/v1/blocks/'+b.id.replace(/-/g,''),headers:NHEAD}); } catch(e){}\n    }\n    note='新版已寫入頁面最上方，前一版 '+oldSpecs.length+' 塊已移到下方保留';\n  } else {\n    note='頁面原為空，新版已寫入';\n  }\n} catch(err){ note='寫入正文錯誤：'+(err&&err.message||err); }\nreturn [{ json: { ...pc, write_note: note } }];"
    }
   },
   {
@@ -767,17 +752,6 @@
     ]
    ]
   },
-  "Append blocks": {
-   "main": [
-    [
-     {
-      "node": "PATCH DB06 執行備註",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
   "PATCH DB06 執行備註": {
    "main": [
     [
@@ -859,7 +833,7 @@
    "main": [
     [
      {
-      "node": "Append blocks",
+      "node": "寫入正文(乙)",
       "type": "main",
       "index": 0
      }
@@ -951,6 +925,17 @@
     [
      {
       "node": "Save msgid B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "寫入正文(乙)": {
+   "main": [
+    [
+     {
+      "node": "PATCH DB06 執行備註",
       "type": "main",
       "index": 0
      }
