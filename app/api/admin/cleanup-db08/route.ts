@@ -16,7 +16,7 @@
  *   whitelist           = 凡不在 Supabase 白名單、且對象名稱不含中日韓字者
  */
 import { NextRequest, NextResponse } from "next/server";
-import notion, { queryDatabase, DB } from "@/lib/notion";
+import notion, { queryDatabase } from "@/lib/notion";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
@@ -24,6 +24,9 @@ export const maxDuration = 300;
 
 const TIME_BUDGET_MS = 270_000;
 const ARCHIVE_CONCURRENCY = 8;
+
+// DB08「關係對象」的固定 ID（避免依賴環境變數，preview 部署可能沒設）
+const DB08_DATA_SOURCE_ID = "6934a808-b79b-4446-98dd-f699476408a0";
 
 type Rule = "conservative" | "whitelist";
 
@@ -46,9 +49,13 @@ async function loadWhitelist(): Promise<Set<string>> {
   const set = new Set<string>();
   const tables = ["persons", "partners", "members", "staff", "topics"];
   for (const t of tables) {
-    const { data } = await supabaseAdmin.from(t).select("notion_id");
-    for (const row of data || []) {
-      if (row?.notion_id) set.add(String(row.notion_id).replace(/-/g, ""));
+    try {
+      const { data } = await supabaseAdmin.from(t).select("notion_id");
+      for (const row of data || []) {
+        if (row?.notion_id) set.add(String(row.notion_id).replace(/-/g, ""));
+      }
+    } catch {
+      // 白名單載入失敗不致命：保守規則不需要白名單
     }
   }
   return set;
@@ -71,7 +78,7 @@ export async function GET(req: NextRequest) {
 
   let pages: any[];
   try {
-    pages = await queryDatabase(DB.DB08_RELATIONSHIP);
+    pages = await queryDatabase(DB08_DATA_SOURCE_ID);
   } catch (err: any) {
     return NextResponse.json({ ok: false, error: `查詢 DB08 失敗：${err?.message || err}` }, { status: 500 });
   }
