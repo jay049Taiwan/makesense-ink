@@ -66,6 +66,13 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
       description: ogDescs[locale] || ogDescs.zh,
     },
     robots: { index: true, follow: true },
+    // Google Search Console 驗證碼：
+    // 1. 前往 https://search.google.com/search-console → 新增資源 → 輸入 https://makesense.ink
+    // 2. 選「HTML 標記」→ 複製 content 值（格式如 "xxxxx..."）
+    // 3. 填入下方 verification.google，部署後回 Search Console 點「驗證」
+    verification: {
+      google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
+    },
     alternates: {
       canonical: locale === "zh" ? "https://makesense.ink" : `https://makesense.ink/${locale}`,
       languages: {

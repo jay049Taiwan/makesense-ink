@@ -5,6 +5,35 @@ import { fetchPersonByEmail } from "@/lib/fetch-all";
 import { auth } from "@/lib/auth";
 import { normalizeEmail } from "@/lib/email";
 
+// ── Rate limiting（結帳）：同一 IP 5 分鐘內最多 5 次 ──────────────────
+const CHECKOUT_LIMIT = 5;
+const CHECKOUT_WINDOW_MS = 5 * 60 * 1000;
+
+async function checkCheckoutRateLimit(ip: string): Promise<boolean> {
+  const windowStart = new Date(Date.now() - CHECKOUT_WINDOW_MS);
+  try {
+    const { count } = await supabase
+      .from("line_message_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", `ip:${ip}`)
+      .eq("message_type", "checkout")
+      .gte("created_at", windowStart.toISOString());
+    return (count ?? 0) < CHECKOUT_LIMIT;
+  } catch {
+    return true; // 查詢失敗時放行，不因此封鎖正常訂單
+  }
+}
+
+async function logCheckoutAttempt(ip: string): Promise<void> {
+  try {
+    await supabase.from("line_message_log").insert({
+      user_id: `ip:${ip}`,
+      message_type: "checkout",
+      message_text: "checkout_attempt",
+    });
+  } catch { /* fire-and-forget */ }
+}
+
 // 把 32 hex（無 dash）Notion ID 轉成 UUID 8-4-4-4-12（relation 必須帶 dash）
 function toDashedNotionId(id: string | null | undefined): string | null {
   if (!id) return null;
@@ -67,6 +96,19 @@ async function resolveEvent(input: string) {
  * + 非同步呼叫 n8n webhook 在 Notion 建 DB05+DB06
  */
 export async function POST(req: NextRequest) {
+  // Rate limiting
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim()
+    || req.headers.get("x-real-ip")
+    || "unknown";
+  const allowed = await checkCheckoutRateLimit(ip);
+  if (!allowed) {
+    return NextResponse.json(
+      { error: "太多請求，請稍後再試" },
+      { status: 429 }
+    );
+  }
+  logCheckoutAttempt(ip); // fire-and-forget，不 await
+
   try {
     const body = await req.json();
     const { items, contact, delivery, note, memberEmail, source, refundInfo } = body as {
