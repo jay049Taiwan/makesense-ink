@@ -1055,12 +1055,12 @@
    "main": [
     [
      {
-      "node": "Fetch target DB05",
+      "node": "Read flow_state 處理中",
       "type": "main",
       "index": 0
      },
      {
-      "node": "Read flow_state 處理中",
+      "node": "Fetch target DB05",
       "type": "main",
       "index": 0
      }
