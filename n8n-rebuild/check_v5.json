@@ -328,7 +328,7 @@
     "url": "=https://api.notion.com/v1/pages/{{ $('Parse Claude').first().json.db06_id }}",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.exec_note) }} } }] }, \"檢核備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.db06_check) }} } }] }, \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
+    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.exec_note) }} } }] }, \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
