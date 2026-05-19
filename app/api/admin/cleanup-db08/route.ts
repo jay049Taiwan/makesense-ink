@@ -138,6 +138,8 @@ export async function GET(req: NextRequest) {
         ig: props["IG粉專"]?.url || null,
         created_time: p.created_time || null,
         creator: p.created_by?.id || null,
+        synonym: props["同義備註"]?.rich_text?.map((x: any) => x.plain_text).join("") || null,
+        analysis_note: props["分析備註"]?.rich_text?.map((x: any) => x.plain_text).join("") || null,
         decision: null,
       };
     });
