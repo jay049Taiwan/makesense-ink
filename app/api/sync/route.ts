@@ -247,7 +247,7 @@ async function syncPersons() {
         ig: extractUrl(props["IG粉專"]?.url) || null,
         website: extractUrl(props["官網ID"]?.url) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
@@ -349,7 +349,7 @@ async function syncTopics() {
       related_event_ids: resolveRel(props["對應標籤協作"], eventIdByNid),
       related_article_ids: resolveRel(props["對應標籤內容"], articleIdByNid),
       related_tag_ids: resolveRel(props["自對標籤"], topicIdByNid),
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
@@ -378,7 +378,7 @@ async function syncPartners() {
         address: extractText(props["地址"]?.rich_text) || null,
         contactPerson: extractText(props["聯絡人"]?.rich_text) || null,
       },
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
     };
   });
   const validRows = rows.filter(r => r.status !== null);
@@ -494,7 +494,7 @@ async function syncProducts(wb = false, skipImages = false) {
       owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
       page_status: extractStatus(props["頁面狀態"]?.status) || "無頁面",
     };
   });
@@ -669,7 +669,7 @@ async function syncEvents(wb = false, skipImages = false) {
       event_date: dateInfo.start || null,
       duration_min: durationMin,
       distance_km: extractNumber(props["距離km"]?.number) ?? null,
-      price: Number(props["實際總價"]?.formula?.number) || 0,
+      price: Number(props["實際總價+營業額"]?.formula?.number) || 0,
       capacity: extractNumber(props["數量上限"]?.number) || null,
       min_capacity: extractNumber(props["最低數量"]?.number) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
@@ -680,7 +680,7 @@ async function syncEvents(wb = false, skipImages = false) {
       event_category: extractSelect(props["交接類型"]?.select) || null,
       collab_type: extractSelect(props["協作類別"]?.select) || null,
       owner_staff_notion_id: (props["責任執行"]?.people || [])[0]?.id || null,
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
       route_stops,
       tickets,
     };
@@ -798,7 +798,7 @@ async function syncArticles(wb = false, skipImages = false) {
         const v = extractSelect(props["官網備項"]?.select);
         return v ? [v] : null;
       })(),
-      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "published", "待發佈": "draft" }),
+      status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
       published_at: dateInfo.start || null,
     };
   });

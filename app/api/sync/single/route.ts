@@ -284,7 +284,7 @@ async function syncSingleEvent(nid: string, props: any) {
   // 基本票價 = 最低票種價；沒票種就看 DB04 formula「實際總價」
   const basePrice = tickets.length > 0
     ? Math.min(...tickets.map(t => Number(t.price) || 0))
-    : (Number(props["實際總價"]?.formula?.number) || 0);
+    : (Number(props["實際總價+營業額"]?.formula?.number) || 0);
 
   // 計算活動時長：end - start（分鐘）；只有單一日期時預設 120 分鐘（2小時）
   const durationMin = dateInfo.start && dateInfo.end

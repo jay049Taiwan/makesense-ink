@@ -1,6 +1,6 @@
 # Notion DB Schema Snapshot
 
-Generated: 2026-05-19（check3&5 稽核完成後首次快照，DB04~DB08 從 Notion live schema 擷取）
+Generated: 2026-05-19（check3&5 第二次稽核，CODE-A/B 修正完成；SNAP-A/B 經確認為誤報，快照內容正確）
 
 ---
 
