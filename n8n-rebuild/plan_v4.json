@@ -147,7 +147,7 @@
     },
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 4096,\n  \"system\": [{\"type\": \"text\", \"text\": {{ JSON.stringify($json.system) }}, \"cache_control\": {\"type\": \"ephemeral\"}}],\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.user) }} }]\n}"
+    "jsonBody": "={\n  \"model\": \"claude-haiku-4-5-20251001\",\n  \"max_tokens\": 4096,\n  \"system\": [{\"type\": \"text\", \"text\": {{ JSON.stringify($json.system) }}, \"cache_control\": {\"type\": \"ephemeral\"}}],\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.user) }} }]\n}"
    }
   },
   {
