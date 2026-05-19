@@ -139,7 +139,8 @@
       "auto_mode": true
      }
     }
-   }
+   },
+   "alwaysOutputData": true
   },
   {
    "id": "bbd99e0a-9b21-44a4-b2d5-da1512210bb2",
