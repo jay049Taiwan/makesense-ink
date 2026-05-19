@@ -22,7 +22,7 @@ description: |
 
 ## Memory 系統位置
 
-主目錄：`/Users/jay049/.claude/projects/-Users-jay049-Documents-------/memory/`
+主目錄：`~/.claude/projects/-Users-jay049-Documents-------/memory/`
 索引：同目錄下的 `MEMORY.md`
 
 ## 檔名規則
