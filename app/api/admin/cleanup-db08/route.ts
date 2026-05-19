@@ -1,34 +1,60 @@
 /**
  * 一次性清理 DB08「關係對象」垃圾資料
  *
- * 背景：某個自動化曾持續灌入上萬筆英文垃圾資料（來源已停）。
+ * 金鑰：用 ?token=ntn_xxx 從網址帶入 Notion 金鑰（不依賴環境變數）。
  *
- * 用法：
- *   GET ?mode=report
- *     全量掃 DB08，分類統計 + 抽樣 + 來源（創建者/月份）分布，不動任何資料。
+ * 模式：
+ *   ?mode=report&token=...
+ *     全量掃 DB08，分類統計 + 來源分布 + 抽樣。不動任何資料。
  *
- *   GET ?mode=archive&rule=conservative&confirm=DELETE-DB08-JUNK
- *     封存（移到 Notion 垃圾桶）符合規則的垃圾頁。可重複呼叫直到 remaining=0。
- *     垃圾桶 30 天內可救回；要永久刪除請事後在 Notion 垃圾桶手動清空。
+ *   ?mode=list&token=...&offset=0&limit=50&filter=all|junk|keep
+ *     依名稱正規化排序、標記重複組，每批回傳完整欄位供人工複核。
  *
- * rule：
- *   conservative（預設）= 對象名稱不含中日韓字 且 經營類型空 且 無任何 relation
- *   whitelist           = 凡不在 Supabase 白名單、且對象名稱不含中日韓字者
+ *   ?mode=archive&token=...&rule=conservative|whitelist&confirm=DELETE-DB08-JUNK
+ *     批次封存垃圾頁（移至 Notion 垃圾桶，30 天可救回），可重複呼叫直到清完。
  */
 import { NextRequest, NextResponse } from "next/server";
-import notion, { queryDatabase } from "@/lib/notion";
+import { Client } from "@notionhq/client";
 import { supabaseAdmin } from "@/lib/supabase";
 
 export const runtime = "nodejs";
 export const maxDuration = 300;
 
-const TIME_BUDGET_MS = 270_000;
+const TIME_BUDGET_MS = 250_000;
 const ARCHIVE_CONCURRENCY = 8;
-
-// DB08「關係對象」的固定 ID（避免依賴環境變數，preview 部署可能沒設）
 const DB08_DATA_SOURCE_ID = "6934a808-b79b-4446-98dd-f699476408a0";
 
 type Rule = "conservative" | "whitelist";
+
+async function queryAll(client: Client): Promise<any[]> {
+  const all: any[] = [];
+  let cursor: string | undefined = undefined;
+  do {
+    let resp: any;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        resp = await client.dataSources.query({
+          data_source_id: DB08_DATA_SOURCE_ID,
+          page_size: 100,
+          ...(cursor ? { start_cursor: cursor } : {}),
+        } as any);
+        break;
+      } catch (err: any) {
+        const status = err?.status || err?.code;
+        const retryable = status === 502 || status === 504 || status === 429 ||
+          err?.code === "notionhq_client_request_timeout";
+        if (retryable && attempt < 2) {
+          await new Promise((r) => setTimeout(r, [3000, 8000][attempt]));
+          continue;
+        }
+        throw err;
+      }
+    }
+    all.push(...(resp.results || []));
+    cursor = resp.has_more ? resp.next_cursor : undefined;
+  } while (cursor);
+  return all;
+}
 
 function analyze(page: any) {
   const props = page.properties || {};
@@ -47,26 +73,22 @@ function analyze(page: any) {
 
 async function loadWhitelist(): Promise<Set<string>> {
   const set = new Set<string>();
-  const tables = ["persons", "partners", "members", "staff", "topics"];
-  for (const t of tables) {
+  for (const t of ["persons", "partners", "members", "staff", "topics"]) {
     try {
       const { data } = await supabaseAdmin.from(t).select("notion_id");
       for (const row of data || []) {
         if (row?.notion_id) set.add(String(row.notion_id).replace(/-/g, ""));
       }
     } catch {
-      // 白名單載入失敗不致命：保守規則不需要白名單
+      /* 白名單載入失敗不致命 */
     }
   }
   return set;
 }
 
 function isJunk(a: ReturnType<typeof analyze>, rule: Rule, whitelist: Set<string>, pageId: string) {
-  if (a.hasCJK) return false; // 名稱含中日韓字 → 視為真實資料，永遠保留
-  if (rule === "whitelist") {
-    return !whitelist.has(pageId.replace(/-/g, ""));
-  }
-  // conservative
+  if (a.hasCJK) return false; // 名稱含中日韓字 → 視為真實資料，保留
+  if (rule === "whitelist") return !whitelist.has(pageId.replace(/-/g, ""));
   return !a.bizType && a.relCount === 0;
 }
 
@@ -75,15 +97,25 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const mode = searchParams.get("mode") || "report";
   const rule = (searchParams.get("rule") as Rule) || "conservative";
+  const token = searchParams.get("token") || process.env.NOTION_API_KEY;
+
+  if (!token) {
+    return NextResponse.json({ ok: false, error: "缺少 token 參數" }, { status: 400 });
+  }
+  const client = new Client({ auth: token, timeoutMs: 120_000 });
 
   let pages: any[];
   try {
-    pages = await queryDatabase(DB08_DATA_SOURCE_ID);
+    pages = await queryAll(client);
   } catch (err: any) {
-    return NextResponse.json({ ok: false, error: `查詢 DB08 失敗：${err?.message || err}` }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: `查詢 DB08 失敗：${err?.message || err}` },
+      { status: 500 }
+    );
   }
 
-  const whitelist = mode === "report" || rule === "whitelist" ? await loadWhitelist() : new Set<string>();
+  const whitelist =
+    mode === "report" || rule === "whitelist" ? await loadWhitelist() : new Set<string>();
 
   if (mode === "report") {
     let cjk = 0, noCJK = 0, hasBiz = 0, hasMember = 0, hasRel = 0;
@@ -110,11 +142,10 @@ export async function GET(req: NextRequest) {
         byCreator[creator] = (byCreator[creator] || 0) + 1;
         const month = (page.created_time || "").slice(0, 7) || "unknown";
         byMonth[month] = (byMonth[month] || 0) + 1;
-        if (sampleJunk.length < 25) {
-          sampleJunk.push({ id: page.id, title: a.title, bizType: a.bizType, relCount: a.relCount, created: page.created_time });
-        }
+        if (sampleJunk.length < 25)
+          sampleJunk.push({ title: a.title, bizType: a.bizType, relCount: a.relCount, created: page.created_time });
       } else if (sampleKeep.length < 25) {
-        sampleKeep.push({ id: page.id, title: a.title, bizType: a.bizType, relCount: a.relCount });
+        sampleKeep.push({ title: a.title, bizType: a.bizType, relCount: a.relCount });
       }
     }
 
@@ -145,10 +176,8 @@ export async function GET(req: NextRequest) {
   if (mode === "list") {
     const offset = Math.max(0, parseInt(searchParams.get("offset") || "0", 10));
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50", 10)));
-    const filter = searchParams.get("filter") || "all"; // all | junk | keep
-
-    const norm = (s: string) =>
-      s.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "").trim();
+    const filter = searchParams.get("filter") || "all";
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "").trim();
 
     let rows = pages.map((page) => {
       const props = page.properties || {};
@@ -173,7 +202,6 @@ export async function GET(req: NextRequest) {
         relCount: a.relCount,
         relProps,
         created: page.created_time,
-        creator: page.created_by?.id || null,
         isJunkConservative: isJunk(a, "conservative", whitelist, page.id),
       };
     });
@@ -183,10 +211,9 @@ export async function GET(req: NextRequest) {
 
     rows.sort((x, y) => (x.normTitle < y.normTitle ? -1 : x.normTitle > y.normTitle ? 1 : 0));
 
-    // 標記重複組（正規化後同名）
-    let groupSeq = 0;
     const counts: Record<string, number> = {};
     for (const r of rows) if (r.normTitle) counts[r.normTitle] = (counts[r.normTitle] || 0) + 1;
+    let groupSeq = 0;
     const groupId: Record<string, number> = {};
     const out = rows.slice(offset, offset + limit).map((r) => {
       let dupGroup: number | null = null;
@@ -225,32 +252,31 @@ export async function GET(req: NextRequest) {
       if (Date.now() - start > TIME_BUDGET_MS) break;
       const batch = targets.slice(i, i + ARCHIVE_CONCURRENCY);
       const results = await Promise.allSettled(
-        batch.map((id) => notion.pages.update({ page_id: id, archived: true }))
+        batch.map((id) => client.pages.update({ page_id: id, archived: true }))
       );
       for (let j = 0; j < results.length; j++) {
         if (results[j].status === "fulfilled") archived++;
-        else if (errors.length < 10) errors.push(`${batch[j]}: ${(results[j] as PromiseRejectedResult).reason?.message}`);
+        else if (errors.length < 10)
+          errors.push(`${batch[j]}: ${(results[j] as PromiseRejectedResult).reason?.message}`);
       }
     }
 
+    const remaining = targets.length - archived;
     return NextResponse.json({
       ok: true,
       mode: "archive",
       rule,
       matched: targets.length,
       archived,
-      remaining: targets.length - archived,
-      note: remainingNote(targets.length - archived),
+      remaining,
+      note:
+        remaining > 0
+          ? "尚有未處理，請再次呼叫同一網址繼續。"
+          : "已全部封存。要永久刪除請到 Notion 垃圾桶手動清空。",
       errors,
       elapsedMs: Date.now() - start,
     });
   }
 
   return NextResponse.json({ ok: false, error: `未知 mode：${mode}` }, { status: 400 });
-}
-
-function remainingNote(remaining: number) {
-  return remaining > 0
-    ? "尚有未處理，請再次呼叫同一網址（archived 的頁會自動退出查詢結果，重跑即繼續）。"
-    : "已全部封存。要永久刪除請到 Notion 垃圾桶手動清空。";
 }
