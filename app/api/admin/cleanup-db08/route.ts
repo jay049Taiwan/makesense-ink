@@ -125,6 +125,14 @@ export async function GET(req: NextRequest) {
     const sampleJunk: any[] = [];
     const sampleKeep: any[] = [];
 
+    // 全量分布
+    const byBizType: Record<string, number> = {};
+    const byMemberStatus: Record<string, number> = {};
+    const allByCreator: Record<string, number> = {};
+    const allByMonth: Record<string, number> = {};
+    const norm = (s: string) => s.toLowerCase().replace(/[\s\p{P}\p{S}]/gu, "").trim();
+    const titleCounts: Record<string, number> = {};
+
     for (const page of pages) {
       const a = analyze(page);
       if (a.hasCJK) cjk++; else noCJK++;
@@ -132,22 +140,41 @@ export async function GET(req: NextRequest) {
       if (a.memberStatus) hasMember++;
       if (a.relCount > 0) hasRel++;
 
+      byBizType[a.bizType || "（空）"] = (byBizType[a.bizType || "（空）"] || 0) + 1;
+      byMemberStatus[a.memberStatus || "（空）"] = (byMemberStatus[a.memberStatus || "（空）"] || 0) + 1;
+      const c = page.created_by?.id || "unknown";
+      allByCreator[c] = (allByCreator[c] || 0) + 1;
+      const m = (page.created_time || "").slice(0, 7) || "unknown";
+      allByMonth[m] = (allByMonth[m] || 0) + 1;
+      const nt = norm(a.title);
+      if (nt) titleCounts[nt] = (titleCounts[nt] || 0) + 1;
+
       const jC = isJunk(a, "conservative", whitelist, page.id);
       const jW = isJunk(a, "whitelist", whitelist, page.id);
       if (jC) junkConservative++;
       if (jW) junkWhitelist++;
 
       if (jC || jW) {
-        const creator = page.created_by?.id || "unknown";
-        byCreator[creator] = (byCreator[creator] || 0) + 1;
-        const month = (page.created_time || "").slice(0, 7) || "unknown";
-        byMonth[month] = (byMonth[month] || 0) + 1;
+        byCreator[c] = (byCreator[c] || 0) + 1;
+        byMonth[m] = (byMonth[m] || 0) + 1;
         if (sampleJunk.length < 25)
           sampleJunk.push({ title: a.title, bizType: a.bizType, relCount: a.relCount, created: page.created_time });
       } else if (sampleKeep.length < 25) {
         sampleKeep.push({ title: a.title, bizType: a.bizType, relCount: a.relCount });
       }
     }
+
+    // 重複統計
+    let dupGroups = 0, recordsInGroups = 0;
+    const topDup: { title: string; count: number }[] = [];
+    for (const [t, n] of Object.entries(titleCounts)) {
+      if (n > 1) {
+        dupGroups++;
+        recordsInGroups += n;
+        topDup.push({ title: t, count: n });
+      }
+    }
+    topDup.sort((a, b) => b.count - a.count);
 
     return NextResponse.json({
       ok: true,
@@ -159,6 +186,15 @@ export async function GET(req: NextRequest) {
         有經營類型: hasBiz,
         有會員狀態: hasMember,
         有任一relation: hasRel,
+      },
+      依經營類型: byBizType,
+      依會員狀態: byMemberStatus,
+      全量依建立者: allByCreator,
+      全量依月份: allByMonth,
+      重複統計: {
+        重複組數: dupGroups,
+        屬於重複組的總筆數: recordsInGroups,
+        最重複前30名: topDup.slice(0, 30),
       },
       junk: {
         conservative_保守規則: junkConservative,
