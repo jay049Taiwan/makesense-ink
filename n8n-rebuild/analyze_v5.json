@@ -631,6 +631,160 @@
     "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $json.tg_message, disable_web_page_preview: true, allow_sending_without_reply: true }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
     "options": {}
    }
+  },
+  {
+   "id": "ab666134-5d6e-416a-99bf-355942abf3f4",
+   "name": "Fetch target PDF",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    440,
+    720
+   ],
+   "parameters": {
+    "url": "=https://api.notion.com/v1/pages/{{ $('Parse DB06').first().json.db05_id }}",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "d3516d82-cc6c-465e-a8e7-18486be01dcd",
+   "name": "Pick PDF",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    640,
+    720
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const p=$input.first().json; const tp=p.properties||{};\nlet files=[];\nfor(const v of Object.values(tp)){ if(v&&v.type==='files'&&Array.isArray(v.files)){ files=files.concat(v.files); } }\nlet url='',name='';\nfor(const f of files){ const u=(f.file&&f.file.url)||(f.external&&f.external.url)||''; const nm=f.name||''; if(u&&/\\.pdf(\\?|$)/i.test(u+nm)){ url=u; name=nm||'document.pdf'; break; } }\nreturn [{json:{has_pdf:!!url,pdf_url:url,pdf_name:name,target_id:(p.id||'').replace(/-/g,'')}}];"
+   }
+  },
+  {
+   "id": "ddafc5d2-81d5-4fff-b5c9-1dfcba554a53",
+   "name": "has PDF?",
+   "type": "n8n-nodes-base.if",
+   "typeVersion": 2.2,
+   "position": [
+    840,
+    720
+   ],
+   "parameters": {
+    "conditions": {
+     "options": {
+      "caseSensitive": true,
+      "leftValue": "",
+      "typeValidation": "loose"
+     },
+     "combinator": "and",
+     "conditions": [
+      {
+       "id": "1",
+       "leftValue": "={{ $json.has_pdf }}",
+       "rightValue": true,
+       "operator": {
+        "type": "boolean",
+        "operation": "true",
+        "singleValue": true
+       }
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "8e9a7311-f5b8-4c6d-b5fd-88d203a02588",
+   "name": "下載 PDF",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1040,
+    720
+   ],
+   "parameters": {
+    "url": "={{ $json.pdf_url }}",
+    "options": {
+     "response": {
+      "response": {
+       "responseFormat": "file"
+      }
+     },
+     "timeout": 120000
+    }
+   }
+  },
+  {
+   "id": "331a46ac-d595-4abf-8b1c-79e229d87e51",
+   "name": "Cloudflare toMarkdown",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1240,
+    720
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "=https://api.cloudflare.com/client/v4/accounts/{{ $env.CLOUDFLARE_ACCOUNT_ID }}/ai/tomarkdown",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "=Bearer {{ $env.CLOUDFLARE_API_TOKEN }}"
+      }
+     ]
+    },
+    "sendBody": true,
+    "contentType": "multipart-form-data",
+    "bodyParameters": {
+     "parameters": [
+      {
+       "parameterType": "formBinaryData",
+       "name": "files",
+       "inputDataFieldName": "data"
+      }
+     ]
+    },
+    "options": {
+     "timeout": 180000,
+     "retry": {
+      "retry": {
+       "maxTries": 3,
+       "waitBetweenTries": 5000
+      }
+     }
+    },
+    "onError": "continueRegularOutput"
+   }
+  },
+  {
+   "id": "2b9ee328-df73-45f5-9cf2-859744719c8a",
+   "name": "建 PDF 資料參考",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1440,
+    720
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const cf=$input.first().json;\nconst pk=$('Pick PDF').first().json;\nconst NHEAD={'Authorization':'Bearer '+$env.NOTION_INTEGRATION_TOKEN,'Notion-Version':'2022-06-28','Content-Type':'application/json'};\nconst DB06='3469ff25fdab83c98ff98107ee6a6a1c';\nlet md='';\nif(cf&&cf.success&&Array.isArray(cf.result)&&cf.result.length) md=cf.result[0].data||'';\nlet note='';\ntry{\n  if(!md.trim()) throw new Error('Cloudflare 回傳空白');\n  const mk=(t,c)=>{const o={object:'block',type:t};o[t]={rich_text:[{text:{content:(c||'').slice(0,1990)}}]};return o;};\n  const blocks=[];\n  for(let ln of md.split('\\n')){\n    if(!ln.trim()) continue;\n    if(ln.startsWith('### ')) blocks.push(mk('heading_3',ln.slice(4)));\n    else if(ln.startsWith('## ')) blocks.push(mk('heading_2',ln.slice(3)));\n    else if(ln.startsWith('# ')) blocks.push(mk('heading_1',ln.slice(2)));\n    else { for(let i=0;i<ln.length;i+=1900) blocks.push(mk('paragraph',ln.slice(i,i+1900))); }\n  }\n  const first=blocks.slice(0,100);\n  const cp=await this.helpers.httpRequest({method:'POST',url:'https://api.notion.com/v1/pages',headers:NHEAD,body:JSON.stringify({\n    parent:{database_id:DB06},\n    properties:{'明細名稱':{title:[{text:{content:('📄 '+(pk.pdf_name||'PDF')).slice(0,200)}}]},'明細類型':{select:{name:'資料參考'}},'參考類別':{select:{name:'企劃參考'}}},\n    children:first})});\n  const cpr=(typeof cp==='string')?JSON.parse(cp):cp;\n  const pid=(cpr.id||'').replace(/-/g,'');\n  for(let i=100;i<blocks.length;i+=100){\n    try{await this.helpers.httpRequest({method:'PATCH',url:'https://api.notion.com/v1/blocks/'+pid+'/children',headers:NHEAD,body:JSON.stringify({children:blocks.slice(i,i+100)})});}catch(e){}\n  }\n  // link to target 明細引用\n  const tp=await this.helpers.httpRequest({method:'GET',url:'https://api.notion.com/v1/pages/'+pk.target_id,headers:NHEAD});\n  const tpr=(typeof tp==='string')?JSON.parse(tp):tp;\n  const ex=(((tpr.properties||{})['明細引用']||{}).relation||[]).map(x=>({id:x.id}));\n  ex.push({id:pid});\n  await this.helpers.httpRequest({method:'PATCH',url:'https://api.notion.com/v1/pages/'+pk.target_id,headers:NHEAD,body:JSON.stringify({properties:{'明細引用':{relation:ex}}})});\n  note='PDF '+(pk.pdf_name||'')+' 已轉文字('+md.length+' 字)、建成資料參考並連入 target 明細引用';\n}catch(err){ note='PDF 處理失敗：'+(err&&err.message||err); }\nreturn [{json:{pdf_note:note}}];"
+   }
   }
  ],
  "connections": {
@@ -677,6 +831,11 @@
      },
      {
       "node": "Query 引用資料",
+      "type": "main",
+      "index": 0
+     },
+     {
+      "node": "Fetch target PDF",
       "type": "main",
       "index": 0
      }
@@ -889,6 +1048,62 @@
     [
      {
       "node": "Save msgid B",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch target PDF": {
+   "main": [
+    [
+     {
+      "node": "Pick PDF",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pick PDF": {
+   "main": [
+    [
+     {
+      "node": "has PDF?",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "has PDF?": {
+   "main": [
+    [
+     {
+      "node": "下載 PDF",
+      "type": "main",
+      "index": 0
+     }
+    ],
+    []
+   ]
+  },
+  "下載 PDF": {
+   "main": [
+    [
+     {
+      "node": "Cloudflare toMarkdown",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Cloudflare toMarkdown": {
+   "main": [
+    [
+     {
+      "node": "建 PDF 資料參考",
       "type": "main",
       "index": 0
      }
