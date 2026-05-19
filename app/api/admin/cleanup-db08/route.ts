@@ -123,6 +123,45 @@ export async function GET(req: NextRequest) {
   const whitelist =
     mode === "report" || rule === "whitelist" ? await loadWhitelist() : new Set<string>();
 
+  if (mode === "snapshot") {
+    const rows = pages.map((p) => {
+      const a = analyze(p);
+      const props = p.properties || {};
+      return {
+        notion_id: p.id.replace(/-/g, ""),
+        title: a.title,
+        biz_type: a.bizType,
+        member_status: a.memberStatus,
+        rel_count: a.relCount,
+        email: props["Email"]?.rich_text?.map((x: any) => x.plain_text).join("") || null,
+        fb: props["FB粉專"]?.url || null,
+        ig: props["IG粉專"]?.url || null,
+        created_time: p.created_time || null,
+        creator: p.created_by?.id || null,
+        decision: null,
+      };
+    });
+    await supabase.from("db08_cleanup").delete().neq("notion_id", "___none___");
+    let inserted = 0;
+    for (let i = 0; i < rows.length; i += 500) {
+      const { error } = await supabase.from("db08_cleanup").insert(rows.slice(i, i + 500));
+      if (error) {
+        return NextResponse.json(
+          { ok: false, error: `寫入 Supabase 失敗：${error.message}`, inserted },
+          { status: 500 }
+        );
+      }
+      inserted += Math.min(500, rows.length - i);
+    }
+    return NextResponse.json({
+      ok: true,
+      mode: "snapshot",
+      total: pages.length,
+      inserted,
+      elapsedMs: Date.now() - start,
+    });
+  }
+
   if (mode === "report") {
     let cjk = 0, noCJK = 0, hasBiz = 0, hasMember = 0, hasRel = 0;
     let junkConservative = 0, junkWhitelist = 0;
