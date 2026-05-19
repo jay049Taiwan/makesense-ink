@@ -13,11 +13,15 @@ logger = logging.getLogger(__name__)
 
 PCC_BASE = "https://web.pcc.gov.tw"
 
-# Cloudinary（共用 photo_processor 的帳號）
-CLOUDINARY_CLOUD_NAME = "drypcu6lg"
-CLOUDINARY_API_KEY = "858743591889649"
-CLOUDINARY_API_SECRET = "AZAD3BJz3xiRRyDaLAfAyjsNCVo"
-CLOUDINARY_UPLOAD_URL = f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/raw/upload"
+# Cloudinary — 全部走環境變數，不寫死密鑰（2026/05/19 上雲前移除明文）
+# 未設定時 upload_to_cloudinary 會直接略過（附件上傳屬選用功能）
+CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
+CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
+CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
+CLOUDINARY_UPLOAD_URL = (
+    f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/raw/upload"
+    if CLOUDINARY_CLOUD_NAME else ""
+)
 
 
 @dataclass
@@ -164,6 +168,10 @@ async def upload_to_cloudinary(attachment: TenderAttachment) -> Optional[str]:
     """上傳檔案到 Cloudinary，回傳公開 URL。"""
     import hashlib
     import time
+
+    if not CLOUDINARY_CLOUD_NAME or not CLOUDINARY_API_KEY or not CLOUDINARY_API_SECRET:
+        logger.info("Cloudinary 未設定，略過附件上傳")
+        return None
 
     if not attachment.local_path or not os.path.exists(attachment.local_path):
         return None

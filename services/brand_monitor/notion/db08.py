@@ -62,13 +62,13 @@ class KeywordSet:
 
 def _page_to_entry(page: dict) -> Optional[KeywordEntry]:
     """將 Notion page 轉為 KeywordEntry。"""
-    name = client.extract_title(page, "經營名稱")
+    name = client.extract_title(page, "對象名稱")
     if not name:
         return None
     return KeywordEntry(
         page_id=page["id"],
         name=name,
-        website=client.extract_url(page, "官網ID"),
+        website=client.extract_rich_text(page, "官網ID"),
         fb=client.extract_url(page, "FB粉專"),
         ig=client.extract_url(page, "IG粉專"),
     )
@@ -129,13 +129,13 @@ async def load_bookstore_targets() -> list[KeywordEntry]:
 
     targets = []
     for page in pages:
-        name = client.extract_title(page, "經營名稱")
+        name = client.extract_title(page, "對象名稱")
         if not name:
             continue
         entry = KeywordEntry(
             page_id=page["id"],
             name=name,
-            website=client.extract_url(page, "官網ID"),
+            website=client.extract_rich_text(page, "官網ID"),
             fb=client.extract_url(page, "FB粉專"),
             ig=client.extract_url(page, "IG粉專"),
         )
@@ -151,7 +151,7 @@ async def find_by_name(name: str) -> Optional[str]:
     pages = await client.query_db(
         DB08_ID,
         filter_json={
-            "property": "經營名稱",
+            "property": "對象名稱",
             "title": {"equals": name},
         },
         page_size=1,
@@ -169,18 +169,22 @@ async def create_org(
     address: str = None,
     phone: str = None,
     email: str = None,
+    tag_page_ids: list[str] = None,
 ) -> str:
-    """在 DB08 新增一個合作單位（招標單位/採購單位等）。回傳 page_id。
+    """在 DB08 新增一個合作單位（招標單位/採購單位/得標廠商等）。回傳 page_id。
 
     2026/04/22 校正：經營類型用「紀錄」（不顯示於官網的後台資料）；
     不設「關係選項」（僅會員類使用：個人/合作夥伴/工作團隊）。
+    tag_page_ids：自對標籤 relation（如「政府標案」標籤頁）。
     """
     properties = {
-        "經營名稱": {"title": [{"text": {"content": name}}]},
+        "對象名稱": {"title": [{"text": {"content": name}}]},
         "經營類型": {"select": {"name": "紀錄"}},
     }
+    if tag_page_ids:
+        properties["自對標籤"] = {"relation": [{"id": pid} for pid in tag_page_ids]}
     if website:
-        properties["官網ID"] = {"url": website}
+        properties["官網ID"] = {"rich_text": [{"text": {"content": website}}]}
     if fb:
         properties["FB粉專"] = {"url": fb}
     if ig:
@@ -203,7 +207,7 @@ async def create_topic(name: str) -> str:
     2026/04/22 校正：經營類型用「標籤」（舊「主題標籤」已廢）。
     """
     properties = {
-        "經營名稱": {"title": [{"text": {"content": name}}]},
+        "對象名稱": {"title": [{"text": {"content": name}}]},
         "經營類型": {"select": {"name": "標籤"}},
     }
 
@@ -224,7 +228,7 @@ async def update_contact(
     """更新 DB08 項目的聯絡資訊（只更新非 None 的值）。"""
     properties = {}
     if website is not None:
-        properties["官網ID"] = {"url": website}
+        properties["官網ID"] = {"rich_text": [{"text": {"content": website}}]}
     if fb is not None:
         properties["FB粉專"] = {"url": fb}
     if ig is not None:
@@ -241,6 +245,21 @@ async def update_contact(
         logger.info("DB08 更新聯絡資訊: %s (%d 欄)", page_id, len(properties))
 
 
+async def link_tags(page_id: str, tag_page_ids: list[str]):
+    """把 tag_page_ids 併入既有 DB08 頁面的「自對標籤」relation（不覆蓋）。"""
+    if not tag_page_ids:
+        return
+    page = await client.get_page(page_id)
+    existing = client.extract_relation_ids(page, "自對標籤")
+    merged = list({*existing, *tag_page_ids})
+    if set(merged) == set(existing):
+        return
+    await client.update_page(page_id, {
+        "自對標籤": {"relation": [{"id": pid} for pid in merged]},
+    })
+    logger.info("DB08 補標籤: %s (+%d)", page_id, len(merged) - len(existing))
+
+
 async def ensure_org(
     name: str,
     website: str = None,
@@ -249,10 +268,11 @@ async def ensure_org(
     address: str = None,
     phone: str = None,
     email: str = None,
+    tag_page_ids: list[str] = None,
 ) -> str:
     """確保 DB08 有此單位，沒有就新增。回傳 page_id。
 
-    若提供聯絡資訊，會補齊既有項目中空白的欄位。
+    已存在：補齊空白的聯絡欄位、併入標籤（不重建）。
     """
     page_id = await find_by_name(name)
     if page_id:
@@ -260,7 +280,7 @@ async def ensure_org(
         has_update = any([website, fb, ig, address, phone, email])
         if has_update:
             page = await client.get_page(page_id)
-            existing_web = client.extract_url(page, "官網ID")
+            existing_web = client.extract_rich_text(page, "官網ID")
             existing_fb = client.extract_url(page, "FB粉專")
             existing_ig = client.extract_url(page, "IG粉專")
             existing_addr = client.extract_rich_text(page, "地址")
@@ -275,8 +295,11 @@ async def ensure_org(
                 phone=phone if not existing_phone else None,
                 email=email if not existing_email else None,
             )
+        await link_tags(page_id, tag_page_ids or [])
         return page_id
-    return await create_org(name, website, fb, ig, address, phone, email)
+    return await create_org(
+        name, website, fb, ig, address, phone, email, tag_page_ids=tag_page_ids
+    )
 
 
 async def ensure_topic(name: str) -> str:
@@ -285,3 +308,14 @@ async def ensure_topic(name: str) -> str:
     if page_id:
         return page_id
     return await create_topic(name)
+
+
+_gov_tender_tag_id: Optional[str] = None
+
+
+async def ensure_gov_tender_tag() -> str:
+    """確保「政府標案」標籤頁存在，回傳 page_id（process 內快取一次）。"""
+    global _gov_tender_tag_id
+    if _gov_tender_tag_id is None:
+        _gov_tender_tag_id = await ensure_topic("政府標案")
+    return _gov_tender_tag_id

@@ -7,7 +7,8 @@ NOTION_API_KEY = os.environ.get("NOTION_API_KEY", "")
 NOTION_API_VERSION = "2022-06-28"
 DB01_ID = "e2d16f2a01814d9f8adce25ed61e633c"  # 資源提案
 DB05_ID = "e5f14f056c7c4b8a804304eab598fd4d"  # 登記內容
-DB08_ID = "873970187f394f6b8304406745bd1579"  # 關係對象（2026/04 架構調整前稱 DB06 互動關係經營）
+DB06_ID = "3469ff25fdab83c98ff98107ee6a6a1c"  # 清單明細（決標案資料參考）
+DB08_ID = "873970187f394f6b8304406745bd1579"  # 關係對象
 
 # === Telegram（2026/05/09 取代 Discord）===
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
