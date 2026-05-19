@@ -40,6 +40,13 @@ description: |
 
 ## 一、執行前必讀（每次啟動）
 
+### 0. 環境通用設定（本機 / 雲端皆適用）
+
+- **repo 根目錄**：本 skill 所有路徑用 `$REPO` 代表；啟動時先執行
+  `git rev-parse --show-toplevel` 取得（本機 Mac、雲端容器都能正確定位，不寫死絕對路徑）。
+- **就地取代**：批次改檔一律用 `perl -pi -e 's/.../.../g'`，不要用 `sed -i`
+  —— `sed -i` 在 macOS(BSD) 與 Linux(GNU) 語法不同會出錯，`perl -pi -e` 兩邊一致。
+
 ### 9 個 DB（以 Notion 實際 title 為單一真相）
 
 | DB | Page ID | Collection ID |
@@ -90,7 +97,7 @@ description: |
 **X被引描述反義詞**（出現 = 過時敘述，需改為「dual-sync 自動鏡射」）：廣撒 / 巡邏 / 廣泛寫入 / 獨立第三鏈 / 反向掛回 / 不走 auto dual sync / 不走 Notion auto dual sync / AI 廣撒寫入
 
 **DB05 欄位（2026/05/14）**：ai辨識分析(→分析備註) / ai_meta(→分析備註；DB05 原有 ai_meta 欄位已刪除；DB01-04、DB06-09 的 ai_meta 已全數改名 ai備註→2026/05/17 再改名 分析備註)
-**全 DB 欄位（2026/05/17）**：ai備註(→分析備註；DB01-09 全數改名)；同時新增 核銷備註（DB01-09 共用，text）
+**全 DB 欄位（2026/05/17）**：ai備註(→分析備註；DB01-09 全數改名)；核銷備註（DB01-09 共用，text；CLAUDE.md/MEMORY.md 已記載，但 2026-05-19 schema snapshot 確認尚未在 live Notion 建立，待驗證）
 
 **法人名**：現思文化創藝**術**有限公司(多「術」字錯字 → 現思文化創藝有限公司)
 
@@ -101,7 +108,7 @@ description: |
 - deepface（已換 insightface + ONNX；`deepface` 在現行技術棧描述出現 = bug）
 - cloudinary npm package（`"cloudinary":` 在 package.json = zombie dependency）
 
-**路徑**：程式/文件出現本機絕對路徑(`/Users/...`、`~/Documents/...`、`~/Code/...`)= 過時殘留;雲端 session 的 repo 一律 `/home/user/makesense-ink`
+**路徑**：程式/文件裡寫死任何使用者家目錄絕對路徑(`/Users/...`、`/home/<user>/...`、`~/Documents/...`、`~/Code/...`)= 過時殘留;skill 一律用 `git rev-parse --show-toplevel` 動態取得 repo 根目錄
 
 ### 6 層命名公約（select 後綴）
 
@@ -165,7 +172,7 @@ DB05 變動：
 **並行 spawn 3 個 agent**（一個訊息內 3 個 Agent tool call）：
 
 #### Agent 1：程式碼層
-範圍：`/home/user/makesense-ink`（雲端 session 的 repo 根目錄）
+範圍：`$REPO`（repo 根目錄，= `git rev-parse --show-toplevel`）
 重點：app/api/**、lib/**、scripts/**、components/workbench/**、components/partner/**
 
 找這幾類問題：
@@ -182,13 +189,13 @@ DB05 變動：
 
 #### Agent 2：repo markdown 文件
 範圍：
-- `/home/user/makesense-ink/*.md`（CLAUDE.md, *_HANDOFF.md 等）
-- `/home/user/makesense-ink/.claude/skills/**/SKILL.md`（含本 skill 自己）
+- `$REPO/*.md`（CLAUDE.md, *_HANDOFF.md 等）
+- `$REPO/.claude/skills/**/SKILL.md`（含本 skill 自己）
 - schema 快照 `.claude/skills/check3-5/notion_structure.md`
 
 找：所有舊欄位名 / 舊 option 值 / 舊 DB 名出現處。
 跳過：legacy/ 子目錄、`audit_*.md`（歷史）。
-> 註：雲端容器沒有本機的 `~/.claude/projects/.../memory/*.md` 與使用者全域 `~/CLAUDE.md`，這兩處不掃。
+> 註：本 skill 只掃 repo 內檔案，不掃使用者全域 `~/.claude/projects/.../memory/*.md` 與 `~/CLAUDE.md`（那些跨機器/雲端不一致）。
 
 #### Agent 3：Notion 指南頁面
 範圍（fetch 深度 2 層子分頁）：
@@ -290,12 +297,12 @@ DB05 變動：
 **為什麼要做**：repo 內 `.claude/skills/**/SKILL.md`、Notion 上的 SKILL 頁面（hihi 系列、makesense-guide-router、本 skill 自己等）會寫死欄位/option 字串作為 schema 真相對照表。schema 改名後若 skill 沒同步更新，下次 skill 被觸發時會把過時的 schema 當作真相，造成 AI 行為錯誤（找不到欄位、用舊 option 篩選、誤導其他 agent）。
 
 **稽核範圍**：
-1. **repo skill 檔**：`/home/user/makesense-ink/.claude/skills/**/SKILL.md`（含本 skill 自己、n8n-makesense、makesense-guide-router 等）
+1. **repo skill 檔**：`$REPO/.claude/skills/**/SKILL.md`（含本 skill 自己、n8n-makesense、makesense-guide-router 等）
 2. **Notion SKILL 頁面**：hihi 系列（hihianly/hihicheck/hihiconnect/hihioutline/hihisearch）、makesense-guide-router、本 skill (`check3-5`) 自己
 
 **稽核流程**（spawn 一個 agent）：
 
-1. `ls /home/user/makesense-ink/.claude/skills/` 列出所有 skill 資料夾
+1. `ls $REPO/.claude/skills/` 列出所有 skill 資料夾
 2. 逐個 Read，掃描內容找：
    - 寫死的舊 Notion 欄位名（表單名稱/表單類型/內容類別/登記發佈/協作選項/活動細項/門市選項/交接名稱/實際單價/預計單價/交接備註/...）
    - 寫死的舊 option 值（圖文影音 in DB05/預約報名/走讀行旅/場地使用/請款請購/紀錄備項/...）
@@ -311,7 +318,7 @@ DB05 變動：
 
 ```
 你是 Claude skill 稽核員。掃以下兩個範圍：
-1. ls /home/user/makesense-ink/.claude/skills/ + Read 每個 SKILL.md
+1. ls $REPO/.claude/skills/ + Read 每個 SKILL.md
 2. fetch Notion SKILL 頁面（page id 列表如下）
 
 當前 schema 真相（這是「新」名字，舊名出現 = bug）：
@@ -336,9 +343,9 @@ DB05 變動：
 **為什麼要做**：schema 改完後本來就會 commit + push。但 repo 本身的衛生（未 commit 的零散改、堆積的本地 commits、偷渡的 secret、不該入庫的大檔）跟 schema 對齊一樣重要——schema 變更會帶出大量 code 改動，順便健檢可以撿出長期累積的 git 髒亂。
 
 **稽核範圍**：
-1. **makesense-ink**：`/home/user/makesense-ink`（雲端 session 唯一的 repo）
+1. 當前 repo：`$REPO`
 
-> 註：本機版原本還查 brand_monitor 等其他 repo；雲端容器只有 makesense-ink 一個 repo，其餘不適用。
+> 註：只健檢本 skill 所在的 repo（makesense-ink）。其他 repo（如本機的 brand_monitor）不在範圍內，需要時各自跑。
 
 **7 項檢查**：
 
@@ -358,7 +365,7 @@ DB05 變動：
 你是 git repo 健檢員。對下列 repo 各跑 7 項檢查：
 
 repos:
-- /home/user/makesense-ink
+- $REPO
 
 對每個 repo 跑：
 1. cd <repo> && git status --short
@@ -384,7 +391,7 @@ repos:
 跑這段 grep：
 ```bash
 grep -rn "supabase.*from\|.upsert\|.insert\|.update" --include="*.ts" --include="*.mjs" \
-  /home/user/makesense-ink/{app/api,lib,scripts}
+  $REPO/{app/api,lib,scripts}
 ```
 比對：sync 寫入 Supabase 的欄位是否還匹配 Supabase 表結構（用 `mcp__4b0f2cc0-...__list_tables` 查 Supabase）。
 
@@ -392,7 +399,7 @@ grep -rn "supabase.*from\|.upsert\|.insert\|.update" --include="*.ts" --include=
 找所有 `select { equals: "X" }` 或 `select: { name: "X" }` 模式：
 ```bash
 grep -rE 'select.*name.*"[^"]+"' --include="*.ts" --include="*.mjs" \
-  /home/user/makesense-ink/
+  $REPO/
 ```
 逐個檢查那個 option 字串是否還在 Notion schema 裡。被刪的 option = bug。
 
@@ -426,7 +433,7 @@ grep -rE 'select.*name.*"[^"]+"' --include="*.ts" --include="*.mjs" \
 
 ### Step 5 — 修完後寫 schema 快照
 
-完成後更新 repo 內 `.claude/skills/check3-5/notion_structure.md`：記錄「最後一次稽核 = YYYY-MM-DD，schema 狀態：…」，**並 commit + push**（雲端容器是臨時的，不 commit 下次 session 就讀不到快照）。
+完成後更新 repo 內 `.claude/skills/check3-5/notion_structure.md`：記錄「最後一次稽核 = YYYY-MM-DD，schema 狀態：…」，**並 commit + push**（快照必須進 git，否則雲端臨時容器、或換機時會讀不到）。
 這個快照是下次 Step 0 比對的基準。
 
 ---
@@ -436,7 +443,7 @@ grep -rE 'select.*name.*"[^"]+"' --include="*.ts" --include="*.mjs" \
 ### 程式碼 agent prompt 模板
 
 ```
-你是 makesense.ink 程式碼稽核員。工作目錄：/home/user/makesense-ink/
+你是 makesense.ink 程式碼稽核員。工作目錄：$REPO/
 
 ## 當前 schema 真相（這是「新」名字，舊名出現就是 bug）
 [此處貼上 Step 0 抓到的最新 schema 狀態，含 DB 名、欄位、options]
@@ -463,9 +470,9 @@ app/api/**、lib/**、scripts/**、components/workbench/**、components/partner/
 
 ```
 範圍：
-- /home/user/makesense-ink/*.md
-- /home/user/makesense-ink/.claude/skills/**/SKILL.md（含本 skill 自己）
-- /home/user/makesense-ink/.claude/skills/check3-5/notion_structure.md（schema 快照）
+- $REPO/*.md
+- $REPO/.claude/skills/**/SKILL.md（含本 skill 自己）
+- $REPO/.claude/skills/check3-5/notion_structure.md（schema 快照）
 
 找：所有舊欄位名 / 舊 DB 名 / 舊 option 值。
 跳過：legacy/ 與 audit_*.md（歷史快照）。
@@ -501,11 +508,11 @@ app/api/**、lib/**、scripts/**、components/workbench/**、components/partner/
 
 #### 程式碼批次：
 ```bash
-cd /home/user/makesense-ink
+cd "$(git rev-parse --show-toplevel)"
 find . -name "*.ts" -o -name "*.tsx" -o -name "*.mjs" | grep -v node_modules | grep -v ".next" \
-  | xargs sed -i 's/"舊欄位名"/"新欄位名"/g'
+  | xargs perl -pi -e 's/"舊欄位名"/"新欄位名"/g'
 ```
-（雲端容器是 Linux/GNU sed，用 `sed -i`；本機 macOS 是 `sed -i ''`）
+（用 `perl -pi -e` 而非 `sed -i`：macOS(BSD) 與 Linux(GNU) 語法一致，跨環境安全）
 （也包括註解中的不帶引號版本，第二輪 sed 不帶引號）
 
 #### 本地 md 批次：
@@ -538,7 +545,7 @@ Co-Authored-By: Claude <noreply@anthropic.com>
 
 1. 把設計寫進 repo 內 `.claude/skills/check3-5/notion_structure.md` 對應 DB 段落
 2. 更新本 skill 的「術語速查」章節
-3. 更新 `/home/user/makesense-ink/CLAUDE.md` 對應 DB 描述
+3. 更新 `$REPO/CLAUDE.md` 對應 DB 描述
 
 ---
 

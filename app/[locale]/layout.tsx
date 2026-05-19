@@ -71,7 +71,7 @@ export async function generateMetadata({ params }: { params: Promise<{ locale: s
     // 2. 選「HTML 標記」→ 複製 content 值（格式如 "xxxxx..."）
     // 3. 填入下方 verification.google，部署後回 Search Console 點「驗證」
     verification: {
-      google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || "",
+      google: "Xt8Ue6hkZr-3BrRQMUnnJYBxGc566EQIyepL1VrPK8o",
     },
     alternates: {
       canonical: locale === "zh" ? "https://makesense.ink" : `https://makesense.ink/${locale}`,
