@@ -1,6 +1,6 @@
 # Notion DB Schema Snapshot
 
-Generated: 2026-05-19（check3&5 第二次稽核，CODE-A/B 修正完成；SNAP-A/B 經確認為誤報，快照內容正確）
+Generated: 2026-05-19（check3&5 第三次稽核，修正 run-sync.mjs 實際總價+articles status regression；Notion 7 頁缺載補充完成）
 
 ---
 
