@@ -1,0 +1,136 @@
+{
+ "name": "嗨嗨總管 心跳 v2",
+ "nodes": [
+  {
+   "id": "2cda2ab1-a3e4-4f4f-905a-f0146fb19fb7",
+   "name": "心跳排程",
+   "type": "n8n-nodes-base.scheduleTrigger",
+   "typeVersion": 1.3,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "rule": {
+     "interval": [
+      {
+       "field": "days",
+       "daysInterval": 1,
+       "triggerAtHour": 9,
+       "triggerAtMinute": 0
+      }
+     ]
+    }
+   }
+  },
+  {
+   "id": "8cd7d56c-d4f3-43f9-980e-738926944dc0",
+   "name": "Query 細部流程",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    224,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.notion.com/v1/databases/3469ff25fdab83c98ff98107ee6a6a1c/query",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={ \"filter\": { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }, \"page_size\": 100 }",
+    "options": {
+     "response": {
+      "response": {
+       "neverError": true
+      }
+     }
+    }
+   }
+  },
+  {
+   "id": "68c72a31-1fc7-458c-bc87-c7ff6e14ab53",
+   "name": "巡查偵測",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    448,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const r=$input.first().json;\nconst results=r.results||[];\nconst now=Date.now();\nconst RUN_STUCK=2*3600*1000;\nconst WAIT_STUCK=24*3600*1000;\nconst running=[],waiting=[];\nfor(const p of results){\n  const pr=p.properties||{};\n  const status=pr['ai狀態']?.status?.name||'';\n  const mode=pr['ai模式']?.select?.name||'';\n  if(!mode)continue;\n  const edited=new Date(p.last_edited_time).getTime();\n  const name=(pr['明細名稱']?.title||[]).map(t=>t.plain_text).join('')||'(未命名)';\n  const id=p.id.replace(/-/g,'');\n  if(status==='執行中'&&now-edited>RUN_STUCK){\n    running.push({name,mode,id,h:((now-edited)/3600000).toFixed(1)});\n  }else if(status==='待執行'&&now-edited>WAIT_STUCK){\n    waiting.push({name,mode,id,h:((now-edited)/3600000).toFixed(1)});\n  }\n}\nconst nowTW=new Date().toLocaleString('zh-TW',{timeZone:'Asia/Taipei'});\nlet msg='💓 嗨嗨總管心跳 '+nowTW+'\\n細部流程棒次共 '+results.length+' 筆。';\nif(!running.length&&!waiting.length){\n  msg+='\\n無卡關、無久候，一切正常。';\n}else{\n  if(running.length){msg+='\\n\\n⚠️ 卡關（執行中久未動 >2hr）'+running.length+' 個：\\n'+running.slice(0,15).map(s=>'• '+s.name+'（'+s.mode+'）卡 '+s.h+' 小時  db06='+s.id).join('\\n');}\n  if(waiting.length){msg+='\\n\\n⏳ 久候放行（待執行 >24hr）'+waiting.length+' 個：\\n'+waiting.slice(0,15).map(s=>'• '+s.name+'（'+s.mode+'）等 '+s.h+' 小時  db06='+s.id).join('\\n');}\n}\nreturn [{json:{msg,running:running.length,waiting:waiting.length,total:results.length}}];"
+   }
+  },
+  {
+   "id": "85eef3a5-414e-4468-acc3-2a4b1bea01ca",
+   "name": "Telegram 推播",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    672,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ chat_id: 8523155253, text: $json.msg, disable_web_page_preview: true }) }}",
+    "options": {}
+   }
+  }
+ ],
+ "connections": {
+  "心跳排程": {
+   "main": [
+    [
+     {
+      "node": "Query 細部流程",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Query 細部流程": {
+   "main": [
+    [
+     {
+      "node": "巡查偵測",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "巡查偵測": {
+   "main": [
+    [
+     {
+      "node": "Telegram 推播",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ }
+}
