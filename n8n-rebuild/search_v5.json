@@ -133,7 +133,7 @@
      "parameters": [
       {
        "name": "Authorization",
-       "value": "={{ \"Bearer \" + $env.TAVILY_API_KEY }}"
+       "value": "={{ \"Bearer \" + ($env.TAVILY_API_KEY || \"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\") }}"
       },
       {
        "name": "Content-Type",
