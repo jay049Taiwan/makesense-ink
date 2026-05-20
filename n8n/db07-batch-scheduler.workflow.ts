@@ -155,6 +155,7 @@ try {
 }
 
 let pchomeEnriched = 0;
+let pchomeAttempted = 0;
 try {
   const refResp0 = await notion.call(this, 'POST', '/databases/' + DB06_ID + '/query', {
     filter: { and: [
@@ -166,6 +167,7 @@ try {
   for (const ref of (refResp0.results || [])) {
     const url = (ref.properties['對應連結'] && ref.properties['對應連結'].url) || '';
     if (url.indexOf('pchome.com.tw/item/') < 0) continue;
+    pchomeAttempted++;
     const existingSum = rt((ref.properties['簡介摘要'] || {}).rich_text || []);
     if (existingSum.length > 250) continue;
     const prodId = extractPChomeProdId(url);
@@ -179,10 +181,12 @@ try {
       });
       if (ir.statusCode !== 200) { await sleep(400); continue; }
       const raw = typeof ir.body === 'string' ? ir.body : '';
-      const m = raw.match(/\\{[\\s\\S]*\\}/);
-      if (!m) { await sleep(400); continue; }
+      const cbStart = raw.indexOf('cb(');
+      const cbEnd = raw.lastIndexOf(');');
+      if (cbStart < 0 || cbEnd <= cbStart + 3) { await sleep(400); continue; }
+      const jsonStr = raw.slice(cbStart + 3, cbEnd);
       let parsed = null;
-      try { parsed = JSON.parse(m[0]); } catch (e) { await sleep(400); continue; }
+      try { parsed = JSON.parse(jsonStr); } catch (e) { await sleep(400); continue; }
       const arr = parsed && parsed[prodId];
       const introHtml = arr && arr[0] && arr[0].Intro;
       if (!introHtml) { await sleep(400); continue; }
@@ -195,7 +199,7 @@ try {
       await sleep(500);
     } catch (e) {}
   }
-  log.push('PChome /intro 補料 ' + pchomeEnriched + ' 筆');
+  log.push('PChome /intro 補料 ' + pchomeEnriched + '/' + pchomeAttempted + ' 筆');
 } catch (e) { log.push('PChome 補料 err:' + e.message); }
 
 const refResp = await notion.call(this, 'POST', '/databases/' + DB06_ID + '/query', {
