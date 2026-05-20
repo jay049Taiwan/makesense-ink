@@ -1,6 +1,6 @@
 # Notion DB Schema Snapshot
 
-Generated: 2026-05-20（check3&5 第四次稽核，修正 single/route.ts articles status hardcode；Notion 退件清單 R1-R8 全結案；DB05 snapshot 備注：line 288 交接備註 + line 487 登記發佈 均為 DB05 獨立欄位，非舊名 bug）
+Generated: 2026-05-20（check3&5 第五次稽核，修正 single/route.ts DB07 products.status 改讀發佈狀態；DB欄位字典刪除 請款請購 錯誤列項；INTAKE.md 兩行 Cloudinary 退役標注清除；n8n workflow 54 個全過；schema 無 Notion DB 異動）
 
 ---
 

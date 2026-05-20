@@ -19,7 +19,7 @@
 | 資料庫 | Supabase (PostgreSQL, project: `zgwdomvauuxaxtgqqvrn`) |
 | CMS | Notion API (`@notionhq/client` 5.17) — 9 個 DB（DB01~DB09） |
 | 國際化 | next-intl 4.9（架構備好，翻譯資料尚未完整） |
-| 圖片 CDN | Cloudflare R2（2026/04/29 從 Cloudinary 遷移過來；Supabase 中仍有舊 Cloudinary URL 向後相容） |
+| 圖片 CDN | Cloudflare R2（Supabase 中仍有舊圖片 URL 向後相容） |
 | LIFF SDK | `@line/liff` 2.28 |
 | LINE Bot | `@line/bot-sdk` 11 |
 | 條碼掃描 | `html5-qrcode` 2.3 |
@@ -361,7 +361,7 @@ Icon：直接 inline SVG 寫在元件裡（沒有用 icon library）
 ### 第三方嵌入
 
 - Google Fonts CDN（外部依賴）
-- Cloudflare R2（圖片 CDN，2026/04/29 從 Cloudinary 遷移過來）
+- Cloudflare R2（圖片 CDN）
 - LIFF SDK（LINE 內 JS 注入）
 - next-auth Google/LINE OAuth flow
 
