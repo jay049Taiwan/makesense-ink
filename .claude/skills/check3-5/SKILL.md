@@ -10,7 +10,7 @@ description: |
   - 「DB schema 改了/變了」
   - 「git 健檢 / repo 檢查 / 看本機 git 狀態」
   - **「check3&5 / 檢查3&5」**（唯一觸發詞）
-  - 直接打 `/checkcheck`
+  - 直接打 `/check3&5`
 
   目標：使用者每次改 DB schema（改名 / 刪欄位 / 改選項 / 加 relation）後，
   自動跑完整稽核找出所有需要對齊的位置，產整合報告，再詢問是否動手修。
