@@ -100,6 +100,54 @@ async def scrape_tender_page(page_url: str) -> TenderPageInfo:
     return info
 
 
+# 補助案 / 一般公告頁的附件抓取（PCC 之外的政府網站結構各異，用 generic 規則撈）
+ATTACHMENT_EXT_PATTERN = re.compile(
+    r"\.(pdf|doc|docx|odt|zip|xls|xlsx|ppt|pptx)(\?|$)",
+    re.IGNORECASE,
+)
+
+
+async def scrape_generic_attachments_page(page_url: str) -> TenderPageInfo:
+    """從一般公告頁 HTML 撈附件連結（副檔名比對）。
+
+    補助 / 徵件公告各機關網站 HTML 結構不同，無法寫單一 parser，
+    這裡用「href 副檔名」做最大公約數判斷。誤判可接受，因為下載後
+    若不是預期型別，create_attachment_page 還會用 content-type 過濾。
+    """
+    info = TenderPageInfo()
+    try:
+        async with httpx.AsyncClient(timeout=20, follow_redirects=True) as client:
+            resp = await client.get(page_url)
+            text = resp.text
+            base_url = str(resp.url)
+    except Exception as e:
+        logger.warning("讀取公告頁失敗: %s", e)
+        return info
+
+    # 抓 <a href="...">label</a> 結構
+    seen = set()
+    pattern = re.compile(
+        r'<a[^>]+href=["\']([^"\']+)["\'][^>]*>([^<]{0,200})</a>',
+        re.IGNORECASE | re.DOTALL,
+    )
+    from urllib.parse import urljoin
+    for href, label in pattern.findall(text):
+        if not ATTACHMENT_EXT_PATTERN.search(href):
+            continue
+        full_url = urljoin(base_url, href.strip())
+        if full_url in seen:
+            continue
+        seen.add(full_url)
+        info.attachments.append({
+            "url": full_url,
+            "label": label.strip() or "附件",
+            "type": "generic",
+        })
+
+    logger.info("公告頁找到 %d 個附件連結: %s", len(info.attachments), page_url)
+    return info
+
+
 async def download_file(url: str, tender_id: str = "") -> Optional[TenderAttachment]:
     """下載檔案到暫存目錄。"""
     try:
@@ -280,3 +328,47 @@ async def download_tender_attachments(
 
     logger.info("標案 %s: 共處理 %d 個附件", tender_id, len(result.attachments))
     return result
+
+
+# 每筆來源最多處理幾個附件（避免單一公告附件過多塞爆 Notion）
+MAX_ATTACHMENTS_PER_SOURCE = 10
+
+
+async def download_attachments_generic(
+    source_url: str, label_prefix: str = ""
+) -> list[TenderAttachment]:
+    """通用附件下載：補助 / 徵件公告頁等非 PCC 來源走這條。
+
+    流程：開頁 → 用副檔名比對撈連結 → 下載 → 上傳 R2。
+    回傳：每個附件含 cloud_url（上傳成功時）和 download_url（原始連結）。
+    """
+    attachments: list[TenderAttachment] = []
+
+    page_info = await scrape_generic_attachments_page(source_url)
+    if not page_info.attachments:
+        return attachments
+
+    for link in page_info.attachments[:MAX_ATTACHMENTS_PER_SOURCE]:
+        attachment = await download_file(link["url"], label_prefix)
+        if not attachment:
+            continue
+        attachment.doc_type = link.get("label", "附件")
+        cloud_url = await upload_to_r2(attachment)
+        if cloud_url:
+            attachment.cloud_url = cloud_url
+        attachments.append(attachment)
+
+    logger.info("公告 %s: 共處理 %d 個附件", source_url, len(attachments))
+    return attachments
+
+
+async def download_attachments_auto(
+    source_url: str, parent_id_for_log: str = ""
+) -> list[TenderAttachment]:
+    """依 URL 自動分流：政府電子採購網用 PCC parser，其他用 generic。"""
+    if not source_url:
+        return []
+    if "web.pcc.gov.tw" in source_url or "pcc.mlwmlw.org" in source_url:
+        result = await download_tender_attachments(source_url, parent_id_for_log)
+        return result.attachments
+    return await download_attachments_generic(source_url, parent_id_for_log)

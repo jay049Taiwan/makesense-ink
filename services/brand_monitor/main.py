@@ -17,6 +17,7 @@ import signal
 import sys
 import os
 from datetime import date
+from typing import Optional
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -26,12 +27,13 @@ from apscheduler.triggers.cron import CronTrigger
 import config
 from notion import db08, db01, db05, db06, client as notion_client
 from notion.db01 import ProposalData
-from notion.db06 import ReferenceData
+from notion.db06 import ReferenceData, AttachmentData, create_attachment_page
 from monitors import procurement, subsidy, sentiment
 from ai import assessor
 from keyword_engine import expander
 from telegram_notify import sender  # 2026/05/09 從 discord_notify 改 telegram_notify
 from reports import weekly
+from utils.downloader import download_attachments_auto
 
 logging.basicConfig(
     level=logging.INFO,
@@ -67,6 +69,47 @@ async def _resolve_org_ids(names: list[str], gov_tag_id: str) -> list[str]:
         except Exception as e:
             logger.warning("DB08 寫入單位失敗 (%s): %s", nm, e)
     return ids
+
+
+async def _process_attachments(
+    source_url: str,
+    parent_title: str,
+    parent_proposal_id: str = "",
+    parent_reference_id: str = "",
+    org_page_ids: Optional[list[str]] = None,
+) -> int:
+    """下載公告附件 → 上 R2 → 開 DB06 attachment page。回傳成功寫入的附件數。
+
+    去重交給 db06.create_attachment_page（用 對應連結 比對）。
+    任一步失敗只 warning，不擋整體流程。
+    """
+    if not source_url:
+        return 0
+    try:
+        attachments = await download_attachments_auto(source_url, parent_title[:30])
+    except Exception as e:
+        logger.warning("附件下載失敗 (%s): %s", parent_title, e)
+        return 0
+
+    success = 0
+    for att in attachments:
+        try:
+            page_id = await create_attachment_page(AttachmentData(
+                title=att.filename or att.doc_type or "附件",
+                download_url=att.download_url,
+                cloud_url=att.cloud_url,
+                filename=att.filename,
+                parent_proposal_id=parent_proposal_id,
+                parent_reference_id=parent_reference_id,
+                parent_title=parent_title,
+                doc_type=att.doc_type,
+                org_page_ids=org_page_ids or [],
+            ))
+            if page_id:
+                success += 1
+        except Exception as e:
+            logger.warning("DB06 附件寫入失敗 (%s): %s", att.filename, e)
+    return success
 
 
 # ====================================================================
@@ -143,13 +186,15 @@ async def run_proposal_report(report_date: date = None):
 
         written_db01 = 0
         written_db06 = 0
+        written_attachments = 0
 
         # === 招標 → DB01 資源提案（執行狀態=預計提案）===
         for i, t in enumerate(relevant_tenders, 1):
             org_ids = await _resolve_org_ids([t.unit_name], gov_tag_id)
             db01_ok = False
+            proposal_page_id = ""
             try:
-                await db01.create_proposal(ProposalData(
+                proposal_page_id = await db01.create_proposal(ProposalData(
                     title=t.title,
                     tender_id=t.tender_id,
                     source_url=t.source_url,
@@ -166,6 +211,16 @@ async def run_proposal_report(report_date: date = None):
                 db01_ok = True
             except Exception as e:
                 logger.warning("DB01 寫入失敗 (%s): %s", t.title, e)
+
+            # 抓附件 PDF → DB06 attachment page
+            if proposal_page_id:
+                n_att = await _process_attachments(
+                    source_url=t.source_url,
+                    parent_title=t.title,
+                    parent_proposal_id=proposal_page_id,
+                    org_page_ids=org_ids,
+                )
+                written_attachments += n_att
 
             yilan_tag = "⭐宜蘭 " if t.is_yilan else ""
             tags = "、".join(filter(None, [
@@ -199,8 +254,9 @@ async def run_proposal_report(report_date: date = None):
                 [t.unit_name, *t.award_winners], gov_tag_id
             )
             db06_ok = False
+            reference_page_id = ""
             try:
-                await db06.create_reference(ReferenceData(
+                reference_page_id = await db06.create_reference(ReferenceData(
                     title=t.title,
                     source_url=t.source_url,
                     tender_id=t.tender_id,
@@ -214,6 +270,16 @@ async def run_proposal_report(report_date: date = None):
                 db06_ok = True
             except Exception as e:
                 logger.warning("DB06 寫入失敗 (%s): %s", t.title, e)
+
+            # 抓附件 PDF → DB06 attachment page（掛在決標明細下）
+            if reference_page_id:
+                n_att = await _process_attachments(
+                    source_url=t.source_url,
+                    parent_title=t.title,
+                    parent_reference_id=reference_page_id,
+                    org_page_ids=org_ids,
+                )
+                written_attachments += n_att
 
             winners = "、".join(t.award_winners) if t.award_winners else "未公告"
             msg = (
@@ -233,8 +299,9 @@ async def run_proposal_report(report_date: date = None):
         for i, s in enumerate(relevant_subsidies, 1):
             org_ids = await _resolve_org_ids([s.source_name], gov_tag_id)
             db01_ok = False
+            proposal_page_id = ""
             try:
-                await db01.create_proposal(ProposalData(
+                proposal_page_id = await db01.create_proposal(ProposalData(
                     title=s.title,
                     source_url=s.source_url,
                     category="獎補助",
@@ -249,6 +316,16 @@ async def run_proposal_report(report_date: date = None):
                 db01_ok = True
             except Exception as e:
                 logger.warning("DB01 寫入失敗 (%s): %s", s.title, e)
+
+            # 抓附件 PDF → DB06 attachment page
+            if proposal_page_id:
+                n_att = await _process_attachments(
+                    source_url=s.source_url,
+                    parent_title=s.title,
+                    parent_proposal_id=proposal_page_id,
+                    org_page_ids=org_ids,
+                )
+                written_attachments += n_att
 
             yilan_tag = "⭐宜蘭 " if getattr(s, "is_yilan", False) else ""
             msg = (
@@ -301,7 +378,8 @@ async def run_proposal_report(report_date: date = None):
             await sender.send_single("✅ 今日無符合條件的新標案或獎補助")
         else:
             await sender.send_single(
-                f"✅ 今日落地：DB01 {written_db01} 筆、DB06 {written_db06} 筆（皆已查重）"
+                f"✅ 今日落地：DB01 {written_db01} 筆、DB06 {written_db06} 筆"
+                f"、附件 {written_attachments} 個（皆已查重）"
             )
 
         # 週一加上週報
