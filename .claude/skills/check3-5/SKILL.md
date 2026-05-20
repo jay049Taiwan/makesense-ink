@@ -9,10 +9,8 @@ description: |
   - 「我刪掉/新增 select 欄位」
   - 「DB schema 改了/變了」
   - 「git 健檢 / repo 檢查 / 看本機 git 狀態」
-  - **「檢查3+5 / 檢查3&5 / 檢查35 / 檢查3-5」**（自然語）
-  - **「check3+5 / check3&5 / check 3 加 5 / 跑 3+5」**
-  - 直接打 `/check3-5` 或 `/check35`
-  - 向下相容：「check3+4 / check3&4 / check34 / 檢查3+2 / check3-2 / check32」（舊名仍可觸發）
+  - **「check3&5 / 檢查3&5」**（唯一觸發詞）
+  - 直接打 `/checkcheck`
 
   目標：使用者每次改 DB schema（改名 / 刪欄位 / 改選項 / 加 relation）後，
   自動跑完整稽核找出所有需要對齊的位置，產整合報告，再詢問是否動手修。
