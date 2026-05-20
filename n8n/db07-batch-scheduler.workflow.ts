@@ -20,6 +20,15 @@ function dash(id) {
 }
 const rt = (arr) => (arr || []).map((t) => t.plain_text || '').join('');
 const clean = (s) => (s || '').toString().split(NL).join(' ').replace(/\\s+/g, ' ').trim();
+const stripHtml = (s) => (s || '').toString().split(/<[^>]+>/).join(' ').split('&nbsp;').join(' ').split('&amp;').join('&').split('&lt;').join('<').split('&gt;').join('>').split('&quot;').join('"').split(NL).join(' ').replace(/\\s+/g, ' ').trim();
+function extractPChomeProdId(url) {
+  const i = (url || '').indexOf('/item/');
+  if (i < 0) return '';
+  let id = url.slice(i + 6);
+  const stops = ['/', '?', '#', '&', ' '];
+  for (const s of stops) { const ix = id.indexOf(s); if (ix > 0) id = id.slice(0, ix); }
+  return id;
+}
 
 async function notion(method, path, body, attempt) {
   const a = attempt || 0;
@@ -144,6 +153,50 @@ try {
   await markBat.call(this, gxByMode['搜查'], '完成', '搜查 失敗：' + e.message);
   log.push('搜查 err:' + e.message);
 }
+
+let pchomeEnriched = 0;
+try {
+  const refResp0 = await notion.call(this, 'POST', '/databases/' + DB06_ID + '/query', {
+    filter: { and: [
+      { property: '對應庫存', relation: { contains: dash(db07Id) } },
+      { property: '明細類型', select: { equals: '資料參考' } }
+    ] },
+    page_size: 100
+  });
+  for (const ref of (refResp0.results || [])) {
+    const url = (ref.properties['對應連結'] && ref.properties['對應連結'].url) || '';
+    if (url.indexOf('pchome.com.tw/item/') < 0) continue;
+    const existingSum = rt((ref.properties['簡介摘要'] || {}).rich_text || []);
+    if (existingSum.length > 250) continue;
+    const prodId = extractPChomeProdId(url);
+    if (!prodId) continue;
+    try {
+      const ir = await this.helpers.httpRequest({
+        method: 'GET',
+        url: 'https://ecapi.pchome.com.tw/ecshop/prodapi/v2/prod/' + prodId + '/intro&_callback=cb',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 Chrome/120', 'Referer': 'https://24h.pchome.com.tw/', 'Accept': '*/*' },
+        returnFullResponse: true, ignoreHttpStatusErrors: true
+      });
+      if (ir.statusCode !== 200) { await sleep(400); continue; }
+      const raw = typeof ir.body === 'string' ? ir.body : '';
+      const m = raw.match(/\\{[\\s\\S]*\\}/);
+      if (!m) { await sleep(400); continue; }
+      let parsed = null;
+      try { parsed = JSON.parse(m[0]); } catch (e) { await sleep(400); continue; }
+      const arr = parsed && parsed[prodId];
+      const introHtml = arr && arr[0] && arr[0].Intro;
+      if (!introHtml) { await sleep(400); continue; }
+      const text = stripHtml(introHtml).slice(0, 1800);
+      if (text.length < 120) { await sleep(400); continue; }
+      await notion.call(this, 'PATCH', '/pages/' + ref.id, {
+        properties: { '簡介摘要': { rich_text: [{ type: 'text', text: { content: text } }] } }
+      });
+      pchomeEnriched++;
+      await sleep(500);
+    } catch (e) {}
+  }
+  log.push('PChome /intro 補料 ' + pchomeEnriched + ' 筆');
+} catch (e) { log.push('PChome 補料 err:' + e.message); }
 
 const refResp = await notion.call(this, 'POST', '/databases/' + DB06_ID + '/query', {
   filter: { and: [
