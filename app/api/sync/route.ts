@@ -88,8 +88,9 @@ function fileUrls(prop: any): string[] {
 }
 
 /**
- * 狀態映射：
- * 「已發佈」「待發佈」→ active/published（上架）
+ * 狀態映射（map 由呼叫端傳入）：
+ * events/topics 等：已發佈/待發佈 → "active"
+ * articles：已發佈 → "published"、待發佈 → "draft"
  * 「不發佈」→ "draft"（下架，仍寫入 Supabase 讓官網不顯示）
  * 空值（從未設定）→ null（不同步）
  */
