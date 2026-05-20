@@ -5,7 +5,7 @@ from typing import Any, Optional
 
 import httpx
 
-from config import NOTION_API_KEY, NOTION_API_VERSION, NOTION_RATE_LIMIT
+from config import NOTION_INTEGRATION_TOKEN, NOTION_API_VERSION, NOTION_RATE_LIMIT
 from utils.rate_limiter import RateLimiter
 
 logger = logging.getLogger(__name__)
@@ -27,7 +27,7 @@ async def _get_client() -> httpx.AsyncClient:
 
 def _headers() -> dict:
     return {
-        "Authorization": f"Bearer {NOTION_API_KEY}",
+        "Authorization": f"Bearer {NOTION_INTEGRATION_TOKEN}",
         "Content-Type": "application/json",
         "Notion-Version": NOTION_API_VERSION,
     }

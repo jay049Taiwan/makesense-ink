@@ -1,5 +1,6 @@
-"""標案附件下載 + Cloudinary 上傳"""
+"""標案附件下載 + Cloudflare R2 上傳"""
 
+import asyncio
 import logging
 import os
 import re
@@ -13,15 +14,13 @@ logger = logging.getLogger(__name__)
 
 PCC_BASE = "https://web.pcc.gov.tw"
 
-# Cloudinary — 全部走環境變數，不寫死密鑰（2026/05/19 上雲前移除明文）
-# 未設定時 upload_to_cloudinary 會直接略過（附件上傳屬選用功能）
-CLOUDINARY_CLOUD_NAME = os.environ.get("CLOUDINARY_CLOUD_NAME", "")
-CLOUDINARY_API_KEY = os.environ.get("CLOUDINARY_API_KEY", "")
-CLOUDINARY_API_SECRET = os.environ.get("CLOUDINARY_API_SECRET", "")
-CLOUDINARY_UPLOAD_URL = (
-    f"https://api.cloudinary.com/v1_1/{CLOUDINARY_CLOUD_NAME}/raw/upload"
-    if CLOUDINARY_CLOUD_NAME else ""
-)
+# Cloudflare R2 — 與 n8n 共用同一套環境變數命名
+R2_ACCESS_KEY = os.environ.get("R2_ACCESS_KEY", "")
+R2_SECRET_KEY = os.environ.get("R2_SECRET_KEY", "")
+R2_ACCOUNT_ID = os.environ.get("CLOUDFLARE_ACCOUNT_ID", "")
+R2_BUCKET = os.environ.get("R2_BUCKET", "")
+# 公開 URL 前綴（pub-xxxx.r2.dev 或自訂網域）；未設定則上傳完只回傳 None
+R2_PUBLIC_BASE_URL = os.environ.get("R2_PUBLIC_BASE_URL", "").rstrip("/")
 
 
 @dataclass
@@ -30,7 +29,7 @@ class TenderAttachment:
     filename: str = ""
     local_path: str = ""
     download_url: str = ""
-    cloudinary_url: str = ""
+    cloud_url: str = ""
     doc_type: str = ""  # 投標須知 / 招標文件 etc
 
 
@@ -164,52 +163,78 @@ async def download_file(url: str, tender_id: str = "") -> Optional[TenderAttachm
         return None
 
 
-async def upload_to_cloudinary(attachment: TenderAttachment) -> Optional[str]:
-    """上傳檔案到 Cloudinary，回傳公開 URL。"""
-    import hashlib
-    import time
+_r2_client = None
 
-    if not CLOUDINARY_CLOUD_NAME or not CLOUDINARY_API_KEY or not CLOUDINARY_API_SECRET:
-        logger.info("Cloudinary 未設定，略過附件上傳")
+
+def _get_r2_client():
+    """惰性建立 boto3 S3 client，指向 Cloudflare R2 endpoint。"""
+    global _r2_client
+    if _r2_client is not None:
+        return _r2_client
+    if not (R2_ACCESS_KEY and R2_SECRET_KEY and R2_ACCOUNT_ID and R2_BUCKET):
+        return None
+    try:
+        import boto3
+        from botocore.client import Config as BotoConfig
+    except ImportError:
+        logger.warning("boto3 未安裝，無法上傳 R2")
+        return None
+    _r2_client = boto3.client(
+        "s3",
+        endpoint_url=f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com",
+        aws_access_key_id=R2_ACCESS_KEY,
+        aws_secret_access_key=R2_SECRET_KEY,
+        config=BotoConfig(signature_version="s3v4"),
+        region_name="auto",
+    )
+    return _r2_client
+
+
+async def upload_to_r2(attachment: TenderAttachment) -> Optional[str]:
+    """上傳檔案到 Cloudflare R2，回傳公開 URL（若有設 R2_PUBLIC_BASE_URL）。"""
+    client = _get_r2_client()
+    if client is None:
+        logger.info("R2 未設定，略過附件上傳")
         return None
 
     if not attachment.local_path or not os.path.exists(attachment.local_path):
         return None
 
-    timestamp = str(int(time.time()))
-    # 用 raw 上傳（非圖片）
-    folder = "brand_monitor/attachments"
-    public_id = os.path.splitext(attachment.filename)[0]
+    # key 結構：brand_monitor/attachments/<filename>
+    safe_name = re.sub(r"[^\w一-鿿.\-]", "_", attachment.filename)
+    key = f"brand_monitor/attachments/{safe_name}"
 
-    # 產生簽名
-    params_to_sign = f"folder={folder}&public_id={public_id}&timestamp={timestamp}{CLOUDINARY_API_SECRET}"
-    signature = hashlib.sha1(params_to_sign.encode()).hexdigest()
+    # 推測 Content-Type
+    ext = os.path.splitext(safe_name)[1].lower()
+    content_type = {
+        ".pdf": "application/pdf",
+        ".doc": "application/msword",
+        ".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        ".odt": "application/vnd.oasis.opendocument.text",
+        ".zip": "application/zip",
+    }.get(ext, "application/octet-stream")
+
+    def _put():
+        with open(attachment.local_path, "rb") as f:
+            client.put_object(
+                Bucket=R2_BUCKET,
+                Key=key,
+                Body=f.read(),
+                ContentType=content_type,
+            )
 
     try:
-        async with httpx.AsyncClient(timeout=120) as client:
-            with open(attachment.local_path, "rb") as f:
-                resp = await client.post(
-                    CLOUDINARY_UPLOAD_URL,
-                    data={
-                        "api_key": CLOUDINARY_API_KEY,
-                        "timestamp": timestamp,
-                        "signature": signature,
-                        "folder": folder,
-                        "public_id": public_id,
-                    },
-                    files={"file": (attachment.filename, f)},
-                )
-            resp.raise_for_status()
-            data = resp.json()
-            url = data.get("secure_url", "")
-            logger.info("Cloudinary 上傳完成: %s", url)
+        await asyncio.to_thread(_put)
+        if R2_PUBLIC_BASE_URL:
+            url = f"{R2_PUBLIC_BASE_URL}/{key}"
+            logger.info("R2 上傳完成: %s", url)
             return url
-
+        logger.info("R2 上傳完成（無 public base URL，不回傳公開連結）: %s", key)
+        return None
     except Exception as e:
-        logger.warning("Cloudinary 上傳失敗: %s", e)
+        logger.warning("R2 上傳失敗: %s", e)
         return None
     finally:
-        # 清理暫存
         try:
             os.remove(attachment.local_path)
             os.rmdir(os.path.dirname(attachment.local_path))
@@ -227,7 +252,7 @@ class TenderDownloadResult:
 async def download_tender_attachments(
     source_url: str, tender_id: str = ""
 ) -> TenderDownloadResult:
-    """完整流程：從標案 URL 解析頁面（截止日期 + 附件）並上傳 Cloudinary。"""
+    """完整流程：從標案 URL 解析頁面（截止日期 + 附件）並上傳 R2。"""
     result = TenderDownloadResult()
 
     # 1. 解析頁面
@@ -248,10 +273,10 @@ async def download_tender_attachments(
         attachment = await download_file(link["url"], tender_id)
         if attachment:
             attachment.doc_type = link.get("label", "附件")
-            cloud_url = await upload_to_cloudinary(attachment)
+            cloud_url = await upload_to_r2(attachment)
             if cloud_url:
-                attachment.cloudinary_url = cloud_url
-                result.attachments.append(attachment)
+                attachment.cloud_url = cloud_url
+            result.attachments.append(attachment)
 
     logger.info("標案 %s: 共處理 %d 個附件", tender_id, len(result.attachments))
     return result

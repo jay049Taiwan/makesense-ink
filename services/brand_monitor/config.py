@@ -3,7 +3,7 @@
 import os
 
 # === Notion ===
-NOTION_API_KEY = os.environ.get("NOTION_API_KEY", "")
+NOTION_INTEGRATION_TOKEN = os.environ.get("NOTION_INTEGRATION_TOKEN", "")
 NOTION_API_VERSION = "2022-06-28"
 DB01_ID = "e2d16f2a01814d9f8adce25ed61e633c"  # 資源提案
 DB05_ID = "e5f14f056c7c4b8a804304eab598fd4d"  # 登記內容
@@ -19,7 +19,7 @@ DISCORD_BOT_TOKEN = os.environ.get("DISCORD_BOT_TOKEN", "")
 DISCORD_OWNER_ID = 883095885662257172
 
 # === Claude API ===
-CLAUDE_API_KEY = os.environ.get("CLAUDE_API_KEY", "")
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
 # === PCC API ===

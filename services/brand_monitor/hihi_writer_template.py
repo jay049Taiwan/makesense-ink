@@ -211,7 +211,7 @@ if __name__ == "__main__":
     import os
 
     env = open("/Users/jay049/Code/makesense-ink/.env.local").read()
-    TOKEN = [l for l in env.split("\n") if "NOTION_API_KEY" in l][0].split("=", 1)[1].strip().strip('"')
+    TOKEN = [l for l in env.split("\n") if "NOTION_INTEGRATION_TOKEN" in l][0].split("=", 1)[1].strip().strip('"')
 
     writer = HihiWriter(TOKEN)
     p, h2, q = writer.p, writer.h2, writer.q
