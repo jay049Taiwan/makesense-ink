@@ -675,7 +675,7 @@ async function syncSingleArticle(nid: string, props: any) {
       const v = extractSelect(props["官網備項"]?.select);
       return v ? [v] : null;
     })(),
-    status: "published", // DB05 無「發佈狀態」欄位；有素材類別=文案且被觸發即表示需同步
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "published", "待發佈": "draft" }),
     published_at: dateInfo.start || null,
   };
   if (content) row.content = content;
