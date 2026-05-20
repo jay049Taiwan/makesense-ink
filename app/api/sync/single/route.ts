@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       };
       const table = result.table;
       // DB05（articles）無「發佈狀態」欄位，不做回寫
-      // DB07（products）頁面狀態由使用者控制、不回寫
+      // DB07（products）回寫會循環觸發同步，不做回寫
       if (table !== "articles" && table !== "products") {
         const statusField = "發佈狀態";
         if (urlMap[table] && result.status !== "draft" && result.status !== null) {
@@ -815,7 +815,7 @@ async function syncSingleProduct(nid: string, props: any) {
     supplier_type: sel(props["進貨屬性"]) || null,
     related_topic_ids: JSON.stringify(relatedTopicIds),
     related_article_ids: JSON.stringify(relatedArticleIds),
-    status: mapStatus(st(props["頁面狀態"]), { "有頁面": "active", "無頁面": "active", "無狀態": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
     page_status: st(props["頁面狀態"]) || "無頁面",
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
