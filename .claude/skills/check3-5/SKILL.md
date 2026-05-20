@@ -102,7 +102,7 @@ description: |
 **法人名**：現思文化創藝**術**有限公司(多「術」字錯字 → 現思文化創藝有限公司)
 
 **已退役服務**：
-- Cloudinary（2026/04/29 停用，圖檔已全面遷移至 Cloudflare R2；程式/文件/Notion 任何 active 上下文出現 = bug；audit_*.md / legacy/ 豁免）
+- Cloudinary（2026/04/29 停用，圖檔已全面遷移至 Cloudflare R2；程式/文件/Notion 任何 active 上下文出現 = bug；audit_*.md / legacy/ 豁免；圖像製作指南（3299ff25）Cloudinary 段落已於 2026/05/20 整批清除，不應再出現）
 - Discord Bot（2026/04/23 退役，改用 Telegram Bot；`discord`/`DISCORD_`/Discord Owner ID 出現在 active 段落 = bug；退役紀錄段落豁免）
 - WordPress / WooCommerce（2026/04 退役，`makesense.site`/`wc/v3`/`wp-json`/`WooCommerce` 出現在「現行系統」描述 = bug；歷史對比表豁免）
 - deepface（已換 insightface + ONNX；`deepface` 在現行技術棧描述出現 = bug）
