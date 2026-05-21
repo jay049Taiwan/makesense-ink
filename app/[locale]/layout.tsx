@@ -15,6 +15,54 @@ import Script from "next/script";
 import PageViewTracker from "@/components/tracking/PageViewTracker";
 import CookieBanner from "@/components/CookieBanner";
 import type { Metadata } from "next";
+import {
+  Noto_Sans_TC,
+  Noto_Serif_TC,
+  Playfair_Display,
+  Noto_Sans_JP,
+  Noto_Sans_KR,
+} from "next/font/google";
+
+// ── next/font：在 build time 下載字型、從同源提供，消除 render-blocking Google Fonts 請求 ──
+// 主要字型（zh/en 共用）
+const notoSansTC = Noto_Sans_TC({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-sans",
+  preload: false, // CJK 字型龐大，不預載；swap 確保 fallback 先顯示
+});
+const notoSerifTC = Noto_Serif_TC({
+  subsets: ["latin"],
+  weight: ["400", "600", "700"],
+  display: "swap",
+  variable: "--font-serif",
+  preload: false,
+});
+const playfairDisplay = Playfair_Display({
+  subsets: ["latin"],
+  weight: ["400", "600"],
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-display",
+  preload: true, // Latin only，檔案小，可預載
+});
+// 日文字型（ja locale 才套用）
+const notoSansJP = Noto_Sans_JP({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-sans",
+  preload: false,
+});
+// 韓文字型（ko locale 才套用）
+const notoSansKR = Noto_Sans_KR({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700"],
+  display: "swap",
+  variable: "--font-sans",
+  preload: false,
+});
 
 type Props = {
   children: React.ReactNode;
@@ -93,13 +141,13 @@ export default async function LocaleLayout({ children, params }: Props) {
   const messages = await getMessages();
   const htmlLang = localeToHtmlLang[locale as Locale] || "zh-TW";
 
+  // 依 locale 選擇無襯線字型（TC 為預設，JP/KR 另設）
+  const sansFont = locale === "ja" ? notoSansJP : locale === "ko" ? notoSansKR : notoSansTC;
+  const fontVars = `${sansFont.variable} ${notoSerifTC.variable} ${playfairDisplay.variable}`;
+
   return (
-    <html lang={htmlLang} className="h-full antialiased">
+    <html lang={htmlLang} className={`h-full antialiased ${fontVars}`}>
       <head>
-        <link
-          href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;1,400&family=Noto+Sans+TC:wght@300;400;500;600;700&family=Noto+Serif+TC:wght@400;600;700&family=Noto+Sans+JP:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;600;700&display=swap"
-          rel="stylesheet"
-        />
         <link rel="alternate" type="application/rss+xml" title="旅人書店/宜蘭文化俱樂部" href="/feed.xml" />
         <meta name="theme-color" content="#7a5c40" />
         <script

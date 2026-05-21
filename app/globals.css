@@ -42,6 +42,8 @@
   --color-badge-experience-text: #C62828;
 
   /* ── Fonts ── */
+  /* --font-sans / --font-serif / --font-display 由 next/font 在 <html> 上注入 CSS 變數覆寫；
+     以下為 fallback（next/font 未載入或 SSR 初始狀態時使用） */
   --font-sans: "Noto Sans TC", sans-serif;
   --font-serif: "Noto Serif TC", Georgia, serif;
   --font-display: "Playfair Display", "Noto Serif TC", serif;
