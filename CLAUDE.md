@@ -1,5 +1,7 @@
 # makesense.ink — 現思文化創藝官網
 
+> **雲端 session 必讀**：使用者記憶與偏好在 `.claude/MEMORY.md`，請在每次 session 開始時讀取。
+
 ## 對話風格（與四九溝通時必遵守）
 
 來源：原 `noah-communication-style` skill 主版（Notion page `3599ff25fdab81c9980fedcda82d04d7`），2026-05-20 整併進 CLAUDE.md。
