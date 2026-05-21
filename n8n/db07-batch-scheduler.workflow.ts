@@ -146,6 +146,36 @@ function pickCoverUrl(refPages) {
   return null;
 }
 
+// 從 findbook 資料參考 page 的簡介摘要解析權威書目（格式固定：作者:X、Y...,出版社:Z,出版日期:...）
+function parseFindbookMeta(refPages) {
+  const result = { authors: [], publisher: null };
+  let line = '';
+  for (const ref of refPages) {
+    const url = (ref.properties['對應連結'] || {}).url || '';
+    if (url.indexOf('findbook.com.tw') < 0) continue;
+    const sm = rt((ref.properties['簡介摘要'] || {}).rich_text || []);
+    if (sm.indexOf('作者') >= 0 && sm.indexOf('出版社') >= 0) { line = sm.split('：').join(':'); break; }
+  }
+  if (!line) return result;
+  const aStart = line.indexOf('作者:');
+  if (aStart >= 0) {
+    let chunk = line.slice(aStart + 3);
+    const stops = [',出版社', ',譯者', ',繪者', ',出版日期', ',語言', ',出版'];
+    let cut = chunk.length;
+    for (const st of stops) { const i = chunk.indexOf(st); if (i >= 0 && i < cut) cut = i; }
+    chunk = chunk.slice(0, cut);
+    result.authors = chunk.split('、').join(',').split(',').map((s) => s.trim()).filter(Boolean);
+  }
+  const pStart = line.indexOf('出版社:');
+  if (pStart >= 0) {
+    let chunk = line.slice(pStart + 4);
+    let cut = chunk.length;
+    const i = chunk.indexOf(','); if (i >= 0) cut = i;
+    result.publisher = chunk.slice(0, cut).trim();
+  }
+  return result;
+}
+
 const log = [];
 
 // ── 0. 挑下一筆文案工項 ──
@@ -277,6 +307,12 @@ try {
     try { extracted = Object.assign(extracted, JSON.parse(jsonStr)); } catch (e) {}
   }
 } catch (e) { log.push('分析 claude err:' + e.message); }
+
+// findbook meta 為權威來源：作者 + 出版社 覆寫 Claude 的猜測
+const fbMeta = parseFindbookMeta(refPages);
+if (fbMeta.authors.length) extracted.authors = fbMeta.authors;
+if (fbMeta.publisher) extracted.publisher = fbMeta.publisher;
+log.push('findbook meta: authors=' + fbMeta.authors.length + ' pub=' + (fbMeta.publisher || '-'));
 
 // 寫入分析備註 + 庫存原價
 const analysisNote = [
