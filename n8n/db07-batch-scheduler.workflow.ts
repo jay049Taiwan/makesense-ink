@@ -258,9 +258,10 @@ try {
       '  "summary_points": "主題類別、內容重點 200 字內"',
       '}',
       '規則：',
-      '1. 人名一律去除括號內角色補述（主編／編／譯／繪者⋯）只留純名字。',
-      '2. 沒抓到的欄位給 null 或空陣列，不要硬編。',
-      '3. 嚴禁臆測；素材沒寫的就 null。'
+      '1. authors 要放所有貢獻文字內容的人：作者、主編、編者、合著者、選錄／收錄作家全部都算（選集的編者與被選錄作家都要列出）。繪者放 illustrators、譯者放 translators。',
+      '2. 人名只留純名字，去掉括號或頓號後的角色補述（如「呂美親（主編）」→「呂美親」）。',
+      '3. 沒抓到的欄位給 null 或空陣列，不要硬編。',
+      '4. 嚴禁臆測；素材沒寫的就 null。'
     ].join(NL);
     const aUser = '商品名稱:' + db07Name + NL + 'ISBN:' + (isbn || '(無)') + NL + NL + '採集素材:' + NL + material;
     analysisStr = await claude.call(this, aSys, aUser, 800);
