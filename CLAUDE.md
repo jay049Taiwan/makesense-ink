@@ -234,18 +234,20 @@ Notion「官網發佈紀錄」頁面的「區塊」view 可查看所有帶官網
 - 對應辦理單位（relation→DB08）：承辦廠商
 - 對應對象（relation→DB08）：講師/帶路人
 
-### DB08 同步篩選規則
+### DB08 同步篩選規則（2026/05/20 更新）
 DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 
 | Supabase 表 | DB08 過濾條件 |
 |-------------|--------------|
 | topics | 經營類型 IN (觀點, 標籤)；觀點→tag_type='viewpoint', 標籤→'tag' |
-| persons | 會員狀態=會員 AND 關係選項=個人 |
-| partners | 會員狀態=會員 AND 關係選項=合作夥伴 |
-| staff | 會員狀態=會員 AND 關係選項=工作團隊 |
-| members | 會員狀態=會員（不論關係選項，以 email 為主鍵） |
+| persons | 關係選項=個人 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈) |
+| partners | 關係選項=合作夥伴 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈) |
+| staff | 會員狀態=會員 AND 關係選項=工作團隊（嚴格） |
+| members | 會員狀態=會員（嚴格，以 email 為主鍵） |
 
-**同一筆 DB08 可同時寫入多表**（例：帶路老師「經營類型=觀點 + 關係選項=個人」會同時出現在 topics 和 persons）
+**persons / partners 用寬鬆 gate**：自動建的作者／出版社（會員狀態空、發佈狀態=已發佈）也會被同步進 persons / partners 表。staff / members 保持嚴格、只認真會員。
+
+**同一筆 DB08 可同時寫入多表**（例：帶路老師「經營類型=觀點 + 關係選項=個人 + 會員狀態=會員」會同時出現在 topics、persons、members）
 
 ### 其他欄位
 - 行政區域（select；DB08）

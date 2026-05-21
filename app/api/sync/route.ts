@@ -221,12 +221,17 @@ async function cleanupStaleByNotionId(tableName: string, keepNotionIds: string[]
   }
 }
 
-// ── DB08 → persons（會員狀態=會員 AND 關係選項=個人） ──
+// ── DB08 → persons（關係選項=個人 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈)） ──
 async function syncPersons() {
   const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
     and: [
-      { property: "會員狀態", status: { equals: "會員" } },
       { property: "關係選項", select: { equals: "個人" } },
+      {
+        or: [
+          { property: "會員狀態", status: { does_not_equal: "無會員" } },
+          { property: "發佈狀態", status: { does_not_equal: "無發佈" } },
+        ],
+      },
     ],
   });
   const rows = pages.map(page => {
@@ -358,12 +363,17 @@ async function syncTopics() {
   return result;
 }
 
-// ── DB08 → partners（會員狀態=會員 AND 關係選項=合作夥伴） ──
+// ── DB08 → partners（關係選項=合作夥伴 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈)） ──
 async function syncPartners() {
   const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
     and: [
-      { property: "會員狀態", status: { equals: "會員" } },
       { property: "關係選項", select: { equals: "合作夥伴" } },
+      {
+        or: [
+          { property: "會員狀態", status: { does_not_equal: "無會員" } },
+          { property: "發佈狀態", status: { does_not_equal: "無發佈" } },
+        ],
+      },
     ],
   });
   const rows = pages.map(page => {

@@ -825,18 +825,23 @@ async function syncSingleProduct(nid: string, props: any) {
 }
 
 // ── DB08 → persons / topics / partners / members / staff ──
-// 新規則（2026/04/22）：
+// 新規則（2026/05/20）：
 // - topics:   經營類型 IN (觀點, 標籤)
-// - persons:  會員狀態=會員 AND 關係選項=個人
-// - partners: 會員狀態=會員 AND 關係選項=合作夥伴
-// - staff:    會員狀態=會員 AND 關係選項=工作團隊
-// - members:  會員狀態=會員（不論 關係選項）
+// - persons:  關係選項=個人 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈)
+// - partners: 關係選項=合作夥伴 AND (會員狀態≠無會員 OR 發佈狀態≠無發佈)
+// - staff:    會員狀態=會員 AND 關係選項=工作團隊（維持原嚴格規則）
+// - members:  會員狀態=會員（維持原嚴格規則）
 // 同一筆 DB08 page 可能同時滿足多個條件（例如帶路老師：經營類型=觀點 + 關係選項=個人），一起寫
 async function syncSingleRelation(nid: string, props: any) {
   const category = sel(props["經營類型"]);           // 觀點 / 標籤 / 紀錄
   const relation = sel(props["關係選項"]);           // 個人 / 合作夥伴 / 工作團隊
-  const isMember = st(props["會員狀態"]) === "會員";
-  const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
+  const memberStatus = st(props["會員狀態"]);
+  const pubStatus = st(props["發佈狀態"]);
+  const isMember = memberStatus === "會員";
+  // persons/partners 的寬鬆 gate：兩個欄位任一不是「無 X」就同步
+  const syncable = (!!memberStatus && memberStatus !== "無會員")
+                || (!!pubStatus && pubStatus !== "無發佈");
+  const status = mapStatus(pubStatus, { "已發佈": "active", "待發佈": "active" });
 
   const results: any[] = [];
 
@@ -929,82 +934,88 @@ async function syncSingleRelation(nid: string, props: any) {
     }
   }
 
-  // ── 寫入 members + persons/partners/staff（需 會員狀態=會員）──
-  if (isMember) {
-    const name = t(props["對象名稱"]) || "未命名";
-    const email = tx(props["Email"]);
+  // ── 寫入 members / staff / partners / persons ──
+  // members + staff 維持嚴格：限 會員狀態=會員
+  // partners + persons 用寬鬆 gate：syncable（會員狀態≠無會員 OR 發佈狀態≠無發佈）
+  const name = t(props["對象名稱"]) || "未命名";
+  const email = tx(props["Email"]);
 
-    // members（email 為主鍵，無 email 則跳過）
-    if (email) {
-      const memberRow = {
+  // members（限 會員狀態=會員，且 email 為主鍵）
+  if (isMember && email) {
+    const memberRow = {
+      email,
+      name,
+      phone: tx(props["電話"]),
+      line_uid: tx(props["LINE_UID"]),
+      member_type: relation,
+    };
+    const { error } = await supabase.from("members").upsert(memberRow, { onConflict: "email" });
+    if (error) console.warn(`members upsert: ${error.message}`);
+    else results.push({ table: "members", title: name, email });
+  }
+
+  // staff（限 會員狀態=會員）
+  if (isMember && relation === "工作團隊") {
+    const row = {
+      notion_id: nid,
+      name,
+      role: sel(props["職級細項"]),
+    };
+    const { error } = await supabase.from("staff").upsert(row, { onConflict: "notion_id" });
+    if (error) throw new Error(`staff upsert: ${error.message}`);
+    results.push({ table: "staff", title: name, status: "active" });
+  }
+
+  // partners（新規則：syncable）
+  if (syncable && relation === "合作夥伴") {
+    const row = {
+      notion_id: nid,
+      type: sel(props["單位選項"]) || "民間單位",
+      name,
+      contact: {
         email,
-        name,
         phone: tx(props["電話"]),
-        line_uid: tx(props["LINE_UID"]),
-        member_type: relation,
-      };
-      const { error } = await supabase.from("members").upsert(memberRow, { onConflict: "email" });
-      if (error) console.warn(`members upsert: ${error.message}`);
-      else results.push({ table: "members", title: name, email });
+        address: tx(props["地址"]),
+        contactPerson: tx(props["聯絡人"]),
+      },
+      status,
+    };
+    if (status !== null) {
+      const { error } = await supabase.from("partners").upsert(row, { onConflict: "notion_id" });
+      if (error) throw new Error(`partners upsert: ${error.message}`);
+      results.push({ table: "partners", title: name, status });
     }
+  }
 
-    // partners / staff / persons（依 關係選項）
-    if (relation === "合作夥伴") {
-      const row = {
-        notion_id: nid,
-        type: sel(props["單位選項"]) || "民間單位",
-        name,
-        contact: {
-          email,
-          phone: tx(props["電話"]),
-          address: tx(props["地址"]),
-          contactPerson: tx(props["聯絡人"]),
-        },
-        status,
-      };
-      if (status !== null) {
-        const { error } = await supabase.from("partners").upsert(row, { onConflict: "notion_id" });
-        if (error) throw new Error(`partners upsert: ${error.message}`);
-        results.push({ table: "partners", title: name, status });
-      }
-    } else if (relation === "工作團隊") {
-      const row = {
-        notion_id: nid,
-        name,
-        role: sel(props["職級細項"]),
-      };
-      const { error } = await supabase.from("staff").upsert(row, { onConflict: "notion_id" });
-      if (error) throw new Error(`staff upsert: ${error.message}`);
-      results.push({ table: "staff", title: name, status: "active" });
-    } else if (relation === "個人") {
-      const row = {
-        notion_id: nid,
-        type: relation,
-        name,
-        bio: tx(props["簡介摘要"]),
-        contact: {
-          email,
-          phone: tx(props["電話"]),
-          address: tx(props["地址"]),
-          contactPerson: tx(props["聯絡人"]),
-        },
-        links: {
-          fb: url(props["FB粉專"]),
-          ig: url(props["IG粉專"]),
-          website: url(props["官網ID"]),
-        },
-        status,
-      };
-      if (status !== null) {
-        const { error } = await supabase.from("persons").upsert(row, { onConflict: "notion_id" });
-        if (error) throw new Error(`persons upsert: ${error.message}`);
-        results.push({ table: "persons", title: name, status });
-      }
+  // persons（新規則：syncable）
+  if (syncable && relation === "個人") {
+    const row = {
+      notion_id: nid,
+      type: relation,
+      name,
+      bio: tx(props["簡介摘要"]),
+      contact: {
+        email,
+        phone: tx(props["電話"]),
+        address: tx(props["地址"]),
+        contactPerson: tx(props["聯絡人"]),
+      },
+      links: {
+        fb: url(props["FB粉專"]),
+        ig: url(props["IG粉專"]),
+        website: url(props["官網ID"]),
+      },
+      status,
+    };
+    if (status !== null) {
+      const { error } = await supabase.from("persons").upsert(row, { onConflict: "notion_id" });
+      if (error) throw new Error(`persons upsert: ${error.message}`);
+      results.push({ table: "persons", title: name, status });
     }
   }
 
   if (results.length === 0) {
-    return { table: "unknown", note: `經營類型=${category}, 關係選項=${relation}, 會員狀態=${isMember ? "會員" : "非會員"}，無對應同步邏輯`, nid };
+    return { table: "unknown", note: `經營類型=${category}, 關係選項=${relation}, 會員狀態=${memberStatus || "空"}, 發佈狀態=${pubStatus || "空"}，無對應同步邏輯`, nid };
   }
   // 返回第一筆結果（向下相容），並在 note 裡列出所有寫入的表
   return results.length === 1 ? results[0] : { ...results[0], also: results.slice(1).map(r => r.table) };
