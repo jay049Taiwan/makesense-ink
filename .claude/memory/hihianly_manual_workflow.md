@@ -29,7 +29,9 @@ originSessionId: 306d62cb-fef6-4b79-a4fc-359b08d10a3d
 - **執行備註寫在 baton（觸發頁），不寫在 target**；target 只留 `分析備註` + `對應標籤`（target 的 `執行備註` 最多留一行指標指向 baton）
 
 ### 疑似重複
-DB08 既有同一實體兩筆（情況 B）→ **只標記輸出、不自己合併/刪**，待嗨嗨檢核的 merge workflow 處理（見 db_dedup_merge_capability.md）。若四九當場指定留哪筆，先各取一筆連入並在 baton 標記待合併。
+DB08 既有同一實體多筆（情況 B）→ **只標記輸出、不自己合併/刪**，待嗨嗨檢核的 merge workflow 處理（見 db_dedup_merge_capability.md）。若四九當場指定留哪筆，先各取一筆連入並在 baton 標記待合併。
+
+**輸出格式（2026/05/21 四九定，以後都這樣）**：分析發現重複就整理成「可直接貼給檢核 session 的合併清單」——每組列：各 page 的 title + 完整 notion.so URL + 建議存活頁 + 一句理由。四九 把清單轉貼到另一個（檢核）session 去執行合併。分析這端只列清單、絕不自己動合併/刪除。原因：分析沒有刪除/封存頁面的工具（只有 create/update/move），且合併的 inbound relation 轉指＋刪除屬危險操作，歸檢核 n8n WF。
 
 ## Why
 - 把流程導回正規：工作指示的觸發機制本來就是「DB06 baton（ai模式+ai狀態=執行中）→ 做完 → ai狀態=完成」，baton 平常由四九/n8n 建，手動跑時改由分析自己建。
