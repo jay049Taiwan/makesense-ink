@@ -50,17 +50,19 @@ async function notion(method, path, body, attempt) {
   return r.body;
 }
 
-async function claude(system, user, maxTokens, attempt) {
+async function claude(system, user, maxTokens, temperature, attempt) {
   const a = attempt || 0;
+  const body = { model: CLAUDE_MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] };
+  if (typeof temperature === 'number') body.temperature = temperature;
   const r = await this.helpers.httpRequest({
     method: 'POST', url: 'https://api.anthropic.com/v1/messages',
     headers: { 'x-api-key': CLAUDE_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' },
-    body: { model: CLAUDE_MODEL, max_tokens: maxTokens, system, messages: [{ role: 'user', content: user }] },
+    body,
     json: true, returnFullResponse: true, ignoreHttpStatusErrors: true
   });
   if ((r.statusCode === 429 || r.statusCode >= 500 || r.statusCode === 529) && a < 4) {
     await sleep(3000 * Math.pow(2, a));
-    return claude.call(this, system, user, maxTokens, a + 1);
+    return claude.call(this, system, user, maxTokens, temperature, a + 1);
   }
   if (r.statusCode >= 400) throw new Error('Claude ' + r.statusCode + ': ' + JSON.stringify(r.body || {}).slice(0,150));
   return (((r.body || {}).content || [{}])[0].text || '').trim();
@@ -259,12 +261,13 @@ try {
       '}',
       '規則：',
       '1. authors 要放所有貢獻文字內容的人：作者、主編、編者、合著者、選錄／收錄作家全部都算（選集的編者與被選錄作家都要列出）。繪者放 illustrators、譯者放 translators。',
-      '2. 人名只留純名字，去掉括號或頓號後的角色補述（如「呂美親（主編）」→「呂美親」）。',
-      '3. 沒抓到的欄位給 null 或空陣列，不要硬編。',
-      '4. 嚴禁臆測；素材沒寫的就 null。'
+      '2. 素材裡出現的作者名要「全部」列出，不可只挑代表性的幾個；選集若列了十幾位作家就十幾位都列。',
+      '3. 人名只留純名字，去掉括號或頓號後的角色補述（如「呂美親（主編）」→「呂美親」）。',
+      '4. publisher 與 original_price 一定要再三確認素材裡有沒有，有就一定要填，不要漏。',
+      '5. 沒抓到的欄位給 null 或空陣列，不要硬編；嚴禁臆測。'
     ].join(NL);
     const aUser = '商品名稱:' + db07Name + NL + 'ISBN:' + (isbn || '(無)') + NL + NL + '採集素材:' + NL + material;
-    analysisStr = await claude.call(this, aSys, aUser, 800);
+    analysisStr = await claude.call(this, aSys, aUser, 1200, 0);
     // 剝 markdown code block 包裝（如有）
     let jsonStr = analysisStr.trim();
     if (jsonStr.indexOf('\`\`\`') === 0) {
