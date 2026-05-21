@@ -1,6 +1,6 @@
 # Notion DB Schema Snapshot
 
-Generated: 2026-05-19（check3&5 第三次稽核，修正 run-sync.mjs 實際總價+articles status regression；Notion 7 頁缺載補充完成）
+Generated: 2026-05-20（check3&5 第四次稽核：修正 sync/single/route.ts DB07 改讀「發佈狀態」、lib/staff-tasks.ts 移除 handoverReply 死碼；Notion 指南/n8n/git/repo md 全綠）
 
 ---
 

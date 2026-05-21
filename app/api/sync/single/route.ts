@@ -814,7 +814,7 @@ async function syncSingleProduct(nid: string, props: any) {
     supplier_type: sel(props["進貨屬性"]) || null,
     related_topic_ids: JSON.stringify(relatedTopicIds),
     related_article_ids: JSON.stringify(relatedArticleIds),
-    status: mapStatus(st(props["頁面狀態"]), { "有頁面": "active", "無頁面": "active", "無狀態": "active" }),
+    status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
     page_status: st(props["頁面狀態"]) || "無頁面",
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
