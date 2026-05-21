@@ -1,30 +1,30 @@
 {
- "name": "嗨嗨 搜查棒 v4 (web search 採集)",
+ "name": "嗨嗨搜查 v4 (web search 採集)",
  "nodes": [
   {
-   "id": "1c694c5d-3623-49b9-ac07-69074f1b4dd7",
+   "id": "aef8a523-bb80-44cc-9bc0-aaf0069a12a2",
    "name": "Search Webhook",
    "type": "n8n-nodes-base.webhook",
    "typeVersion": 2.1,
    "position": [
     0,
-    384
+    192
    ],
    "parameters": {
     "httpMethod": "POST",
     "path": "db06-search",
-    "responseMode": "onReceived"
+    "options": {}
    },
-   "webhookId": "de0a34f6-9f3e-49e0-bc6d-c9ab9942434c"
+   "webhookId": "370f4902-fd30-42f0-8e96-56fe91be5154"
   },
   {
-   "id": "6990fcdb-f0ad-4c01-ad42-42c9fbed57b0",
+   "id": "e6715975-28e2-43d6-ba08-7bcce6bc49b0",
    "name": "Extract DB06 ID",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
     224,
-    384
+    192
    ],
    "parameters": {
     "mode": "runOnceForAllItems",
@@ -33,17 +33,16 @@
    }
   },
   {
-   "id": "925ab535-e937-4312-a228-de9c4efd8c02",
+   "id": "af8db6d7-2088-4182-9132-31c8f315d402",
    "name": "Fetch DB06",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
     448,
-    384
+    192
    ],
    "parameters": {
-    "method": "GET",
-    "url": "=https://api.notion.com/v1/pages/{{ $json.db06_id }}",
+    "url": "={{ \"https://api.notion.com/v1/pages/\" + $json.db06_id }}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
@@ -56,36 +55,131 @@
        "value": "2022-06-28"
       }
      ]
-    }
+    },
+    "options": {}
    }
   },
   {
-   "id": "e2450818-d868-49cf-95a9-53c6dba5073d",
+   "id": "8febd10a-ef05-4fbc-8c52-13c6a0201da8",
    "name": "Parse DB06",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
     672,
-    384
+    192
    ],
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const p = $input.first().json;\nreturn [{ json: {\n  db06_id: p.id.replace(/-/g, ''),\n  ai_mode: p.properties['ai模式']?.select?.name || '',\n  execute_idea_db06: p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '',\n  db05_id: (function(){ var T=[\"對應提案\", \"對應管考\", \"對應項目\", \"對應協作\", \"對應內容\", \"對應庫存\", \"對應對象\", \"對應標籤\", \"對應地點\", \"對應提供對象\"]; for(var i=0;i<T.length;i++){var a=p.properties[T[i]]?.relation||[]; if(a.length) return (a[0].id||'').replace(/-/g,'');} return ''; })(),\n  target_rel: (function(){ var T=[\"對應提案\", \"對應管考\", \"對應項目\", \"對應協作\", \"對應內容\", \"對應庫存\", \"對應對象\", \"對應標籤\", \"對應地點\", \"對應提供對象\"]; for(var i=0;i<T.length;i++){var a=p.properties[T[i]]?.relation||[]; if(a.length) return T[i];} return ''; })(),\n  mingxi_name: p.properties['明細名稱']?.title?.map(t=>t.plain_text).join('') || '',\n  sort_num: p.properties['排序']?.number\n}}];"
+    "jsCode": "const p = $input.first().json;\nreturn [{ json: {\n  db06_id: p.id.replace(/-/g, ''),\n  ai_mode: p.properties['ai模式']?.select?.name || '',\n  execute_idea_db06: p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '',\n  db05_id: (p.properties['對應內容']?.relation?.[0]?.id || '').replace(/-/g, ''),\n  mingxi_name: p.properties['明細名稱']?.title?.map(t=>t.plain_text).join('') || '',\n  sort_num: p.properties['排序']?.number\n}}];"
    }
   },
   {
-   "id": "b93ce939-53e9-4556-8809-fd207372f26f",
+   "id": "018d41ef-0238-435c-8dae-854b6885a8b4",
+   "name": "Read flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    896,
+    192
+   ],
+   "parameters": {
+    "operation": "get",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "keyValue": "={{ $('Parse DB06').first().json.db05_id }}"
+      }
+     ]
+    },
+    "limit": 1
+   }
+  },
+  {
+   "id": "5223c773-ecd2-441d-92e0-f2c41302a8f1",
+   "name": "Telegram 處理中",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1120,
+    192
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: \"⏳ 第 \" + ($('Parse DB06').first().json.sort_num != null ? $('Parse DB06').first().json.sort_num : \"?\") + \" 棒 (嗨嗨搜查) 開始處理。\\n正在 Tavily + web search 雙引擎採集，預計 1-3 分鐘。完成會自動發關卡B，免守畫面。\", disable_web_page_preview: true, allow_sending_without_reply: true }, ((parseInt($json.last_msg_id || 0) || 0) > 0 ? { reply_to_message_id: parseInt($json.last_msg_id || 0) || 0 } : {}))) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "fdf13a1e-7979-4094-9271-67c7ab795baa",
+   "name": "Save msgid 處理中",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1344,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Parse DB06').first().json.db05_id, last_msg_id: mid } }];"
+   }
+  },
+  {
+   "id": "ee506155-baac-43a7-9e7b-0a1accbe53f8",
+   "name": "Update flow_state 處理中",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1568,
+    192
+   ],
+   "parameters": {
+    "operation": "update",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    },
+    "options": {}
+   }
+  },
+  {
+   "id": "5f741b84-5887-4989-8a77-96effc214043",
    "name": "Fetch target DB05",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
-    896,
-    288
+    1792,
+    192
    ],
    "parameters": {
-    "method": "GET",
-    "url": "=https://api.notion.com/v1/pages/{{ $json.db05_id }}",
+    "url": "={{ 'https://api.notion.com/v1/pages/' + $('Parse DB06').first().json.db05_id }}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
@@ -98,32 +192,48 @@
        "value": "2022-06-28"
       }
      ]
-    }
+    },
+    "options": {}
    }
   },
   {
-   "id": "ac079c45-6a92-4125-b8bd-37cc7c9e4f44",
+   "id": "24c87889-142d-4bcf-8819-aafb542e39fb",
    "name": "Build search prompt",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
-    1120,
-    288
+    2016,
+    192
    ],
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const item = $('Parse DB06').first().json;\nconst target = $input.first().json;\nconst tprops = target.properties || {};\nconst _tp = Object.values(tprops).find(v => v && v.type === 'title');\nconst target_name = (_tp?.title || []).map(t=>t.plain_text).join('') || '(未命名)';\nconst target_idea = tprops['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\nconst target_theme = tprops['主題名稱']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\nconst target_summary = tprops['簡介摘要']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\n\nconst system = '你是 makesense（現思文化創藝有限公司,宜蘭在地文化事業）嗨嗨家族的搜查棒。你的核心能力是用網路搜尋為一篇內容採集外部參考資料。\\n\\n' +\n  '== 指示優先序 ==\\n本次 DB06 執行構想為最優先;為空則依下方通用規格。\\n\\n' +\n  '== 工作方式 ==\\n' +\n  '1. 依執行構想與主題規劃多組搜尋關鍵詞,使用 web_search 工具實際搜尋。\\n' +\n  '2. 盡量採集 20 筆不重複、來源可信、與主題相關的參考資料,每筆要有真實網址。\\n' +\n  '3. 優先採集具名事件、機構、人物、統計數據、新聞、官方資料、研究文章。避免內容農場、廣告頁。\\n' +\n  '4. 同一網站只取最相關 1-2 筆。\\n\\n' +\n  '== 鐵律 ==\\n' +\n  '1. 網址必須是 web_search 真實取得,嚴禁編造。\\n' +\n  '2. 找不到 20 筆就誠實回報實際筆數,不硬湊。\\n' +\n  '3. summary 寫這筆「為什麼相關、可怎麼用」。\\n' +\n  '4. 繁體中文。\\n\\n' +\n  '== 輸出格式 ==\\n最後一個 text 區塊只有以下 JSON:\\n' +\n  '{\"execution_summary\": \"做了什麼、用哪些關鍵詞、採集幾筆\", \"results\": [{\"title\": \"標題\", \"url\": \"真實網址\", \"summary\": \"關聯與用途 40-80字\"}]}\\nresults 最多 20 筆。';\n\nconst idea = item.execute_idea_db06 || target_idea;\nconst user = '請為以下 makesense 內容採集外部參考資料。\\n\\n' +\n  '內容名稱 ' + target_name + '\\n主題名稱 ' + target_theme + '\\n簡介摘要 ' + target_summary + '\\n' +\n  '執行構想（搜查方向依據,最優先）\\n' + idea + '\\n\\n' +\n  '請規劃關鍵詞用 web_search 實際搜尋,採集最多 20 筆,最後回 JSON。';\n\nreturn [{ json: { system, user, db06_id: item.db06_id, db05_id: item.db05_id, ai_mode: item.ai_mode, sort_num: item.sort_num, mingxi_name: item.mingxi_name, target_rel: item.target_rel } }];"
+    "jsCode": "const item = $('Parse DB06').first().json;\nconst target = $input.first().json;\nconst tprops = target.properties || {};\nconst target_name = tprops['內容名稱']?.title?.map(t=>t.plain_text).join('') || '(未命名)';\nconst target_idea = tprops['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\nconst target_theme = tprops['主題名稱']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\nconst target_summary = tprops['簡介摘要']?.rich_text?.map(t=>t.plain_text).join('') || '(空)';\nconst tgt_exec_note = (tprops['執行備註']?.rich_text||[]).map(t=>t.plain_text).join('') || '';\nconst idea = item.execute_idea_db06 || target_idea;\nconst tavily_query = (idea && idea !== '(空)' ? idea : target_name + ' ' + target_theme).slice(0, 400);\nconst system = '你是 makesense（現思文化創藝有限公司,宜蘭在地文化事業）嗨嗨家族的嗨嗨搜查。你有兩個資料來源：\\n' +\n  '(1) Tavily 已預先搜尋的結果（附在訊息下方）\\n' +\n  '(2) 你自己的 web_search 工具 —— 請主動再搜尋補充\\n\\n' +\n  '== 搜尋指示 ==\\n' +\n  '1. 先讀 Tavily 結果。\\n' +\n  '2. 再用 web_search 補搜：用最合適的語言關鍵字（日本題材→日文、韓國→韓文、其他→中/英）至少補搜 2-3 次。\\n' +\n  '3. 兩邊結果合併，最多採集 20 筆最相關。\\n\\n' +\n  '== 指示優先序 ==\\n本次 DB06 執行構想為最優先；為空則依主題通用規格。\\n\\n' +\n  '== 挑選 ==\\n優先：具名事件/機構/人物/統計/新聞/官方。排除：內容農場、廣告、重複網址。同一網站最多 2 筆。\\n\\n' +\n  '== 檔案連結識別 ==\\n' +\n  '若某筆結果的 URL 本身是直接可下載的檔案（結尾為 .pdf .doc .docx .xls .xlsx），或搜尋過程中發現頁面有申請簡章/補助要點/附件等直接下載連結，請在該筆的 file_url 填入完整直接下載網址。一般網頁則 file_url 留空字串。\\n\\n' +\n  '== 鐵律 ==\\n' +\n  '1. 只用 Tavily 或 web_search 實際回傳的網址，嚴禁編造。\\n' +\n  '2. 找不到 20 筆就誠實回報實際筆數。\\n' +\n  '3. summary 寫「為什麼相關、可怎麼用」40-80 字。\\n' +\n  '4. 繁體中文。\\n\\n' +\n  '== 輸出格式 ==\\n最後一個 text 區塊只有以下 JSON：\\n' +\n  '{\"execution_summary\":\"...\",\"results\":[{\"title\":\"\",\"url\":\"真實網址\",\"summary\":\"40-80字\",\"file_url\":\"直接下載連結或空字串\"}]}\\nresults 最多 20 筆。';\nconst user = '請分析以下 Tavily 搜尋結果，並用 web_search 補充，為 makesense 內容採集最佳參考資料。\\n\\n' +\n  '內容名稱：' + target_name + '\\n主題名稱：' + target_theme + '\\n簡介摘要：' + target_summary + '\\n' +\n  '執行構想（搜查方向依據，最優先）：\\n' + idea +\n  '\\n\\n【上輪嗨嗨檢核成果紀錄】\\n' + (tgt_exec_note || '(尚未有檢核記錄)');\nreturn [{ json: { system, user, tavily_query, db06_id: item.db06_id, db05_id: item.db05_id, ai_mode: item.ai_mode, sort_num: item.sort_num, mingxi_name: item.mingxi_name } }];"
    }
   },
   {
-   "id": "71660bca-f36f-45eb-ac24-32be30d1cd66",
+   "id": "f92eaf99-612a-47e0-98e1-8c6b2a278265",
+   "name": "Tavily 搜尋",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2240,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const item = $input.first().json;\nconst TAVILY_KEY = $env.TAVILY_API_KEY;\nconst query = item.tavily_query || item.user.slice(0, 300);\nvar searchResp;\ntry {\n  searchResp = await this.helpers.httpRequest({\n    method: 'POST', url: 'https://api.tavily.com/search',\n    body: { api_key: TAVILY_KEY, query: query, search_depth: 'advanced', max_results: 10, include_raw_content: true, include_answer: true },\n    json: true\n  });\n} catch(e) {\n  return [{ json: Object.assign({}, item, { tavily_ok: false, tavily_raw: '', raw_content_map: {} }) }];\n}\nvar results = (searchResp.results || []).map(function(r) {\n  return { title: r.title||'', url: r.url||'', content: (r.content||'').slice(0,600), score: r.score||0, published_date: r.published_date||null, raw_content: r.raw_content||'' };\n});\n\n// Build raw_content_map keyed by URL (keep ≤5000 chars per entry)\nvar raw_content_map = {};\nresults.forEach(function(r) {\n  if (r.raw_content) raw_content_map[r.url] = r.raw_content.slice(0, 5000);\n});\n\nvar enrichedLines = results.map(function(r, i) {\n  return '[' + (i+1) + '] ' + r.title + '\\n網址：' + r.url + '\\n評分：' + r.score.toFixed(3) +\n    (r.published_date ? '  日期：' + r.published_date : '') + '\\n摘要：' + r.content;\n});\nreturn [{ json: Object.assign({}, item, {\n  tavily_ok: true,\n  tavily_raw: enrichedLines.join('\\n\\n---\\n\\n').slice(0, 14000),\n  raw_content_map: raw_content_map\n}) }];\n"
+   }
+  },
+  {
+   "id": "03f8e1a1-6b5c-4a7b-8996-810870454cb9",
    "name": "Claude API web search",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
-    1344,
-    288
+    2464,
+    192
    ],
    "parameters": {
     "method": "POST",
@@ -147,152 +257,84 @@
     },
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={\n  \"model\": \"claude-sonnet-4-6\",\n  \"max_tokens\": 8096,\n  \"system\": {{ JSON.stringify($json.system) }},\n  \"tools\": [{ \"type\": \"web_search_20250305\", \"name\": \"web_search\", \"max_uses\": 10 }],\n  \"messages\": [{ \"role\": \"user\", \"content\": {{ JSON.stringify($json.user) }} }]\n}",
+    "jsonBody": "={{ JSON.stringify({ model: \"claude-sonnet-4-6\", max_tokens: 8192, system: $json.system, tools: [{ type: \"web_search_20250305\", name: \"web_search\", max_uses: 10 }], messages: [{ role: \"user\", content: $json.user + '\\n\\n== Tavily 搜尋結果 ==\\n' + ($json.tavily_ok ? $json.tavily_raw : '(搜尋失敗)') }] }) }}",
     "options": {
      "timeout": 290000
     }
    }
   },
   {
-   "id": "cebfa382-5b52-4ab0-aa52-d93191538146",
+   "id": "cead24ab-d3de-450b-8d6f-e9c181f436c7",
    "name": "Parse Claude",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
-   "position": [
-    1568,
-    288
-   ],
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "const resp = $input.first().json;\nconst prompt = $('Build search prompt').first().json;\nconst usage = resp.usage || {};\nconst blocks = resp.content || [];\nconst texts = blocks.filter(b => b.type === 'text').map(b => b.text);\nconst lastText = texts.length ? texts[texts.length - 1] : '';\nlet parsed;\ntry {\n  const m = lastText.match(/\\{[\\s\\S]*\\}/);\n  parsed = m ? JSON.parse(m[0]) : { execution_summary: lastText.slice(0,400), results: [] };\n} catch (e) {\n  parsed = { execution_summary: 'JSON parse failed', results: [] };\n}\nlet results = Array.isArray(parsed.results) ? parsed.results.slice(0, 20) : [];\nconst seen = new Set();\nresults = results.filter(r => {\n  const u = (r.url || '').toString().trim();\n  if (!u || seen.has(u)) return false;\n  seen.add(u); return true;\n});\nconst input_tokens = parseInt(usage.input_tokens || 0);\nconst output_tokens = parseInt(usage.output_tokens || 0);\nconst cost_usd = (input_tokens*3 + output_tokens*15)/1000000;\nconst cost_ntd = (cost_usd*32).toFixed(2);\nconst usage_line = '進=' + input_tokens + ' 出=' + output_tokens + ' 成本NT' + cost_ntd + ' (web search 另計)';\nconst count = results.length;\nconst sanitize = s => (s || '').toString()\n  .replace(/[\\/\\\\:<>#@\\[\\]\\{\\}\\|\\^\\`\\*_~\"']/g, ' ')\n  .replace(/[\\u2010-\\u2027\\u2030-\\u205E]/g, ' ')\n  .replace(/[\\uFF00-\\uFF0F\\uFF1A-\\uFF20\\uFF3B-\\uFF40\\uFF5B-\\uFF65]/g, ' ')\n  .replace(/[\\u3000-\\u3017\\u301D-\\u303F]/g, ' ')\n  .replace(/\\s+/g, ' ').trim().slice(0, 500);\nconst search_summary = (parsed.execution_summary || '') + ' | 採集 ' + count + ' 筆 | ' + usage_line;\nconst meta = { db06_id: prompt.db06_id, db05_id: prompt.db05_id, ai_mode: prompt.ai_mode, sort_num: prompt.sort_num, mingxi_name: prompt.mingxi_name, target_rel: prompt.target_rel, count, search_summary, safe_summary: sanitize(parsed.execution_summary || ''), usage_line, has_results: count > 0 };\nif (count === 0) {\n  return [{ json: { ...meta } }];\n}\nreturn results.map((r, i) => ({ json: {\n  ...meta,\n  r_title: (r.title || ('參考資料 ' + (i+1))).toString().slice(0, 180),\n  r_url: (r.url || '').toString().slice(0, 1800),\n  r_summary: (r.summary || '').toString().slice(0, 1500)\n}}));"
-   }
-  },
-  {
-   "id": "7fdc4c5d-69ff-446e-b37c-247d0a0968a1",
-   "name": "Has results?",
-   "type": "n8n-nodes-base.if",
-   "typeVersion": 2.2,
-   "position": [
-    1792,
-    288
-   ],
-   "parameters": {
-    "conditions": {
-     "options": {
-      "caseSensitive": true,
-      "leftValue": "",
-      "typeValidation": "strict"
-     },
-     "combinator": "and",
-     "conditions": [
-      {
-       "id": "1",
-       "leftValue": "={{ $json.has_results }}",
-       "rightValue": true,
-       "operator": {
-        "type": "boolean",
-        "operation": "true",
-        "singleValue": true
-       }
-      }
-     ]
-    }
-   }
-  },
-  {
-   "id": "f54e4b22-8e00-40b5-96f8-ff78e6d994cf",
-   "name": "Loop done",
-   "type": "n8n-nodes-base.noOp",
-   "typeVersion": 1,
-   "position": [
-    2240,
-    0
-   ],
-   "parameters": {}
-  },
-  {
-   "id": "ff3bec97-0d1e-49ea-ad62-105a7fb09642",
-   "name": "Merge final",
-   "type": "n8n-nodes-base.merge",
-   "typeVersion": 3.2,
-   "position": [
-    2464,
-    192
-   ],
-   "parameters": {
-    "mode": "append"
-   }
-  },
-  {
-   "id": "2b3a67e5-3a70-48bd-b3cc-a571cd406e75",
-   "name": "Create DB06 資料參考",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.3,
-   "position": [
-    2240,
-    192
-   ],
-   "parameters": {
-    "method": "POST",
-    "url": "https://api.notion.com/v1/pages",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={\n  \"parent\": { \"database_id\": \"3469ff25fdab83c98ff98107ee6a6a1c\" },\n  \"properties\": {\n    \"明細名稱\": { \"title\": [{ \"text\": { \"content\": {{ JSON.stringify($json.r_title) }} } }] },\n    \"明細類型\": { \"select\": { \"name\": \"資料參考\" } },\n    \"明細內容\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($json.r_summary + ' 來源 ' + $json.r_url) }} } }] },\n    \"{{ $json.target_rel }}\": { \"relation\": [{ \"id\": \"{{ $json.db05_id }}\" }] }\n  }\n}",
-    "sendHeaders": true,
-    "headerParameters": {
-     "parameters": [
-      {
-       "name": "Authorization",
-       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
-      },
-      {
-       "name": "Notion-Version",
-       "value": "2022-06-28"
-      }
-     ]
-    }
-   }
-  },
-  {
-   "id": "31678601-b177-4e7f-b4f5-253ae6b368f2",
-   "name": "Loop results",
-   "type": "n8n-nodes-base.splitInBatches",
-   "typeVersion": 3,
-   "position": [
-    2016,
-    96
-   ],
-   "parameters": {
-    "batchSize": 1
-   }
-  },
-  {
-   "id": "3d4defae-4ab1-427d-81f0-ccd4730eb874",
-   "name": "No results",
-   "type": "n8n-nodes-base.noOp",
-   "typeVersion": 1,
-   "position": [
-    2240,
-    384
-   ],
-   "parameters": {}
-  },
-  {
-   "id": "dbf9e268-0fab-4b8c-8e7c-83a6b7374660",
-   "name": "PATCH DB06 執行備註",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.3,
    "position": [
     2688,
     192
    ],
    "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const resp = $input.first().json;\nconst prompt = $('Build search prompt').first().json;\nconst usage = resp.usage || {};\nconst blocks = resp.content || [];\nconst texts = blocks.filter(b => b.type === 'text').map(b => b.text);\nconst lastText = texts.length ? texts[texts.length - 1] : '';\nlet parsed;\ntry {\n  const m = lastText.match(/\\{[\\s\\S]*\\}/);\n  parsed = m ? JSON.parse(m[0]) : { execution_summary: lastText.slice(0,400), results: [] };\n} catch (e) { parsed = { execution_summary: 'JSON parse failed', results: [] }; }\nfunction normUrl(u) {\n  u = (u || '').toString().trim();\n  const qi = u.indexOf('?');\n  if (qi >= 0) {\n    const base = u.slice(0, qi);\n    const drop = ['srsltid','utm_source','utm_medium','utm_campaign','utm_term','utm_content','fbclid','gclid','ref','spm'];\n    const qs = u.slice(qi+1).split('&').filter(function(kv){ return drop.indexOf(kv.split('=')[0].toLowerCase()) < 0; });\n    u = qs.length ? base + '?' + qs.join('&') : base;\n  }\n  if (u.length > 1 && u.charAt(u.length-1) === '/') u = u.slice(0,-1);\n  return u;\n}\nlet results = Array.isArray(parsed.results) ? parsed.results.slice(0, 20) : [];\nconst seen = new Set();\nresults = results.filter(r => { const u = normUrl(r.url || ''); if (!u || seen.has(u)) return false; seen.add(u); r.url = u; return true; });\nconst NOTION_TOKEN = $env.NOTION_INTEGRATION_TOKEN;\nconst DB06 = '3469ff25fdab83c98ff98107ee6a6a1c';\nconst NH = { 'Authorization': 'Bearer ' + NOTION_TOKEN, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' };\nlet existingUrls = new Set();\ntry {\n  const q = await this.helpers.httpRequest({\n    method: 'POST', url: 'https://api.notion.com/v1/databases/' + DB06 + '/query',\n    headers: NH, body: { filter: { property: '對應內容', relation: { contains: prompt.db05_id } }, page_size: 100 }, json: true\n  });\n  (q.results || []).forEach(function(p) {\n    const u = p.properties['對應連結'] && p.properties['對應連結'].url ? normUrl(p.properties['對應連結'].url) : '';\n    if (u) existingUrls.add(u);\n  });\n} catch(e) {}\nlet deduped = 0;\nresults = results.filter(r => { if (existingUrls.has(r.url)) { deduped++; return false; } return true; });\nconst FILE_EXTS = ['.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx'];\nconst cleanResults = results.map(r => ({\n  title: (r.title || '').toString().slice(0, 180),\n  url: (r.url || '').toString().slice(0, 1800),\n  summary: (r.summary || '').toString().slice(0, 1500),\n  file_url: (function() {\n    const fu = (r.file_url || '').toString().trim().slice(0, 1800);\n    if (!fu) return '';\n    const fuLower = fu.toLowerCase().split('?')[0];\n    return FILE_EXTS.some(function(ext){ return fuLower.endsWith(ext); }) ? fu : '';\n  })()\n}));\nconst input_tokens = parseInt(usage.input_tokens || 0);\nconst output_tokens = parseInt(usage.output_tokens || 0);\nconst cost_ntd = ((input_tokens*3 + output_tokens*15)/1000000*32).toFixed(2);\nconst usage_line = '進=' + input_tokens + ' 出=' + output_tokens + ' 成本NT' + cost_ntd + ' (Tavily+web search)';\nconst count = cleanResults.length;\nconst sanitize = s => (s || '').toString().replace(/[\\s]+/g, ' ').trim().slice(0, 500);\nconst search_summary = (parsed.execution_summary || '') + ' | 採集 ' + count + ' 筆、跨次去重 ' + deduped + ' 筆 | ' + usage_line;\nreturn [{ json: { db06_id: prompt.db06_id, db05_id: prompt.db05_id, ai_mode: prompt.ai_mode, sort_num: prompt.sort_num, mingxi_name: prompt.mingxi_name, count, deduped, results: cleanResults, search_summary, safe_summary: sanitize(parsed.execution_summary || ''), usage_line, has_results: count > 0 } }];"
+   }
+  },
+  {
+   "id": "3c3fa0ab-2f4f-4bef-b353-c8acb7a64dad",
+   "name": "Create DB06 資料參考",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    2912,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const item = $input.first().json;\nconst results = item.results || [];\nconst NOTION_TOKEN = $env.NOTION_INTEGRATION_TOKEN;\nconst DB06 = '3469ff25fdab83c98ff98107ee6a6a1c';\nconst NH = { 'Authorization': 'Bearer ' + NOTION_TOKEN, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' };\nconst rawContentMap = item.raw_content_map || {};\nconst sleep = ms => new Promise(r => setTimeout(r, ms));\n\nfunction makeBlocks(text) {\n  // Split into ≤1800 char chunks; return Notion paragraph block array (≤100 blocks)\n  var CHUNK = 1800;\n  var blocks = [];\n  var i = 0;\n  while (i < text.length && blocks.length < 100) {\n    var chunk = text.slice(i, i + CHUNK);\n    blocks.push({\n      object: 'block',\n      type: 'paragraph',\n      paragraph: { rich_text: [{ type: 'text', text: { content: chunk } }] }\n    });\n    i += CHUNK;\n  }\n  return blocks;\n}\n\nlet created = 0, failed = 0;\nconst createdPages = [];\nfor (var i = 0; i < results.length; i++) {\n  var r = results[i];\n  var props = {\n    '明細名稱': { title: [{ text: { content: r.title || ('參考資料 ' + (i+1)) } }] },\n    '明細類型': { select: { name: '資料參考' } },\n    '明細內容': { rich_text: [{ text: { content: r.summary } }] },\n    '對應連結': { url: r.url },\n    '對應內容': { relation: [{ id: item.db05_id }] }\n  };\n  try {\n    var resp = await this.helpers.httpRequest({ method: 'POST', url: 'https://api.notion.com/v1/pages', headers: NH, body: { parent: { database_id: DB06 }, properties: props }, json: true });\n    var pageId = (resp.id || '').replace(/-/g, '');\n    if (pageId) {\n      // Write raw_content as paragraph blocks to page body\n      var rawText = rawContentMap[r.url] || '';\n      var blocks = rawText ? makeBlocks(rawText) : [{ object: 'block', type: 'paragraph', paragraph: { rich_text: [{ type: 'text', text: { content: '（未取得全文）' } }] } }];\n      // POST blocks in batches of 100\n      for (var b = 0; b < blocks.length; b += 100) {\n        var batch = blocks.slice(b, b + 100);\n        try {\n          await this.helpers.httpRequest({\n            method: 'PATCH',\n            url: 'https://api.notion.com/v1/blocks/' + pageId.slice(0,8)+'-'+pageId.slice(8,12)+'-'+pageId.slice(12,16)+'-'+pageId.slice(16,20)+'-'+pageId.slice(20) + '/children',\n            headers: NH,\n            body: { children: batch },\n            json: true\n          });\n        } catch(be) {}\n        await sleep(150);\n      }\n    }\n    createdPages.push({ notion_page_id: pageId, file_url: r.file_url || '' });\n    created++;\n  } catch(ex) {\n    createdPages.push({ notion_page_id: null, file_url: r.file_url || '' });\n    failed++;\n  }\n}\nreturn [{ json: Object.assign({}, item, { pages_created: created, pages_failed: failed, created_pages: createdPages }) }];\n"
+   }
+  },
+  {
+   "id": "a35096b4-b97f-45df-9068-519035e611dd",
+   "name": "下載並上傳檔案",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3136,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const item = $input.first().json;\nconst createdPages = item.created_pages || [];\nconst NOTION_TOKEN = $env.NOTION_INTEGRATION_TOKEN;\nconst NH = { 'Authorization': 'Bearer ' + NOTION_TOKEN, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' };\nconst R2_ACCOUNT_ID = 'fcb1588857a0ce416df2003e79bb9915';\nconst R2_ACCESS_KEY = $env.R2_ACCESS_KEY;\nconst R2_SECRET = $env.R2_SECRET_KEY;\nconst R2_BUCKET = 'makesense-photos';\nconst R2_PUBLIC_URL = 'https://pub-23c93c89519e48958e84298739337568.r2.dev';\nconst crypto = require('crypto');\nconst FILE_EXTS = ['.pdf','.doc','.docx','.xls','.xlsx','.ppt','.pptx'];\nconst CONTENT_TYPES = { pdf:'application/pdf', doc:'application/msword', docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document', xls:'application/vnd.ms-excel', xlsx:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', ppt:'application/vnd.ms-powerpoint', pptx:'application/vnd.openxmlformats-officedocument.presentationml.presentation' };\nconst dash = id => id.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');\nconst p2 = n => String(n).padStart(2, '0');\nlet downloaded = 0, files_failed = 0;\nfor (var i = 0; i < createdPages.length; i++) {\n  var pg = createdPages[i];\n  if (!pg.file_url || !pg.notion_page_id) continue;\n  var fuLower = pg.file_url.toLowerCase().split('?')[0];\n  if (!FILE_EXTS.some(function(ext){ return fuLower.endsWith(ext); })) continue;\n  try {\n    var dlResp = await this.helpers.httpRequest({\n      method: 'GET', url: pg.file_url,\n      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; makesense-bot/1.0)' },\n      responseType: 'arraybuffer', returnFullResponse: true, ignoreHttpStatusErrors: true\n    });\n    if (!dlResp || dlResp.statusCode >= 400) { files_failed++; continue; }\n    var raw = dlResp.body;\n    var buf;\n    if (Buffer.isBuffer(raw)) buf = raw;\n    else if (raw instanceof ArrayBuffer || ArrayBuffer.isView(raw)) buf = Buffer.from(raw);\n    else if (typeof raw === 'string') buf = Buffer.from(raw, 'binary');\n    else { files_failed++; continue; }\n    if (buf.length === 0) { files_failed++; continue; }\n    var extMatch = fuLower.match(/\\.(pdf|docx|doc|xlsx|xls|pptx|ppt)$/);\n    var ext = extMatch ? extMatch[1] : 'pdf';\n    var contentType = CONTENT_TYPES[ext] || 'application/octet-stream';\n    var key = 'db06_documents/' + pg.notion_page_id.substring(0,8) + '_' + i + '.' + ext;\n    var host = R2_ACCOUNT_ID + '.r2.cloudflarestorage.com';\n    var bucketPath = '/' + R2_BUCKET + '/' + key;\n    var endpoint = 'https://' + host + bucketPath;\n    var now = new Date();\n    var dateStr = now.getUTCFullYear() + p2(now.getUTCMonth()+1) + p2(now.getUTCDate()) +\n      'T' + p2(now.getUTCHours()) + p2(now.getUTCMinutes()) + p2(now.getUTCSeconds()) + 'Z';\n    var dateShort = dateStr.slice(0,8);\n    var payloadHash = 'UNSIGNED-PAYLOAD';\n    var canonicalHeaders = 'content-type:' + contentType + '\\nhost:' + host + '\\nx-amz-content-sha256:' + payloadHash + '\\nx-amz-date:' + dateStr + '\\n';\n    var signedHeaders = 'content-type;host;x-amz-content-sha256;x-amz-date';\n    var canonicalRequest = 'PUT\\n' + bucketPath + '\\n\\n' + canonicalHeaders + '\\n' + signedHeaders + '\\n' + payloadHash;\n    var credScope = dateShort + '/auto/s3/aws4_request';\n    var stringToSign = 'AWS4-HMAC-SHA256\\n' + dateStr + '\\n' + credScope + '\\n' + crypto.createHash('sha256').update(canonicalRequest).digest('hex');\n    var hmac = function(k, d){ return crypto.createHmac('sha256', k).update(d).digest(); };\n    var sigKey = hmac(hmac(hmac(hmac(Buffer.from('AWS4' + R2_SECRET), dateShort), 'auto'), 's3'), 'aws4_request');\n    var signature = crypto.createHmac('sha256', sigKey).update(stringToSign).digest('hex');\n    var authorization = 'AWS4-HMAC-SHA256 Credential=' + R2_ACCESS_KEY + '/' + credScope + ',SignedHeaders=' + signedHeaders + ',Signature=' + signature;\n    var putResp = await this.helpers.httpRequest({\n      method: 'PUT', url: endpoint,\n      headers: { 'Content-Type': contentType, 'Content-Length': String(buf.length), 'x-amz-content-sha256': payloadHash, 'x-amz-date': dateStr, 'Authorization': authorization },\n      body: buf, returnFullResponse: true, ignoreHttpStatusErrors: true\n    });\n    if (!putResp || putResp.statusCode < 200 || putResp.statusCode >= 300) { files_failed++; continue; }\n    var r2Url = R2_PUBLIC_URL.replace(/\\/$/, '') + '/' + key;\n    var fileName = pg.file_url.split('/').pop().split('?')[0] || ('file.' + ext);\n    var dashedId = dash(pg.notion_page_id);\n    await this.helpers.httpRequest({\n      method: 'PATCH', url: 'https://api.notion.com/v1/pages/' + dashedId, headers: NH,\n      body: { properties: { '上傳檔案': { files: [{ type: 'external', name: fileName, external: { url: r2Url } }] } } },\n      json: true\n    });\n    downloaded++;\n  } catch(e) { files_failed++; }\n}\nreturn [{ json: Object.assign({}, item, { files_downloaded: downloaded, files_failed: files_failed }) }];"
+   }
+  },
+  {
+   "id": "7c43a124-4816-45ad-a309-b68419e318d3",
+   "name": "PATCH 搜查工項 對應明細",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    3360,
+    192
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const item = $input.first().json;\nconst createdPages = item.created_pages || [];\nconst NOTION_TOKEN = $env.NOTION_INTEGRATION_TOKEN;\nconst NH = { 'Authorization': 'Bearer ' + NOTION_TOKEN, 'Notion-Version': '2022-06-28', 'Content-Type': 'application/json' };\nconst db06_id = item.db06_id;\nconst dash = id => id.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, '$1-$2-$3-$4-$5');\nconst newIds = createdPages.filter(p => p.notion_page_id).map(p => p.notion_page_id);\nif (newIds.length === 0) return [{ json: item }];\nlet existingIds = [];\ntry {\n  const pg = await this.helpers.httpRequest({ method: 'GET', url: 'https://api.notion.com/v1/pages/' + dash(db06_id), headers: NH, json: true });\n  existingIds = ((pg.properties['對應明細'] && pg.properties['對應明細'].relation) || []).map(r => r.id.replace(/-/g, ''));\n} catch(e) {}\nconst allIds = Array.from(new Set([...existingIds, ...newIds]));\ntry {\n  await this.helpers.httpRequest({\n    method: 'PATCH',\n    url: 'https://api.notion.com/v1/pages/' + dash(db06_id),\n    headers: NH,\n    body: { properties: { '對應明細': { relation: allIds.map(id => ({ id: dash(id) })) } } },\n    json: true\n  });\n} catch(e2) {}\nreturn [{ json: item }];"
+   }
+  },
+  {
+   "id": "16a29c74-be52-486d-a333-375a677bc6bb",
+   "name": "PATCH DB06 執行備註",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.3,
+   "position": [
+    3584,
+    192
+   ],
+   "parameters": {
     "method": "PATCH",
-    "url": "=https://api.notion.com/v1/pages/{{ $('Parse Claude').first().json.db06_id }}",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={ \"properties\": { \"執行備註\": { \"rich_text\": [{ \"text\": { \"content\": {{ JSON.stringify($('Parse Claude').first().json.search_summary) }} } }] } } }",
+    "url": "={{ 'https://api.notion.com/v1/pages/' + $('Parse Claude').first().json.db06_id }}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
@@ -305,119 +347,23 @@
        "value": "2022-06-28"
       }
      ]
-    }
-   }
-  },
-  {
-   "id": "96c42362-adc5-4435-98dc-b08f2064e415",
-   "name": "Read flow_state 處理中",
-   "type": "n8n-nodes-base.dataTable",
-   "typeVersion": 1.1,
-   "position": [
-    0,
-    0
-   ],
-   "parameters": {
-    "resource": "row",
-    "operation": "get",
-    "dataTableId": {
-     "__rl": true,
-     "mode": "id",
-     "value": "33eRHCPvnKB1df7g"
     },
-    "matchType": "allConditions",
-    "filters": {
-     "conditions": [
-      {
-       "keyName": "flow_id",
-       "condition": "eq",
-       "keyValue": "={{ $('Parse DB06').first().json.db05_id }}"
-      }
-     ]
-    },
-    "returnAll": false,
-    "limit": 1
-   }
-  },
-  {
-   "id": "81cc1298-ccd6-457b-86c3-965d5ed216fc",
-   "name": "Telegram 處理中",
-   "type": "n8n-nodes-base.httpRequest",
-   "typeVersion": 4.2,
-   "position": [
-    0,
-    0
-   ],
-   "parameters": {
-    "method": "POST",
-    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: '⏳ 第 ' + ($('Parse DB06').first().json.sort_num != null ? $('Parse DB06').first().json.sort_num : '?') + ' 棒 (搜查) 開始處理。\\n正在 web search 採集外部資料,預計 1-2 分鐘。完成會自動發關卡B,免守畫面。', disable_web_page_preview: true, allow_sending_without_reply: true }, ((parseInt($json.last_msg_id || 0) || 0) > 0 ? { reply_to_message_id: parseInt($json.last_msg_id || 0) || 0 } : {}))) }}",
+    "jsonBody": "={{ JSON.stringify({ properties: { \"執行備註\": { rich_text: [{ text: { content: $('Parse Claude').first().json.search_summary } }] } } }) }}",
     "options": {}
    }
   },
   {
-   "id": "4e522ce4-6e83-426e-aad1-428e5b0be189",
-   "name": "Save msgid 處理中",
-   "type": "n8n-nodes-base.code",
-   "typeVersion": 2,
-   "position": [
-    0,
-    0
-   ],
-   "parameters": {
-    "mode": "runOnceForAllItems",
-    "language": "javaScript",
-    "jsCode": "const mid = ($input.first().json.result?.message_id || '').toString();\nreturn [{ json: { flow_id: $('Parse DB06').first().json.db05_id, last_msg_id: mid } }];"
-   }
-  },
-  {
-   "id": "ba7fc91a-afd8-4546-82ed-860e1575be91",
-   "name": "Update flow_state 處理中",
-   "type": "n8n-nodes-base.dataTable",
-   "typeVersion": 1.1,
-   "position": [
-    0,
-    0
-   ],
-   "parameters": {
-    "resource": "row",
-    "operation": "update",
-    "dataTableId": {
-     "__rl": true,
-     "mode": "id",
-     "value": "33eRHCPvnKB1df7g"
-    },
-    "matchType": "allConditions",
-    "filters": {
-     "conditions": [
-      {
-       "keyName": "flow_id",
-       "condition": "eq",
-       "keyValue": "={{ $json.flow_id }}"
-      }
-     ]
-    },
-    "columns": {
-     "mappingMode": "defineBelow",
-     "value": {
-      "last_msg_id": "={{ $json.last_msg_id }}"
-     }
-    }
-   }
-  },
-  {
-   "id": "c8639976-0eb2-429e-a39c-d9e9ce7bc169",
+   "id": "732823dd-c775-4c92-9e55-08f028bde435",
    "name": "Read flow_state B",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
    "position": [
-    0,
-    0
+    3808,
+    192
    ],
    "parameters": {
-    "resource": "row",
     "operation": "get",
     "dataTableId": {
      "__rl": true,
@@ -429,38 +375,35 @@
      "conditions": [
       {
        "keyName": "flow_id",
-       "condition": "eq",
        "keyValue": "={{ $('Parse Claude').first().json.db05_id }}"
       }
      ]
     },
-    "returnAll": false,
     "limit": 1
-   },
-   "executeOnce": true
+   }
   },
   {
-   "id": "188e0812-edab-465f-9dfe-11c231ee86fb",
+   "id": "7e4f03a1-9856-4a69-b0c6-4e35a65bf100",
    "name": "Build gateB",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
-    0,
-    0
+    4032,
+    192
    ],
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const row = $input.first().json || {};\nconst pc = $('Parse Claude').first().json;\nconst auto_mode = row.auto_mode === true;\nconst reply_to = parseInt(row.last_msg_id || 0) || 0;\nconst base = '關卡B 成果確認\\n第 ' + (pc.sort_num != null ? pc.sort_num : '?') + ' 棒 (' + pc.ai_mode + ') 已完成。\\nDB06 頁面 ' + pc.db06_id + '\\n\\n執行備註:\\n' + (pc.safe_summary + '\\n\\n採集 ' + pc.count + ' 筆參考資料,已建 ' + pc.count + ' 個 DB06 資料參考 page。\\ntokens ' + pc.usage_line);\nconst manual_msg = base + '\\n\\n按 OK 進下一棒,按 OK ALL 之後全自動。要 redo 重跑請打字 reply。\\ngateB db06=' + pc.db06_id;\nconst auto_msg = base + '\\n\\n[全自動模式] 自動進下一棒,免按。';\nreturn [{ json: { auto_mode, reply_to, flow_id: pc.db05_id, db05_id: pc.db05_id, db06_id: pc.db06_id, sort_num: pc.sort_num, ai_mode: pc.ai_mode, manual_msg, auto_msg, cb_ok: 'B1:' + pc.db06_id, cb_all: 'BA:' + pc.db06_id } }];"
+    "jsCode": "const row = $input.first().json || {};\nconst pc = $('Parse Claude').first().json;\nconst dl = $('下載並上傳檔案').first().json;\nconst auto_mode = row.auto_mode === true;\nconst reply_to = parseInt(row.last_msg_id || 0) || 0;\nconst filesLine = (dl.files_downloaded > 0 ? '\\n下載檔案 ' + dl.files_downloaded + ' 個' + (dl.files_failed > 0 ? '（失敗 ' + dl.files_failed + '）' : '') : '');\nconst base = '關卡B 成果確認\\n第 ' + (pc.sort_num != null ? pc.sort_num : '?') + ' 棒 (' + pc.ai_mode + ') 已完成。\\nDB06 頁面 ' + pc.db06_id + '\\n\\n執行備註:\\n' + pc.safe_summary + '\\n\\n採集 ' + pc.count + ' 筆、跨次去重 ' + (pc.deduped || 0) + ' 筆（Tavily+web search）。' + filesLine + '\\ntokens ' + pc.usage_line;\nconst manual_msg = base + '\\n\\n按 OK 進下一棒，按 OK ALL 之後全自動。要 redo 重跑請打字 reply。\\ngateB db06=' + pc.db06_id;\nconst auto_msg = base + '\\n\\n[全自動模式] 自動進下一棒，免按。';\nreturn [{ json: { auto_mode, reply_to, flow_id: pc.db05_id, db05_id: pc.db05_id, db06_id: pc.db06_id, sort_num: pc.sort_num, ai_mode: pc.ai_mode, manual_msg, auto_msg, cb_ok: 'B1:' + pc.db06_id, cb_all: 'BA:' + pc.db06_id } }];"
    }
   },
   {
-   "id": "31f8b7dc-c66e-447c-b671-3fa50b4c1613",
+   "id": "e75321fc-1ddc-4a31-bead-1b792c1222d6",
    "name": "auto_mode?",
    "type": "n8n-nodes-base.if",
    "typeVersion": 2.2,
    "position": [
-    5376,
+    4256,
     192
    ],
    "parameters": {
@@ -468,7 +411,8 @@
      "options": {
       "caseSensitive": true,
       "leftValue": "",
-      "typeValidation": "strict"
+      "typeValidation": "strict",
+      "version": 1
      },
      "combinator": "and",
      "conditions": [
@@ -483,16 +427,17 @@
        }
       }
      ]
-    }
+    },
+    "options": {}
    }
   },
   {
-   "id": "71df9fa3-83c8-4c1c-9bea-f7fc3e85e8f4",
+   "id": "8fb513a3-5ad3-49ab-a9b4-f455a3578971",
    "name": "Telegram 關卡B auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
    "position": [
-    5600,
+    4480,
     96
    ],
    "parameters": {
@@ -505,12 +450,12 @@
    }
   },
   {
-   "id": "eca773da-63cc-4178-a707-46252db6293e",
+   "id": "8df7b310-e3a2-4b5e-a83d-2bcaea50c5b0",
    "name": "Save msgid B auto",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
-    5824,
+    4704,
     96
    ],
    "parameters": {
@@ -520,16 +465,15 @@
    }
   },
   {
-   "id": "55b99042-7403-4640-9f7d-4a46dc18c6a0",
+   "id": "9a38e470-ee83-41af-997e-bebd6e9c38de",
    "name": "Update flow_state B auto",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
    "position": [
-    6048,
+    4928,
     96
    ],
    "parameters": {
-    "resource": "row",
     "operation": "update",
     "dataTableId": {
      "__rl": true,
@@ -541,7 +485,6 @@
      "conditions": [
       {
        "keyName": "flow_id",
-       "condition": "eq",
        "keyValue": "={{ $json.flow_id }}"
       }
      ]
@@ -551,24 +494,22 @@
      "value": {
       "last_msg_id": "={{ $json.last_msg_id }}"
      }
-    }
+    },
+    "options": {}
    }
   },
   {
-   "id": "ebafaa1b-c810-4c8b-a0d0-5648d142c62a",
+   "id": "57a423d8-e25d-4013-a593-4dce7add9d4e",
    "name": "PATCH DB06 完成 auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
-    6272,
+    5152,
     96
    ],
    "parameters": {
     "method": "PATCH",
-    "url": "=https://api.notion.com/v1/pages/{{ $('Build gateB').first().json.db06_id }}",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={ \"properties\": { \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
+    "url": "={{ 'https://api.notion.com/v1/pages/' + $('Build gateB').first().json.db06_id }}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
@@ -581,24 +522,25 @@
        "value": "2022-06-28"
       }
      ]
-    }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "{ \"properties\": { \"ai狀態\": { \"status\": { \"name\": \"完成\" } } } }",
+    "options": {}
    }
   },
   {
-   "id": "20c0699b-db75-460e-8728-b0a6032a3a0b",
+   "id": "477cb46b-a60e-40e5-8ad8-5eb2e634fc03",
    "name": "Query DB06 next auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
-    6496,
+    5376,
     96
    ],
    "parameters": {
     "method": "POST",
     "url": "https://api.notion.com/v1/databases/3469ff25fdab83c98ff98107ee6a6a1c/query",
-    "sendBody": true,
-    "specifyBody": "json",
-    "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      { \"or\": [\n        { \"property\": \"對應提案\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應管考\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應項目\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應協作\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應內容\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應庫存\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應標籤\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應地點\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } },\n        { \"property\": \"對應提供對象\", \"relation\": { \"contains\": \"{{ $('Build gateB').first().json.db05_id }}\" } }\n      ]},\n      { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }\n    ]\n  },\n  \"sorts\": [{ \"property\": \"排序\", \"direction\": \"ascending\" }]\n}",
     "sendHeaders": true,
     "headerParameters": {
      "parameters": [
@@ -611,31 +553,35 @@
        "value": "2022-06-28"
       }
      ]
-    }
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ filter: { and: [ { property: \"對應內容\", relation: { contains: $('Build gateB').first().json.db05_id } }, { property: \"明細類型\", select: { equals: \"細部流程\" } } ] }, sorts: [{ property: \"排序\", direction: \"ascending\" }] }) }}",
+    "options": {}
    }
   },
   {
-   "id": "ac80a873-7491-49fe-a9fd-84348e305bbf",
+   "id": "8d18365a-e73a-49ec-a5ae-9fb290845927",
    "name": "Pick next auto",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
-    6720,
+    5600,
     96
    ],
    "parameters": {
     "mode": "runOnceForAllItems",
     "language": "javaScript",
-    "jsCode": "const results = $input.first().json.results || [];\nconst g = $('Build gateB').first().json;\nconst pending = results.filter(p => (p.properties['ai狀態']?.status?.name||'') !== '完成');\nconst total = results.length;\nif (pending.length === 0) {\n  return [{ json: { has_next: false, tg_message: '全套完成 共 ' + total + ' 棒已全部通過 (全自動模式)。' } }];\n}\nconst p = pending[0];\nconst db06_id = p.id.replace(/-/g, '');\nconst ai_mode = p.properties['ai模式']?.select?.name || '';\nlet runner_url;\nconst _b = 'https://makesense.zeabur.app/webhook/';\nif (ai_mode.includes('聯想')) runner_url = _b + 'db06-lianxiang-traversal';\nelse if (ai_mode.includes('搜查')) runner_url = _b + 'db06-search';\nelse if (ai_mode.includes('分析')) runner_url = _b + 'db06-analyze';\nelse if (ai_mode.includes('文案')) runner_url = _b + 'db06-copy';\nelse if (ai_mode.includes('檢核')) runner_url = _b + 'db06-check';\nelse runner_url = _b + 'db06-plan';\nreturn [{ json: { has_next: true, db06_id, runner_url, tg_message: '' } }];"
+    "jsCode": "const results = $input.first().json.results || [];\nconst g = $('Build gateB').first().json;\nconst pending = results.filter(p => (p.properties['ai狀態']?.status?.name||'') !== '完成');\nconst total = results.length;\nif (pending.length === 0) {\n  return [{ json: { has_next: false, tg_message: '全套完成 共 ' + total + ' 棒已全部通過 (全自動模式)。' } }];\n}\nconst p = pending[0];\nconst db06_id = p.id.replace(/-/g, '');\nconst ai_mode = p.properties['ai模式']?.select?.name || '';\nlet runner_url;\nif (ai_mode.includes('聯想')) runner_url = 'https://makesense.zeabur.app/webhook/db06-lianxiang-traversal';\nelse if (ai_mode.includes('搜查')) runner_url = 'https://makesense.zeabur.app/webhook/db06-search';\nelse runner_url = 'https://makesense.zeabur.app/webhook/db06-baton-runner';\nreturn [{ json: { has_next: true, db06_id, runner_url, tg_message: '' } }];"
    }
   },
   {
-   "id": "481ca2eb-50e3-4920-99b5-b439fd742733",
+   "id": "cca55922-425f-4052-a326-1ffa240bae9f",
    "name": "has next auto?",
    "type": "n8n-nodes-base.if",
    "typeVersion": 2.2,
    "position": [
-    6944,
+    5824,
     96
    ],
    "parameters": {
@@ -643,7 +589,8 @@
      "options": {
       "caseSensitive": true,
       "leftValue": "",
-      "typeValidation": "strict"
+      "typeValidation": "strict",
+      "version": 1
      },
      "combinator": "and",
      "conditions": [
@@ -658,16 +605,17 @@
        }
       }
      ]
-    }
+    },
+    "options": {}
    }
   },
   {
-   "id": "2274e6fb-c8f0-41ea-8f24-e868c9a26809",
+   "id": "80ae993a-7dd5-49ca-a3a5-6b1a5143cfe5",
    "name": "Run next baton auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.3,
    "position": [
-    7168,
+    6048,
     0
    ],
    "parameters": {
@@ -675,7 +623,7 @@
     "url": "={{ $json.runner_url }}",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={ \"db06_id\": \"{{ $json.db06_id }}\" }",
+    "jsonBody": "={{ JSON.stringify({ db06_id: $json.db06_id }) }}",
     "options": {
      "response": {
       "response": {
@@ -686,12 +634,12 @@
    }
   },
   {
-   "id": "8f37b61a-0988-4913-91b0-70beda04d8a0",
+   "id": "ffc168b2-b7f2-4cb8-86a4-4d129c07c4db",
    "name": "Telegram 全套完成 auto",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
    "position": [
-    7168,
+    6048,
     192
    ],
    "parameters": {
@@ -704,12 +652,12 @@
    }
   },
   {
-   "id": "c4904fa3-c5f7-43dd-bda6-a7012cbf68bc",
+   "id": "fa97ae0c-0412-405c-803e-b56e4054a10d",
    "name": "Telegram 關卡B",
    "type": "n8n-nodes-base.httpRequest",
    "typeVersion": 4.2,
    "position": [
-    5600,
+    4480,
     288
    ],
    "parameters": {
@@ -717,17 +665,17 @@
     "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
     "sendBody": true,
     "specifyBody": "json",
-    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $('Build gateB').first().json.manual_msg, disable_web_page_preview: true, allow_sending_without_reply: true, reply_markup: { inline_keyboard: [[ { text: '✅ OK', callback_data: $('Build gateB').first().json.cb_ok }, { text: '⏩ OK ALL', callback_data: $('Build gateB').first().json.cb_all } ]] } }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
+    "jsonBody": "={{ JSON.stringify(Object.assign({ chat_id: 8523155253, text: $('Build gateB').first().json.manual_msg, disable_web_page_preview: true, allow_sending_without_reply: true, reply_markup: { inline_keyboard: [[ { text: \"✅ OK\", callback_data: $('Build gateB').first().json.cb_ok }, { text: \"⏩ OK ALL\", callback_data: $('Build gateB').first().json.cb_all } ]] } }, ($('Build gateB').first().json.reply_to > 0 ? { reply_to_message_id: $('Build gateB').first().json.reply_to } : {}))) }}",
     "options": {}
    }
   },
   {
-   "id": "ff46512e-d855-40d9-a043-dfabeedd1c23",
+   "id": "63b33165-0f1b-42bd-9394-79746a6b71d3",
    "name": "Save msgid B",
    "type": "n8n-nodes-base.code",
    "typeVersion": 2,
    "position": [
-    5824,
+    4704,
     288
    ],
    "parameters": {
@@ -737,16 +685,15 @@
    }
   },
   {
-   "id": "c61d2a60-fd7e-45c2-b944-9a7b4fb813af",
+   "id": "9ca8b15c-eb60-4453-b28c-a785930ddd89",
    "name": "Update flow_state B",
    "type": "n8n-nodes-base.dataTable",
    "typeVersion": 1.1,
    "position": [
-    6048,
+    4928,
     288
    ],
    "parameters": {
-    "resource": "row",
     "operation": "update",
     "dataTableId": {
      "__rl": true,
@@ -758,7 +705,6 @@
      "conditions": [
       {
        "keyName": "flow_id",
-       "condition": "eq",
        "keyValue": "={{ $json.flow_id }}"
       }
      ]
@@ -768,7 +714,8 @@
      "value": {
       "last_msg_id": "={{ $json.last_msg_id }}"
      }
-    }
+    },
+    "options": {}
    }
   }
  ],
@@ -813,146 +760,6 @@
       "node": "Read flow_state 處理中",
       "type": "main",
       "index": 0
-     },
-     {
-      "node": "Fetch target DB05",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Fetch target DB05": {
-   "main": [
-    [
-     {
-      "node": "Build search prompt",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Build search prompt": {
-   "main": [
-    [
-     {
-      "node": "Claude API web search",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Claude API web search": {
-   "main": [
-    [
-     {
-      "node": "Parse Claude",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Parse Claude": {
-   "main": [
-    [
-     {
-      "node": "Has results?",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Has results?": {
-   "main": [
-    [
-     {
-      "node": "Loop results",
-      "type": "main",
-      "index": 0
-     }
-    ],
-    [
-     {
-      "node": "No results",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Loop done": {
-   "main": [
-    [
-     {
-      "node": "Merge final",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Merge final": {
-   "main": [
-    [
-     {
-      "node": "PATCH DB06 執行備註",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Create DB06 資料參考": {
-   "main": [
-    [
-     {
-      "node": "Loop results",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "Loop results": {
-   "main": [
-    [
-     {
-      "node": "Loop done",
-      "type": "main",
-      "index": 0
-     }
-    ],
-    [
-     {
-      "node": "Create DB06 資料參考",
-      "type": "main",
-      "index": 0
-     }
-    ]
-   ]
-  },
-  "No results": {
-   "main": [
-    [
-     {
-      "node": "Merge final",
-      "type": "main",
-      "index": 1
-     }
-    ]
-   ]
-  },
-  "PATCH DB06 執行備註": {
-   "main": [
-    [
-     {
-      "node": "Read flow_state B",
-      "type": "main",
-      "index": 0
      }
     ]
    ]
@@ -984,6 +791,116 @@
     [
      {
       "node": "Update flow_state 處理中",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Update flow_state 處理中": {
+   "main": [
+    [
+     {
+      "node": "Fetch target DB05",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Fetch target DB05": {
+   "main": [
+    [
+     {
+      "node": "Build search prompt",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Build search prompt": {
+   "main": [
+    [
+     {
+      "node": "Tavily 搜尋",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Tavily 搜尋": {
+   "main": [
+    [
+     {
+      "node": "Claude API web search",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Claude API web search": {
+   "main": [
+    [
+     {
+      "node": "Parse Claude",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Parse Claude": {
+   "main": [
+    [
+     {
+      "node": "Create DB06 資料參考",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Create DB06 資料參考": {
+   "main": [
+    [
+     {
+      "node": "下載並上傳檔案",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "下載並上傳檔案": {
+   "main": [
+    [
+     {
+      "node": "PATCH 搜查工項 對應明細",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH 搜查工項 對應明細": {
+   "main": [
+    [
+     {
+      "node": "PATCH DB06 執行備註",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "PATCH DB06 執行備註": {
+   "main": [
+    [
+     {
+      "node": "Read flow_state B",
       "type": "main",
       "index": 0
      }
@@ -1139,6 +1056,7 @@
  },
  "settings": {
   "executionOrder": "v1",
-  "availableInMCP": true
+  "availableInMCP": true,
+  "binaryMode": "separate"
  }
 }

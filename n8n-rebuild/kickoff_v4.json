@@ -1,0 +1,270 @@
+{
+ "name": "嗨嗨 Kickoff v4 (送第一棒關卡A)",
+ "nodes": [
+  {
+   "id": "de46fdfd-e5fa-4595-8612-49e46b71130e",
+   "name": "DB05 Button",
+   "type": "n8n-nodes-base.webhook",
+   "typeVersion": 2.1,
+   "position": [
+    0,
+    0
+   ],
+   "parameters": {
+    "httpMethod": "POST",
+    "path": "db05-claude-runner-v26",
+    "options": {}
+   },
+   "webhookId": "73682e25-184c-4c82-bb6a-828bfb82cb6d"
+  },
+  {
+   "id": "ff66b080-f90b-480d-b6ea-7e4cffc78f3f",
+   "name": "Extract DB05 ID",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    224,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const body = $input.first().json.body || $input.first().json;\nconst db05_id = (body.data?.id || body.id || body.page_id || '').toString().replace(/-/g, '');\nif (!db05_id) throw new Error('missing db05 page_id');\nreturn [{ json: { db05_id } }];"
+   }
+  },
+  {
+   "id": "027e7372-e346-47f2-8950-165c689a5331",
+   "name": "Query DB06",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    448,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "https://api.notion.com/v1/databases/3469ff25fdab83c98ff98107ee6a6a1c/query",
+    "sendHeaders": true,
+    "headerParameters": {
+     "parameters": [
+      {
+       "name": "Authorization",
+       "value": "={{ \"Bearer \" + $env.NOTION_INTEGRATION_TOKEN }}"
+      },
+      {
+       "name": "Notion-Version",
+       "value": "2022-06-28"
+      }
+     ]
+    },
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={\n  \"filter\": {\n    \"and\": [\n      { \"or\": [\n        { \"property\": \"對應提案\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應管考\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應項目\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應協作\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應內容\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應庫存\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應對象\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } },\n        { \"property\": \"對應執行日期\", \"relation\": { \"contains\": \"{{ $('Extract DB05 ID').first().json.db05_id }}\" } }\n      ]},\n      { \"property\": \"明細類型\", \"select\": { \"equals\": \"細部流程\" } }\n    ]\n  },\n  \"sorts\": [{ \"property\": \"排序\", \"direction\": \"ascending\" }]\n}",
+    "options": {}
+   }
+  },
+  {
+   "id": "da5bd89f-7b06-4fcd-9087-bacda06affb3",
+   "name": "Pick first pending",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    672,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const results = $input.first().json.results || [];\nconst db05_id = $('Extract DB05 ID').first().json.db05_id;\nconst sanitize = s => (s || '').toString()\n  .replace(/[\\/\\\\:<>#@\\[\\]\\{\\}\\|\\^\\`\\*_~\"']/g, ' ')\n  .replace(/[\\u2010-\\u2027\\u2030-\\u205E]/g, ' ')\n  .replace(/[\\uFF00-\\uFF0F\\uFF1A-\\uFF20\\uFF3B-\\uFF40\\uFF5B-\\uFF65]/g, ' ')\n  .replace(/[\\u3000-\\u3017\\u301D-\\u303F]/g, ' ')\n  .replace(/\\s+/g, ' ').trim().slice(0, 1500);\nconst total = results.length;\nconst done = results.filter(p => (p.properties['ai狀態']?.status?.name||'') === '完成').length;\nconst pending = results.filter(p => (p.properties['ai狀態']?.status?.name||'') !== '完成');\nif (pending.length === 0) {\n  return [{ json: { none: true, flow_id: db05_id, tg_message: '此 DB05 沒有待執行的棒次 (全套 ' + total + ' 棒已全部完成)', cb_ok: 'noop', cb_all: 'noop' } }];\n}\nconst p = pending[0];\nconst db06_id = p.id.replace(/-/g, '');\nconst ai_mode = sanitize(p.properties['ai模式']?.select?.name || '');\nconst sort_num = p.properties['排序']?.number;\nconst exec_idea = p.properties['執行構想']?.rich_text?.map(t=>t.plain_text).join('') || '';\nconst idea_show = exec_idea ? sanitize(exec_idea) : '(執行構想為空,將用該棒預設工作指示)';\nconst msg = '關卡A 執行前確認\\n' +\n  '第 ' + (sort_num != null ? sort_num : '?') + ' 棒 (' + ai_mode + ')。全套 ' + total + ' 棒,已完成 ' + done + ' 棒。\\n' +\n  'DB06 頁面 ' + db06_id + '\\n\\n' +\n  '本棒預定執行構想:\\n' + idea_show + '\\n\\n' +\n  '按 OK 放行這一關,按 OK ALL 之後全自動。要改執行構想 skip stop 請打字 reply。\\n' +\n  'gateA db06=' + db06_id;\nreturn [{ json: { none: false, db06_id, flow_id: db05_id, tg_message: msg, cb_ok: 'A1:' + db06_id, cb_all: 'AA:' + db06_id } }];"
+   }
+  },
+  {
+   "id": "65d19a88-fabc-42b2-af11-b2653f9d252b",
+   "name": "Insert flow_state",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    896,
+    0
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "upsert",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "flow_id": "={{ $json.flow_id }}",
+      "auto_mode": false
+     }
+    }
+   }
+  },
+  {
+   "id": "b190759d-4980-4f4e-ac3c-266a2b3b51fa",
+   "name": "Telegram 關卡A",
+   "type": "n8n-nodes-base.httpRequest",
+   "typeVersion": 4.2,
+   "position": [
+    1120,
+    0
+   ],
+   "parameters": {
+    "method": "POST",
+    "url": "={{ \"https://api.telegram.org/bot\" + $env.TELEGRAM_BOT_TOKEN + \"/sendMessage\" }}",
+    "sendBody": true,
+    "specifyBody": "json",
+    "jsonBody": "={{ JSON.stringify({ chat_id: 8523155253, text: $('Pick first pending').first().json.tg_message, reply_markup: { inline_keyboard: [[ { text: \"✅ OK\", callback_data: $('Pick first pending').first().json.cb_ok }, { text: \"⏩ OK ALL\", callback_data: $('Pick first pending').first().json.cb_all } ]] }, disable_web_page_preview: true }) }}",
+    "options": {}
+   }
+  },
+  {
+   "id": "65feb04e-026c-440b-902a-5f997fee7a29",
+   "name": "Save last_msg_id",
+   "type": "n8n-nodes-base.code",
+   "typeVersion": 2,
+   "position": [
+    1344,
+    0
+   ],
+   "parameters": {
+    "mode": "runOnceForAllItems",
+    "language": "javaScript",
+    "jsCode": "const msg_id = ($input.first().json.result?.message_id || '').toString();\nconst flow_id = $('Pick first pending').first().json.flow_id;\nreturn [{ json: { flow_id, last_msg_id: msg_id } }];"
+   }
+  },
+  {
+   "id": "960a59f5-2747-4d32-aee4-09ebdba0fc69",
+   "name": "Update flow_state msg",
+   "type": "n8n-nodes-base.dataTable",
+   "typeVersion": 1.1,
+   "position": [
+    1568,
+    0
+   ],
+   "parameters": {
+    "resource": "row",
+    "operation": "upsert",
+    "dataTableId": {
+     "__rl": true,
+     "mode": "id",
+     "value": "33eRHCPvnKB1df7g"
+    },
+    "matchType": "allConditions",
+    "filters": {
+     "conditions": [
+      {
+       "keyName": "flow_id",
+       "condition": "eq",
+       "keyValue": "={{ $json.flow_id }}"
+      }
+     ]
+    },
+    "columns": {
+     "mappingMode": "defineBelow",
+     "value": {
+      "flow_id": "={{ $json.flow_id }}",
+      "last_msg_id": "={{ $json.last_msg_id }}"
+     }
+    }
+   }
+  }
+ ],
+ "connections": {
+  "DB05 Button": {
+   "main": [
+    [
+     {
+      "node": "Extract DB05 ID",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Extract DB05 ID": {
+   "main": [
+    [
+     {
+      "node": "Query DB06",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Query DB06": {
+   "main": [
+    [
+     {
+      "node": "Pick first pending",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Pick first pending": {
+   "main": [
+    [
+     {
+      "node": "Insert flow_state",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Insert flow_state": {
+   "main": [
+    [
+     {
+      "node": "Telegram 關卡A",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Telegram 關卡A": {
+   "main": [
+    [
+     {
+      "node": "Save last_msg_id",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  },
+  "Save last_msg_id": {
+   "main": [
+    [
+     {
+      "node": "Update flow_state msg",
+      "type": "main",
+      "index": 0
+     }
+    ]
+   ]
+  }
+ },
+ "settings": {
+  "executionOrder": "v1",
+  "availableInMCP": true
+ }
+}
