@@ -197,6 +197,7 @@
 - [feedback_no_chat_report.md](memory/feedback_no_chat_report.md) — 結果寫進 Notion/檔案後，對話不要再貼摘要報告
 - [feedback_no_skip_no_hallucinate.md](memory/feedback_no_skip_no_hallucinate.md) — 嗨嗨家族執行三鐵律：載 skill 先 fetch 全規範列 checklist；遇模糊必停下問；不准自決簡化跳過
 - [feedback_n8n_url.md](memory/feedback_n8n_url.md) — 提到 n8n workflow 一律直接給完整 URL（makesense.zeabur.app/workflow/ID），不要只給 ID
+- [feedback_no_baton_jargon.md](memory/feedback_no_baton_jargon.md) — 跟四九講話**絕對不要用「棒」**（企劃棒/文案棒/下一棒/交棒…）；嗨嗨家族成員一律用名字（企劃/搜查/分析/聯想/文案/檢核）或「步驟」，接力講「交給下一步」。四九已多次要求、會很煩。
 - [feedback_n8n_sdk_update_drops_credentials.md](memory/feedback_n8n_sdk_update_drops_credentials.md) — n8n SDK `update_workflow` 會重生節點 ID、掉憑證（Notion/Telegram/Anthropic）。**本機 session**：小改動走外科 REST PUT 或 n8n 介面，保住節點 ID 與憑證。**雲端 session**：sandbox 網路政策擋掉 makesense.zeabur.app（`host_not_allowed`），外科 PUT 跑不了 → **直接用 MCP `update_workflow` 寫，不用再權衡憑證、也不用把「請四九本機貼 curl PUT」當預設來回問**；寫完提醒四九若該 workflow 有 credential 節點就去 n8n UI 重接一次（四九 2026/05 明示樂意重接）。註：嗨嗨家族那批 workflow 本來就 HTTP+env token、無 credential 節點，根本沒憑證可掉。
 
 ## 2015 地方通訊 pipeline 接力
