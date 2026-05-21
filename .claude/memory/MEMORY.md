@@ -57,7 +57,7 @@
 - 嗨嗨總管元職責：突發任務派工 / 家族協調仲裁 / 主動巡邏與洞察
 - [hihi_4-2-x_migration.md](hihi_4-2-x_migration.md) — 家族工作指示遷移到各類指南 4-2-X 子頁；4-2-1 總管已完成、4-2-2~4-2-7 空頁已建；skill .md 剝薄成載入器
 - [hihi_archive_extraction.md](hihi_archive_extraction.md) — 封存萃取＝總管工作模式（不新增第 7 成員），triage + merge-write 累積教訓庫養文案
-- [db_dedup_merge_capability.md](db_dedup_merge_capability.md) — DB01-09 重複偵測與合併＝總管常駐能力，兩層架構，DB08 清理是第一次實跑
+- [db_dedup_merge_capability.md](db_dedup_merge_capability.md) — DB01-09 重複偵測與合併＝檢核常駐能力（2026/05/21 由總管改檢核），兩層架構，DB08 清理是第一次實跑
 - [hihicheck_quality_design.md](hihicheck_quality_design.md) — 檢核品管 4 欄位（字數目標 + 退回次數/過期/每千字退回次數 formula）；KPI＝每千字退回次數↓；檢核當「失敗記錄器」不打分
 - [hihianly_manual_workflow.md](hihianly_manual_workflow.md) — 嗨嗨分析固定流程（手動觸發版）：先在 target 對應明細建 DB06 baton(ai模式=分析/執行中)→分析→baton 改完成；執行備註寫 baton、分析備註+對應標籤寫 target（2026/05/21 四九定）
 
