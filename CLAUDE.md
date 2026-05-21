@@ -1,5 +1,8 @@
 # makesense.ink — 現思文化創藝官網
 
+> **雲端 session 必讀**：使用者記憶與偏好在 `.claude/MEMORY.md`，請在每次 session 開始時讀取。
+
+
 ## 專案概述
 Next.js 16 + Tailwind CSS 4 + TypeScript 商業網站，部署在 Vercel，CMS 用 Notion API。
 專案擁有者：Noah（Jay049）— 現思文化創藝有限公司 L5 執行長
