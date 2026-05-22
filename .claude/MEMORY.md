@@ -59,7 +59,7 @@
 - [hihi_archive_extraction.md](memory/hihi_archive_extraction.md) — 封存萃取＝總管工作模式（不新增第 7 成員），triage + merge-write 累積教訓庫養文案
 - [db_dedup_merge_capability.md](memory/db_dedup_merge_capability.md) — DB01-09 重複偵測與合併＝檢核常駐能力（2026/05/21 由總管改檢核），兩層架構，DB08 清理是第一次實跑
 - [hihicheck_quality_design.md](memory/hihicheck_quality_design.md) — 檢核品管 4 欄位（字數目標 + 退回次數/過期/每千字退回次數 formula）；KPI＝每千字退回次數↓；檢核當「失敗記錄器」不打分
-- [hihianly_manual_workflow.md](memory/hihianly_manual_workflow.md) — 嗨嗨分析固定流程（手動觸發版）：先在 target 對應明細建 DB06 baton(ai模式=分析/執行中)→分析→baton 改完成；執行備註寫 baton、分析備註+對應標籤寫 target（2026/05/21 四九定）
+- [hihianly_manual_workflow.md](memory/hihianly_manual_workflow.md) — 嗨嗨分析固定流程（手動觸發版）：先在 target 對應明細建 DB06 baton(ai模式=分析/執行中)→分析→baton 改完成；執行備註寫 baton、分析備註+對應標籤寫 target（2026/05/21 四九定）。**憑證：DB06 baton 必掛 target 對應明細 + 執行狀態=完成；掃描順序 成果報告→提案申請→逐類；舊棒不補建（2026/05/22 補）**
 
 ### 嗨嗨家族架構（2026/05/14 重整）
 - **共通規則住「工作導覽地圖」**：[4-1-1 嗨嗨家族工作導覽地圖 §共通鍵規區](https://www.notion.so/049/3459ff25fdab81aeab9ff3c8281805e5) 含 5 個共通段落（欄位字典導引 / 分析備註範本規範 / 欄位組合規則合集 / DB08 建檔分工鐵律 / 動手前 checklist）
