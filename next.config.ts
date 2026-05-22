@@ -38,6 +38,18 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  async redirects() {
+    return [
+      // www → non-www 永久轉址（301），統一 canonical domain
+      {
+        source: "/:path*",
+        has: [{ type: "host", value: "www.makesense.ink" }],
+        destination: "https://makesense.ink/:path*",
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default withNextIntl(nextConfig);
