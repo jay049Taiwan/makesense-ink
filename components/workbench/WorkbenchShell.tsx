@@ -1638,6 +1638,7 @@ interface StaffOrder {
   source: string | null;
   note: string | null;
   refund_info: any;
+  refund_status: string | null;
   members: { id: string; name: string; email: string; phone: string } | null;
   order_items: { id: string; item_type: string; quantity: number; price: number; meta: any }[];
 }
@@ -1661,6 +1662,20 @@ function OrdersPanel() {
   const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null); // 正在操作的訂單 ID
+
+  const markRefunded = async (orderId: string) => {
+    setActionId(orderId);
+    try {
+      const res = await staffFetch("/api/staff/orders", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!res.ok) { alert("標記失敗"); return; }
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, refund_status: "refunded" } : o));
+    } catch { alert("操作失敗"); }
+    finally { setActionId(null); }
+  };
 
   const load = async (status: OrderStatus = statusFilter) => {
     setLoading(true);
@@ -1820,6 +1835,36 @@ function OrdersPanel() {
                 {order.note && (
                   <div className="px-4 py-2 text-xs" style={{ background: "#fafaf8", color: "#888", borderTop: "1px solid #f5f5f5" }}>
                     💬 {order.note}
+                  </div>
+                )}
+
+                {/* 退款資訊（已取消且有填退款帳戶才顯示）*/}
+                {order.status === "cancelled" && order.refund_info && (
+                  <div className="px-4 py-3" style={{ background: "#fffbf0", borderTop: "1px solid #f0ede8" }}>
+                    <p className="text-xs font-semibold mb-1" style={{ color: "#92400e" }}>💳 退款帳戶</p>
+                    {order.refund_info.method === "original" ? (
+                      <p className="text-xs" style={{ color: "#666" }}>退回原付款方式</p>
+                    ) : (
+                      <div className="text-xs space-y-0.5" style={{ color: "#555" }}>
+                        <p>銀行：{order.refund_info.bank_name}</p>
+                        <p>帳號：<span className="font-mono">{order.refund_info.account_number}</span></p>
+                        <p>戶名：{order.refund_info.account_holder}</p>
+                      </div>
+                    )}
+                    <div className="mt-2">
+                      {order.refund_status === "refunded" ? (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-medium" style={{ background: "#d1fae5", color: "#065f46" }}>✓ 已退款</span>
+                      ) : (
+                        <button
+                          onClick={() => markRefunded(order.id)}
+                          disabled={isActing}
+                          className="text-xs px-3 py-1 rounded-lg font-medium"
+                          style={{ background: "#f59e0b", color: "#fff", border: "none", cursor: isActing ? "wait" : "pointer" }}
+                        >
+                          {isActing ? "處理中..." : "標記已退款"}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 )}
 

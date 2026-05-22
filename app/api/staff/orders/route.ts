@@ -38,6 +38,30 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ orders: orders || [], count });
 }
 
+/**
+ * PUT /api/staff/orders — 標記退款完成
+ * Body: { orderId, refundNote?: string }
+ */
+export async function PUT(req: NextRequest) {
+  const auth = await requireStaff(req);
+  if ("error" in auth) return auth.error;
+
+  const { orderId, refundNote } = await req.json();
+  if (!orderId) return NextResponse.json({ error: "缺少 orderId" }, { status: 400 });
+
+  const { error } = await supabase
+    .from("orders")
+    .update({
+      refund_status: "refunded",
+      refund_note: refundNote || null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", orderId);
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
+
 export async function PATCH(req: NextRequest) {
   const auth = await requireStaff(req);
   if ("error" in auth) return auth.error;

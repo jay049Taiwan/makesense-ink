@@ -111,7 +111,7 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { items, contact, delivery, note, memberEmail, source, refundInfo } = body as {
+    const { items, contact, delivery, note, memberEmail, source, refundInfo, pointDiscount } = body as {
       items: {
         id: string;
         name: string;
@@ -141,6 +141,7 @@ export async function POST(req: NextRequest) {
         account_number?: string;
         account_holder?: string;
       };
+      pointDiscount?: number; // 點數折抵金額（1點=1元）
     };
 
     if (!items || items.length === 0) {
@@ -226,10 +227,17 @@ export async function POST(req: NextRequest) {
     }
 
     // 3. 計算總金額（使用 Supabase 真實定價，完全忽略 client 傳入的 price）
-    const total = resolvedItems.reduce((sum, { item, productInfo, eventInfo }) => {
+    const subtotal = resolvedItems.reduce((sum, { item, productInfo, eventInfo }) => {
       const serverPrice = productInfo?.price ?? (eventInfo as any)?.price ?? 0;
       return sum + serverPrice * item.qty;
     }, 0);
+
+    // 點數折抵驗證（server-side 重算，不信任 client 傳入值）
+    const maxDiscount = Math.floor(subtotal * 0.3);
+    const validatedPointDiscount = pointDiscount
+      ? Math.min(Math.max(0, Math.floor(pointDiscount)), maxDiscount)
+      : 0;
+    const total = Math.max(0, subtotal - validatedPointDiscount);
 
     // 4. 建立訂單（V2：有票券 → reservation 模式，pending 等錄取；純商品 → direct 模式，直接 confirmed）
     const hasTickets = items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.type));
@@ -253,11 +261,44 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // reservation 模式要求退款資訊
+    // reservation 模式：退款資訊 + 重複報名防止
     if (orderMode === "reservation") {
       if (!refundInfo || !refundInfo.method) {
         return NextResponse.json({ error: "活動報名需提供退款資訊" }, { status: 400 });
       }
+
+      // 重複報名防止：同一會員不可對同一活動有 pending/confirmed 訂單
+      if (memberId) {
+        const ticketEventIds = resolvedItems
+          .filter((r) => r.eventInfo)
+          .map((r) => r.eventInfo!.id);
+
+        if (ticketEventIds.length > 0) {
+          // 找該會員所有非取消的 reservation 訂單明細，看有沒有同樣的 eventId
+          const { data: existingItems } = await supabase
+            .from("order_items")
+            .select("id, meta, orders!inner(member_id, status)")
+            .eq("orders.member_id", memberId)
+            .in("orders.status", ["pending", "confirmed"])
+            .eq("item_type", "走讀"); // reservation 類型
+
+          const existingEventIds = (existingItems || [])
+            .map((i: any) => i.meta?.eventId)
+            .filter(Boolean);
+
+          const duplicates = resolvedItems
+            .filter((r) => r.eventInfo && existingEventIds.includes(r.eventInfo.id))
+            .map((r) => r.item.name);
+
+          if (duplicates.length > 0) {
+            return NextResponse.json(
+              { error: `您已報名過以下活動，不可重複報名：${duplicates.join("、")}` },
+              { status: 409 }
+            );
+          }
+        }
+      }
+
       if (refundInfo.method === "custom") {
         const missing = ["bank_name", "account_number", "account_holder"].filter(
           (k) => !((refundInfo as any)[k] || "").trim()
@@ -409,6 +450,24 @@ export async function POST(req: NextRequest) {
         }
       } catch (e: any) {
         console.warn("[checkout] 點數寫入錯誤:", e?.message);
+      }
+    }
+
+    // 4.7 扣除使用的點數（負向 ledger 項目）
+    //   - direct 或 reservation 結帳若使用了點數折抵，立即扣除
+    //   - reservation 取消時若需退回點數，由退款流程另行補正向 ledger
+    if (validatedPointDiscount > 0 && memberId) {
+      try {
+        await supabase.from("point_ledger").insert({
+          member_id: memberId,
+          type: "點數折抵",
+          value: -validatedPointDiscount,
+          source_table: "orders",
+          source_id: order.id,
+          note: `訂單 #${order.id.slice(0, 8)} 折抵 ${validatedPointDiscount} 點`,
+        });
+      } catch (e: any) {
+        console.warn("[checkout] 點數扣除失敗:", e?.message);
       }
     }
 

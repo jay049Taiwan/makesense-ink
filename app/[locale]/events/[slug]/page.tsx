@@ -23,6 +23,7 @@ interface EventData {
   addons: { name: string; price: string }[];
   minCapacity: number | null;
   notion_id?: string;
+  coverUrl?: string | null;
 }
 
 const parsePrice = (s: string) => parseInt((s || "").replace(/[^0-9]/g, "")) || 0;
@@ -85,6 +86,7 @@ function mapEventData(row: any): EventData {
     addons,
     minCapacity: row.min_capacity ?? null,
     notion_id: row.notion_id || undefined,
+    coverUrl: row.cover_url || null,
   };
 }
 
@@ -343,7 +345,7 @@ export default function EventPage({
               const isExpired = event.rawDate ? new Date(event.rawDate).getTime() < now : false;
 
               if (isExpired) {
-                return <ExpiredEventPanel eventTitle={event.title} eventSlug={slug} />;
+                return <ExpiredEventPanel eventTitle={event.title} eventSlug={slug} eventDate={event.date} eventLocation={event.location} eventGuide={event.guide} eventExcerpt={event.excerpt} coverUrl={event.coverUrl} />;
               }
 
               return (
@@ -541,7 +543,13 @@ export default function EventPage({
 }
 
 /** 活動結束 → 敲碗再辦表單 */
-function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; eventSlug: string }) {
+function ExpiredEventPanel({
+  eventTitle, eventSlug, eventDate, eventLocation, eventGuide, eventExcerpt, coverUrl,
+}: {
+  eventTitle: string; eventSlug: string;
+  eventDate?: string; eventLocation?: string; eventGuide?: string;
+  eventExcerpt?: string; coverUrl?: string | null;
+}) {
   const [showForm, setShowForm] = useState(false);
   const [name, setName] = useState("");
   const [contact, setContact] = useState("");
@@ -611,9 +619,42 @@ function ExpiredEventPanel({ eventTitle, eventSlug }: { eventTitle: string; even
 
   return (
     <div className="rounded-lg overflow-hidden" style={{ border: "1px solid var(--color-dust)" }}>
-      <div className="p-5 text-center" style={{ background: "var(--color-warm-white)" }}>
-        <span className="text-2xl mb-2 block">🕐</span>
-        <p className="text-sm font-semibold mb-1" style={{ color: "var(--color-ink)" }}>活動已結束</p>
+
+      {/* 回顧區塊 */}
+      <div style={{ background: "var(--color-parchment)" }}>
+        {/* 封面圖 */}
+        {coverUrl && (
+          <div className="relative w-full overflow-hidden" style={{ height: 180 }}>
+            <img src={coverUrl} alt={eventTitle} className="w-full h-full object-cover" style={{ filter: "brightness(0.85)" }} />
+            <div className="absolute inset-0 flex items-end px-4 pb-3" style={{ background: "linear-gradient(to top, rgba(0,0,0,0.5) 0%, transparent 60%)" }}>
+              <span className="text-white text-xs font-medium px-2 py-0.5 rounded-full" style={{ background: "rgba(0,0,0,0.4)" }}>
+                活動已結束
+              </span>
+            </div>
+          </div>
+        )}
+        <div className="p-4">
+          {!coverUrl && (
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🕐</span>
+              <span className="text-sm font-semibold" style={{ color: "var(--color-ink)" }}>活動已結束</span>
+            </div>
+          )}
+          <div className="space-y-1 text-xs" style={{ color: "var(--color-bark)" }}>
+            {eventDate && <p>📅 {eventDate}</p>}
+            {eventLocation && <p>📍 {eventLocation}</p>}
+            {eventGuide && <p>🧭 帶路人：{eventGuide}</p>}
+          </div>
+          {eventExcerpt && (
+            <p className="mt-3 text-xs leading-relaxed line-clamp-4" style={{ color: "var(--color-mist)" }}>
+              {eventExcerpt}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {/* 敲碗區 */}
+      <div className="p-4 text-center" style={{ background: "var(--color-warm-white)", borderTop: "1px solid var(--color-dust)" }}>
         {encoreCount > 0 && (
           <p className="text-xs font-bold mb-2" style={{ color: "var(--color-teal)" }}>🔔 已有 {encoreCount} 人敲碗</p>
         )}

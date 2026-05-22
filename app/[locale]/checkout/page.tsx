@@ -18,6 +18,8 @@ export default function CheckoutPage() {
   const [submitting, setSubmitting] = useState(false);
   const [checkoutError, setCheckoutError] = useState<string | null>(null);
   const [outOfStockItems, setOutOfStockItems] = useState<string[]>([]);
+  const [availablePoints, setAvailablePoints] = useState(0);
+  const [usePoints, setUsePoints] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [note, setNote] = useState("");
   const [activeRegIdx, setActiveRegIdx] = useState(0);
@@ -38,6 +40,13 @@ export default function CheckoutPage() {
       if (d && !d.error) {
         setMemberDefaults({ name: d.name || "", phone: d.phone || "", email: d.email || "" });
       }
+    }).catch(() => {});
+  }, []);
+
+  // 讀取可用積點（登入後才有）
+  useEffect(() => {
+    fetch("/api/points").then(r => r.ok ? r.json() : null).then(d => {
+      if (d?.balance?.spending_points) setAvailablePoints(d.balance.spending_points);
     }).catch(() => {});
   }, []);
 
@@ -77,6 +86,10 @@ export default function CheckoutPage() {
   // 從報名視窗帶過來的聯絡資訊（任一 item.contact 即可；用第一筆）
   const incomingContact = items.find((i) => i.contact)?.contact;
 
+  // 點數折抵：1 點 = 1 元，最多折抵總金額的 30%，且不超過可用點數
+  const maxPointDiscount = Math.floor(totalPrice * 0.3);
+  const pointDiscount = usePoints ? Math.min(availablePoints, maxPointDiscount) : 0;
+
   const handleSubmit = async () => {
     setSubmitting(true);
     setCheckoutError(null);
@@ -104,6 +117,7 @@ export default function CheckoutPage() {
           },
           delivery,
           note,
+          pointDiscount: pointDiscount > 0 ? pointDiscount : undefined,
           source: typeof window !== "undefined" && new URLSearchParams(window.location.search).get("liff_mode") === "true" ? "liff" : "web",
           refundInfo: hasTickets ? {
             method: refundMethod,
@@ -471,7 +485,40 @@ export default function CheckoutPage() {
               </div>
             </Section>
 
-            {/* ── 6. 備註 ── */}
+            {/* ── 6. 點數折抵（有積點才顯示）── */}
+            {availablePoints > 0 && !hasTickets && (
+              <Section title="點數折抵">
+                <div
+                  className="flex items-center justify-between px-4 py-3 rounded-xl cursor-pointer"
+                  style={{ border: `1.5px solid ${usePoints ? "var(--color-teal)" : "var(--color-dust)"}`, background: usePoints ? "rgba(78,205,196,0.06)" : "#fff" }}
+                  onClick={() => setUsePoints((p) => !p)}
+                >
+                  <div>
+                    <p className="text-sm font-medium" style={{ color: "var(--color-ink)" }}>
+                      使用文化積點折抵
+                    </p>
+                    <p className="text-xs mt-0.5" style={{ color: "var(--color-mist)" }}>
+                      可用 {availablePoints} 點，最多折抵 NT$ {maxPointDiscount}（總金額 30%）
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {usePoints && (
+                      <span className="text-sm font-semibold" style={{ color: "var(--color-teal)" }}>
+                        − NT$ {pointDiscount}
+                      </span>
+                    )}
+                    <div
+                      className="w-10 h-6 rounded-full flex items-center transition-colors"
+                      style={{ background: usePoints ? "var(--color-teal)" : "#ddd", justifyContent: usePoints ? "flex-end" : "flex-start", padding: "2px" }}
+                    >
+                      <div className="w-5 h-5 rounded-full bg-white shadow" />
+                    </div>
+                  </div>
+                </div>
+              </Section>
+            )}
+
+            {/* ── 7. 備註 ── */}
             <Section title="備註">
               <textarea
                 value={note}
@@ -510,10 +557,16 @@ export default function CheckoutPage() {
                     </div>
                   )}
                 </div>
+                {pointDiscount > 0 && (
+                  <div className="flex justify-between text-sm mb-1" style={{ color: "var(--color-teal)" }}>
+                    <span>✨ 點數折抵</span>
+                    <span>− NT$ {pointDiscount.toLocaleString()}</span>
+                  </div>
+                )}
                 <div className="pt-3 flex justify-between" style={{ borderTop: "1px solid var(--color-dust)" }}>
                   <span className="font-semibold" style={{ color: "var(--color-ink)" }}>合計</span>
                   <span className="text-xl font-bold" style={{ fontFamily: "var(--font-display)", color: "var(--color-ink)" }}>
-                    NT$ {(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}
+                    NT$ {(totalPrice + (delivery === "ship" ? 80 : 0) - pointDiscount).toLocaleString()}
                   </span>
                 </div>
               </div>
@@ -555,8 +608,8 @@ export default function CheckoutPage() {
                   {submitting
                     ? "處理中..."
                     : paymentMethod === "linepay"
-                      ? `前往 LINE Pay — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}`
-                      : `確認結帳 — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}`}
+                      ? `前往 LINE Pay — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0) - pointDiscount).toLocaleString()}`
+                      : `確認結帳 — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0) - pointDiscount).toLocaleString()}`}
                 </button>
                 <p className="text-[0.65em] text-center mt-2" style={{ color: "var(--color-mist)" }}>
                   {paymentMethod === "linepay" ? "💚 LINE Pay 安全付款" : "🏪 到門市現場付現"}
