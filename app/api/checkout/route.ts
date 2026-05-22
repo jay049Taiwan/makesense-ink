@@ -446,7 +446,30 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 6b. 推播給合作廠商（涉及他們商品/活動的訂單）
+    // 6b. 訂單確認 Email（不論是否有 LINE，確保用戶有收據）
+    if (email) {
+      try {
+        const { sendOrderConfirmationEmail } = await import("@/lib/send-order-email");
+        await sendOrderConfirmationEmail({
+          to: email,
+          contactName: contact.name,
+          orderId: order.id,
+          items: resolvedItems.map(({ item, productInfo, eventInfo }) => ({
+            name: item.name,
+            subtitle: item.subtitle,
+            qty: item.qty,
+            price: productInfo?.price ?? (eventInfo as any)?.price ?? item.price ?? 0,
+          })),
+          total,
+          hasTickets,
+          delivery,
+        });
+      } catch (e: any) {
+        console.warn("[checkout] email failed:", e?.message);
+      }
+    }
+
+    // 6c. 推播給合作廠商（涉及他們商品/活動的訂單）
     try {
       const { notifyPartnerOnOrder } = await import("@/lib/line-notifications");
       // 把 itemId 從剛建立的 orderItems 拿（含 Supabase 端的 product/event UUID）

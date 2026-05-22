@@ -13,7 +13,7 @@ import { sendGAEvent } from "@/lib/tracking";
 export default function CheckoutPage() {
   const router = useRouter();
   const { items, updateQty, removeItem, totalPrice, clearCart } = useCart();
-  const [paymentMethod, setPaymentMethod] = useState("credit");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "linepay">("cash");
   const [delivery, setDelivery] = useState("self");
   const [submitting, setSubmitting] = useState(false);
   const [agreedTerms, setAgreedTerms] = useState(false);
@@ -129,6 +129,27 @@ export default function CheckoutPage() {
           total: totalPrice + (delivery === "ship" ? 80 : 0),
         }));
       } catch {}
+
+      // LINE Pay 流程：建完訂單後呼叫 reserve，取得付款 URL 並轉跳
+      if (paymentMethod === "linepay") {
+        clearCart();
+        const reserveRes = await fetch("/api/line-pay/reserve", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            orderId: data.orderId,
+            productName: items.map((i) => i.name).join("、").slice(0, 50),
+          }),
+        });
+        const reserveData = await reserveRes.json();
+        if (!reserveRes.ok) {
+          // LINE Pay 未開通或發生錯誤，告知用戶改用現場付現
+          throw new Error(reserveData.message || "LINE Pay 暫時無法使用，請改選現場付現");
+        }
+        window.location.href = reserveData.paymentUrl;
+        return;
+      }
+
       clearCart();
       router.push(`/checkout/success?status=${hasTickets ? "review" : "success"}&orderId=${data.orderId}`);
     } catch (err: any) {
@@ -378,16 +399,58 @@ export default function CheckoutPage() {
 
             {/* ── 5. 付款方式 ── */}
             <Section title="付款方式">
-              <div className="rounded-xl p-4" style={{ background: "var(--color-warm-white)", border: "1px solid var(--color-dust)" }}>
-                <div className="flex items-center gap-3 p-3 rounded-lg" style={{ border: "1.5px solid #4ECDC4", background: "rgba(78,205,196,0.06)" }}>
-                  <span className="text-lg">🏪</span>
-                  <div>
-                    <p className="text-sm font-medium" style={{ color: "var(--color-teal)" }}>到門市現場付現</p>
-                    <p className="text-[0.65em] mt-0.5" style={{ color: "var(--color-mist)" }}>
-                      請於取貨時至旅人書店（宜蘭縣羅東鎮文化街55號）現場付款
-                    </p>
-                  </div>
+              <div className="rounded-xl p-4 space-y-3" style={{ background: "var(--color-warm-white)", border: "1px solid var(--color-dust)" }}>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {/* 現場付現 */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("cash")}
+                    className="rounded-lg py-3 px-4 text-left transition-all"
+                    style={{
+                      border: paymentMethod === "cash" ? "1.5px solid #4ECDC4" : "1px solid var(--color-dust)",
+                      background: paymentMethod === "cash" ? "rgba(78,205,196,0.06)" : "#fff",
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-base mt-0.5">🏪</span>
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: paymentMethod === "cash" ? "var(--color-teal)" : "var(--color-ink)" }}>到門市現場付現</p>
+                        <p className="text-[0.65em] mt-0.5" style={{ color: "var(--color-mist)" }}>取貨時至旅人書店付款</p>
+                      </div>
+                    </div>
+                  </button>
+
+                  {/* LINE Pay */}
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod("linepay")}
+                    className="rounded-lg py-3 px-4 text-left transition-all"
+                    style={{
+                      border: paymentMethod === "linepay" ? "1.5px solid #00B900" : "1px solid var(--color-dust)",
+                      background: paymentMethod === "linepay" ? "rgba(0,185,0,0.06)" : "#fff",
+                    }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <span className="text-base mt-0.5">💚</span>
+                      <div>
+                        <p className="text-sm font-medium" style={{ color: paymentMethod === "linepay" ? "#00B900" : "var(--color-ink)" }}>LINE Pay</p>
+                        <p className="text-[0.65em] mt-0.5" style={{ color: "var(--color-mist)" }}>線上刷卡・輕鬆付款</p>
+                      </div>
+                    </div>
+                  </button>
                 </div>
+
+                {/* 說明文字 */}
+                {paymentMethod === "cash" && (
+                  <p className="text-[0.65em] leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                    📍 宜蘭縣羅東鎮文化街55號，請於取貨時現場付款。
+                  </p>
+                )}
+                {paymentMethod === "linepay" && (
+                  <p className="text-[0.65em] leading-relaxed" style={{ color: "var(--color-mist)" }}>
+                    ✅ 確認送出後將導向 LINE Pay 付款頁面，完成付款即確認訂單。
+                  </p>
+                )}
               </div>
             </Section>
 
@@ -456,10 +519,14 @@ export default function CheckoutPage() {
                   className="w-full h-11 rounded-lg text-sm font-medium text-white transition-colors"
                   style={{ background: (submitting || !agreedTerms) ? "var(--color-mist)" : "var(--color-moss)" }}
                 >
-                  {submitting ? "處理中..." : `確認結帳 — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}`}
+                  {submitting
+                    ? "處理中..."
+                    : paymentMethod === "linepay"
+                      ? `前往 LINE Pay — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}`
+                      : `確認結帳 — NT$ ${(totalPrice + (delivery === "ship" ? 80 : 0)).toLocaleString()}`}
                 </button>
                 <p className="text-[0.65em] text-center mt-2" style={{ color: "var(--color-mist)" }}>
-                  🏪 到門市現場付現
+                  {paymentMethod === "linepay" ? "💚 LINE Pay 安全付款" : "🏪 到門市現場付現"}
                 </p>
 
                 {/* 票券提醒 */}
