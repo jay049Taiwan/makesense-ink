@@ -45,5 +45,7 @@ next-env.d.ts
 .claude/scratch_*
 .claude/parse_schema.py
 .claude/build_field_guide.py
+.claude/build_field_guide2.py
 .claude/fg_part*.md
+.claude/m_part*.md
 .claude/field_guide_page_content.md
