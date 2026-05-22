@@ -40,3 +40,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# scratch / intermediate working files
+.claude/scratch_*
+.claude/parse_schema.py
+.claude/build_field_guide.py
+.claude/fg_part*.md
+.claude/field_guide_page_content.md
