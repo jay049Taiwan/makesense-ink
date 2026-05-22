@@ -59,7 +59,7 @@
 - [hihi_archive_extraction.md](memory/hihi_archive_extraction.md) — 封存萃取＝總管工作模式（不新增第 7 成員），triage + merge-write 累積教訓庫養文案
 - [db_dedup_merge_capability.md](memory/db_dedup_merge_capability.md) — DB01-09 重複偵測與合併＝檢核常駐能力（2026/05/21 由總管改檢核），兩層架構，DB08 清理是第一次實跑
 - [hihicheck_quality_design.md](memory/hihicheck_quality_design.md) — 檢核品管 4 欄位（字數目標 + 退回次數/過期/每千字退回次數 formula）；KPI＝每千字退回次數↓；檢核當「失敗記錄器」不打分
-- [hihianly_manual_workflow.md](memory/hihianly_manual_workflow.md) — 嗨嗨分析固定流程（手動觸發版）：先在 target 對應明細建 DB06 baton(ai模式=分析/執行中)→分析→baton 改完成；執行備註寫 baton、分析備註+對應標籤寫 target（2026/05/21 四九定）。**憑證：DB06 baton 必掛 target 對應明細 + 執行狀態=完成；掃描順序 成果報告→提案申請→逐類；舊棒不補建（2026/05/22 補）**
+- [hihianly_manual_workflow.md](memory/hihianly_manual_workflow.md) — 嗨嗨分析固定流程（手動觸發版）：先在 target(目標頁) 對應明細建一筆 DB06 分析記錄(ai模式=分析/執行中)→分析→改完成；執行備註寫 DB06 分析記錄、分析備註+對應標籤寫 target(目標頁)（2026/05/21 四九定）。**憑證：DB06 分析記錄 必掛 target(目標頁) 對應明細 + 執行狀態=完成；掃描順序 成果報告→提案申請→逐類；舊記錄不補建（2026/05/22 補）**
 
 ### 嗨嗨家族架構（2026/05/14 重整）
 - **共通規則住「工作導覽地圖」**：[4-1-1 嗨嗨家族工作導覽地圖 §共通鍵規區](https://www.notion.so/049/3459ff25fdab81aeab9ff3c8281805e5) 含 5 個共通段落（欄位字典導引 / 分析備註範本規範 / 欄位組合規則合集 / DB08 建檔分工鐵律 / 動手前 checklist）
@@ -178,6 +178,7 @@
 
 ## 使用者偏好
 - ⭐ [feedback_no_shortcuts.md](memory/feedback_no_shortcuts.md) — **Claude 預設偷懶傾向、四九 設計關卡神聖、不准繞**（critical priority、列 9 種偷懶手法供 四九 揪）
+- [feedback_memory_full_name_english_paren.md](memory/feedback_memory_full_name_english_paren.md) — 寫 memory 及一般輸出一律全稱、不用「棒」這種內部簡稱黑話；英文詞後面一定括號中文，如 dog(狗)
 - [user_tech_level.md](memory/user_tech_level.md) — 非工程師，技術說明需白話
 - [feedback_full_code.md](memory/feedback_full_code.md) — 程式碼永遠給完整內容，不要片段
 - [feedback_no_manual_edit.md](memory/feedback_no_manual_edit.md) — 永遠不要叫用戶手動改 snippet，生成匯入檔讓他匯入
