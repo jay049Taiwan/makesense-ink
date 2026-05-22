@@ -687,7 +687,11 @@ async function syncSingleArticle(nid: string, props: any) {
   return { table: "articles", title: row.title, status: row.status, hasContent: !!content, webTag: row.web_tag };
 }
 
-// ── DB06 → 庫存異動（進貨/出貨直接更新 products.stock）──
+// ── DB06 → 庫存異動（進貨 / 盤點 更新 products.stock；出貨由 checkout 原子扣，此處跳過）──
+// 設計說明：
+//   出貨（sales）= 結帳時已透過 decrement_stock() RPC 原子扣除，此處若再扣會雙重扣庫存。
+//   進貨（restock）= Notion DB06 進貨記錄 → 加回庫存，非結帳路徑，n8n 同步正常處理。
+//   盤點（inventory）= 直接覆寫為點算值，Notion 入庫後以此為準。
 async function syncSingleTransaction(nid: string, props: any) {
   // 讀取 DB06 欄位
   // 「進出退換」是 rollup（來自 DB05 的 select），需要特殊讀法
@@ -697,6 +701,11 @@ async function syncSingleTransaction(nid: string, props: any) {
 
   if (!action || quantity === 0) {
     return { table: "stock_update", note: "缺少進出退換或登記數量", nid, skipped: true };
+  }
+
+  // 出貨由 checkout 原子扣除，n8n 不重複處理（避免雙重扣庫存）
+  if (action === "出貨") {
+    return { table: "stock_update", note: "出貨由 checkout 處理，skip", nid, skipped: true };
   }
 
   // 「對應庫存」是 relation → DB07，取得對應商品的 notion_id
@@ -723,16 +732,14 @@ async function syncSingleTransaction(nid: string, props: any) {
 
   if (action === "進貨") {
     newStock = currentStock + quantity;
-  } else if (action === "出貨") {
-    newStock = Math.max(0, currentStock - quantity);
   } else if (action === "盤點") {
-    // 盤點 = 直接設定為登記數量（覆蓋）
+    // 盤點 = 直接設定為登記數量（覆蓋），用於人工盤點校正
     newStock = quantity;
   } else {
     return { table: "stock_update", note: `未知的進出退換類型: ${action}`, nid, skipped: true };
   }
 
-  // 更新 Supabase 庫存
+  // 更新 Supabase 庫存（進貨 / 盤點 仍用普通 update，這兩種操作非並發熱路徑）
   const { error } = await supabase
     .from("products")
     .update({ stock: newStock, updated_at: new Date().toISOString() })
@@ -803,7 +810,8 @@ async function syncSingleProduct(nid: string, props: any) {
     name: t(props["庫存名稱"]) || "未命名",
     category: sub ? `${cat}/${sub}` : cat,
     price: num(props["庫存售價"]) || 0,
-    stock: num(props["庫存總計"]) || 0,
+    // stock 由 checkout(原子RPC) / 進貨盤點(DB06 sync) 管理，DB07 sync 不蓋覆
+    // 避免 Notion 欄位更新（改書名/換封面）時把結帳已扣的庫存復原
     description: tx(props["簡介摘要"]),
     images: JSON.stringify(fileUrls(props["產品照片"])),
     author_id: authorId,

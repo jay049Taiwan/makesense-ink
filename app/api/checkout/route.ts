@@ -295,17 +295,20 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "建立訂單明細失敗" }, { status: 500 });
     }
 
-    // 4.5 扣商品庫存（V2：僅 direct 模式即時扣；reservation 模式等錄取後才扣）
+    // 4.5 扣商品庫存（V3：原子 RPC，防止並發超賣 + 雙重扣庫存）
+    //   - 使用 decrement_stock(p_id, qty) Postgres function（原子 UPDATE ... RETURNING）
+    //   - reservation 模式不在此扣，等錄取後才扣
+    //   - DB06 sync 在 n8n 偵測到出貨記錄時會 skip（避免雙重扣）
     if (orderMode === "direct") {
       for (const { supabaseId, productInfo, item } of resolvedItems) {
         if (!productInfo || !supabaseId) continue;
-        const newStock = Math.max((productInfo.stock ?? 0) - item.qty, 0);
-        const { error: stockError } = await supabase
-          .from("products")
-          .update({ stock: newStock })
-          .eq("id", supabaseId);
+        const { data: newStock, error: stockError } = await supabase
+          .rpc("decrement_stock", { p_id: supabaseId, qty: item.qty });
         if (stockError) {
           console.warn(`[checkout] 扣庫存失敗 ${productInfo.name}:`, stockError.message);
+        } else if (newStock === null) {
+          // RPC 回傳 null = 庫存不足，無法扣除（理論上前端應已擋住，這裡做後備記錄）
+          console.warn(`[checkout] 庫存不足，無法扣除 ${productInfo.name} x${item.qty}`);
         }
       }
     }
