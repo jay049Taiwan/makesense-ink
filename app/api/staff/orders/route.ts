@@ -102,5 +102,13 @@ export async function PATCH(req: NextRequest) {
     }
   }
 
+  // 推播 LINE 通知給顧客
+  try {
+    const { notifyOrderStatusChange } = await import("@/lib/line-notifications");
+    await notifyOrderStatusChange(orderId, status);
+  } catch (e: any) {
+    console.warn("[staff/orders] LINE 通知失敗（不影響狀態更新）:", e?.message);
+  }
+
   return NextResponse.json({ ok: true, orderId, newStatus: status });
 }
