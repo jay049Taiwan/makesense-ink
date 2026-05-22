@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import * as Sentry from "@sentry/nextjs";
 
 export default function Error({
   error,
@@ -10,7 +11,8 @@ export default function Error({
   reset: () => void;
 }) {
   useEffect(() => {
-    console.error("Page error:", error);
+    // 回報給 Sentry（生產環境自動啟用）
+    Sentry.captureException(error);
   }, [error]);
 
   return (
@@ -34,14 +36,14 @@ export default function Error({
         <button
           onClick={reset}
           className="px-6 py-2.5 rounded-lg text-sm font-medium text-white"
-          style={{ background: "var(--color-brown)" }}
+          style={{ background: "var(--color-moss)" }}
         >
           重新載入
         </button>
         <a
           href="/"
           className="px-6 py-2.5 rounded-lg text-sm font-medium"
-          style={{ border: "1px solid var(--color-dust)", color: "var(--color-brown)" }}
+          style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}
         >
           回首頁
         </a>

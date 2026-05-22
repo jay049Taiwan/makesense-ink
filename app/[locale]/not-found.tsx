@@ -27,14 +27,14 @@ export default function NotFound() {
         <Link
           href="/"
           className="px-6 py-2.5 rounded-lg text-sm font-medium text-white"
-          style={{ background: "var(--color-brown)" }}
+          style={{ background: "var(--color-moss)" }}
         >
           回首頁
         </Link>
         <Link
           href="/bookstore"
           className="px-6 py-2.5 rounded-lg text-sm font-medium"
-          style={{ border: "1px solid var(--color-dust)", color: "var(--color-brown)" }}
+          style={{ border: "1px solid var(--color-dust)", color: "var(--color-bark)" }}
         >
           逛書店
         </Link>
