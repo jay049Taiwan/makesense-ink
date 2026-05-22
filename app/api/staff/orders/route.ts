@@ -97,6 +97,67 @@ export async function PATCH(req: NextRequest) {
 
   if (updateErr) return NextResponse.json({ error: updateErr.message }, { status: 500 });
 
+  // 如果是 cancelled，補做兩件事：
+  //   (a) direct 訂單 → 把商品庫存退回（reservation 不在結帳時扣庫存，不需退）
+  //   (b) 若此訂單有「點數折抵」記錄 → 補一筆「點數退回」還給會員
+  if (status === "cancelled") {
+    // (a) 庫存退回：只有 direct 訂單才有扣庫存（reservation pending 不扣）
+    //   判斷方式：order_items 裡若有 item_type 屬於商品（非票券類），視為 direct
+    const directItemTypes = ["商品", "選書", "選物", "數位"];
+    const directItems = (order.order_items as any[]).filter((oi: any) =>
+      directItemTypes.includes(oi.item_type)
+    );
+    if (directItems.length > 0) {
+      for (const oi of directItems) {
+        if (!oi.meta?.productId && !oi.meta?.productNotionId) continue;
+        const pid = oi.meta.productId || oi.meta.productNotionId;
+        // 用 notion_id 或 uuid 查 Supabase products
+        const normalized = pid.replace(/-/g, "").toLowerCase();
+        const { data: product } = await supabase
+          .from("products")
+          .select("id")
+          .or(`notion_id.eq.${normalized},id.eq.${pid}`)
+          .maybeSingle();
+        if (product) {
+          // 原子加回庫存（對應 checkout 的 decrement_stock RPC）
+          await supabase.rpc("increment_stock", { p_id: product.id, qty: oi.quantity });
+        }
+      }
+    }
+
+    // (b) 點數退回：查有沒有這筆訂單的「點數折抵」負向 ledger
+    const mem = (order as any).members;
+    if (mem?.email) {
+      const { data: memberRow } = await supabase
+        .from("members")
+        .select("id")
+        .eq("email", mem.email)
+        .maybeSingle();
+
+      if (memberRow) {
+        const { data: deductionRow } = await supabase
+          .from("point_ledger")
+          .select("id, value")
+          .eq("source_table", "orders")
+          .eq("source_id", orderId)
+          .eq("type", "點數折抵")
+          .maybeSingle();
+
+        if (deductionRow && deductionRow.value < 0) {
+          const refundPoints = Math.abs(deductionRow.value);
+          await supabase.from("point_ledger").insert({
+            member_id: memberRow.id,
+            type: "點數退回",
+            value: refundPoints,
+            source_table: "orders",
+            source_id: orderId,
+            note: `訂單 #${orderId.slice(0, 8)} 取消退回 ${refundPoints} 點`,
+          });
+        }
+      }
+    }
+  }
+
   // 如果是 confirmed，補寫點數（pending reservation 下單時沒有立刻寫）
   if (status === "confirmed" && order.status === "pending") {
     try {
