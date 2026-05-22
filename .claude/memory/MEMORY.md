@@ -58,7 +58,7 @@
 - [hihi_4-2-x_migration.md](hihi_4-2-x_migration.md) — 家族工作指示遷移到各類指南 4-2-X 子頁；4-2-1 總管已完成、4-2-2~4-2-7 空頁已建；skill .md 剝薄成載入器
 - [hihi_archive_extraction.md](hihi_archive_extraction.md) — 封存萃取＝總管工作模式（不新增第 7 成員），triage + merge-write 累積教訓庫養文案
 - [db_dedup_merge_capability.md](db_dedup_merge_capability.md) — DB01-09 重複偵測與合併＝總管常駐能力，兩層架構，DB08 清理是第一次實跑
-- [hihicheck_quality_design.md](hihicheck_quality_design.md) — 檢核品管 4 欄位（字數目標 + 退回次數/過期/每千字退回次數 formula）；KPI＝每千字退回次數↓；檢核當「失敗記錄器」不打分
+- [hihicheck_quality_design.md](hihicheck_quality_design.md) — ⚠️ 退回次數 KPI 已棄用（2026/05/22）→ 改用「被引總數」formula（9 個被引 relation 加總，8 DB 已加）驅動 hihigm 對標參考傳播；黃金範例＝通過審查＋被引高（檔末更新段為現況，上半部 KPI 為歷史脈絡）
 
 ### 嗨嗨家族架構（2026/05/14 重整）
 - **共通規則住「工作導覽地圖」**：[4-1-1 嗨嗨家族工作導覽地圖 §共通鍵規區](https://www.notion.so/049/3459ff25fdab81aeab9ff3c8281805e5) 含 5 個共通段落（欄位字典導引 / 分析備註範本規範 / 欄位組合規則合集 / DB08 建檔分工鐵律 / 動手前 checklist）
