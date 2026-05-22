@@ -236,6 +236,23 @@ export async function POST(req: NextRequest) {
     const orderMode: "reservation" | "direct" = hasTickets ? "reservation" : "direct";
     const orderStatus = hasTickets ? "pending" : "confirmed";
 
+    // 4.1 庫存預檢（direct 模式）：在建立訂單前確認庫存足夠，避免孤兒訂單
+    if (orderMode === "direct") {
+      const outOfStock: string[] = [];
+      for (const { productInfo, item } of resolvedItems) {
+        if (!productInfo) continue;
+        if ((productInfo.stock ?? 0) < item.qty) {
+          outOfStock.push(item.name);
+        }
+      }
+      if (outOfStock.length > 0) {
+        return NextResponse.json(
+          { error: `庫存不足，以下商品無法結帳：${outOfStock.join("、")}`, outOfStock },
+          { status: 409 }
+        );
+      }
+    }
+
     // reservation 模式要求退款資訊
     if (orderMode === "reservation") {
       if (!refundInfo || !refundInfo.method) {

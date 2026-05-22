@@ -16,6 +16,8 @@ export default function CheckoutPage() {
   const [paymentMethod, setPaymentMethod] = useState<"cash" | "linepay">("cash");
   const [delivery, setDelivery] = useState("self");
   const [submitting, setSubmitting] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+  const [outOfStockItems, setOutOfStockItems] = useState<string[]>([]);
   const [agreedTerms, setAgreedTerms] = useState(false);
   const [note, setNote] = useState("");
   const [activeRegIdx, setActiveRegIdx] = useState(0);
@@ -77,6 +79,8 @@ export default function CheckoutPage() {
 
   const handleSubmit = async () => {
     setSubmitting(true);
+    setCheckoutError(null);
+    setOutOfStockItems([]);
     // GA4 begin_checkout event
     sendGAEvent("begin_checkout", {
       currency: "TWD",
@@ -112,7 +116,13 @@ export default function CheckoutPage() {
         }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "結帳失敗");
+      if (!res.ok) {
+        // 庫存不足（409）：標記哪些商品賣完，顯示行內錯誤
+        if (res.status === 409 && data.outOfStock) {
+          setOutOfStockItems(data.outOfStock);
+        }
+        throw new Error(data.error || "結帳失敗");
+      }
       // GA4 purchase event
       sendGAEvent("purchase", {
         transaction_id: data.orderId,
@@ -153,7 +163,11 @@ export default function CheckoutPage() {
       clearCart();
       router.push(`/checkout/success?status=${hasTickets ? "review" : "success"}&orderId=${data.orderId}`);
     } catch (err: any) {
-      alert(err.message || "結帳失敗，請稍後再試");
+      setCheckoutError(err.message || "結帳失敗，請稍後再試");
+      // 捲回到錯誤訊息
+      setTimeout(() => {
+        document.getElementById("checkout-error")?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 100);
     } finally {
       setSubmitting(false);
     }
@@ -207,6 +221,9 @@ export default function CheckoutPage() {
                         {item.subtitle && <span className="text-[0.65em]" style={{ color: "var(--color-mist)" }}>{item.subtitle}</span>}
                         {item.meta?.date && (
                           <span className="text-[0.6em] px-1.5 py-0.5 rounded" style={{ background: "var(--color-parchment)", color: "var(--color-bark)" }}>{item.meta.date}</span>
+                        )}
+                        {outOfStockItems.includes(item.name) && (
+                          <span className="text-[0.6em] px-1.5 py-0.5 rounded font-medium" style={{ background: "#fee2e2", color: "#b91c1c" }}>已售完</span>
                         )}
                       </div>
                     </div>
@@ -512,6 +529,22 @@ export default function CheckoutPage() {
                     ，並了解活動退費規則
                   </span>
                 </label>
+
+                {/* 結帳錯誤提示 */}
+                {checkoutError && (
+                  <div
+                    id="checkout-error"
+                    className="rounded-lg px-4 py-3 text-sm mb-3"
+                    style={{ background: "#fff3f3", border: "1px solid #fca5a5", color: "#b91c1c" }}
+                  >
+                    <p className="font-medium mb-1">⚠️ {checkoutError}</p>
+                    {outOfStockItems.length > 0 && (
+                      <p className="text-xs mt-1" style={{ color: "#dc2626" }}>
+                        請移除購物車中的「{outOfStockItems.join("、")}」後再試。
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <button
                   onClick={handleSubmit}
