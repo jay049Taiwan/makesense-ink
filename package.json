@@ -15,6 +15,7 @@
     "@line/liff": "^2.28.0",
     "@next/third-parties": "^16.2.3",
     "@notionhq/client": "^5.17.0",
+    "@sentry/nextjs": "^10.53.1",
     "@supabase/ssr": "^0.10.2",
     "@supabase/supabase-js": "^2.103.0",
     "@types/d3-geo": "^3.1.0",

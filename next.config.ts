@@ -1,5 +1,6 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { withSentryConfig } from "@sentry/nextjs";
 
 const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
 
@@ -52,4 +53,17 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default withNextIntl(nextConfig);
+export default withSentryConfig(withNextIntl(nextConfig), {
+  org: "sensemakesense",
+  project: "javascript-nextjs",
+
+  // Source maps 上傳到 Sentry（讓錯誤能指到原始碼而非打包後的混淆碼）
+  // 需要 SENTRY_AUTH_TOKEN 環境變數（Vercel 設定）
+  silent: true,
+
+  // 自動 instrument Server Components / Route Handlers
+  autoInstrumentServerFunctions: true,
+
+  // 不在前端 bundle 裡暴露 source maps
+  hideSourceMaps: true,
+});
