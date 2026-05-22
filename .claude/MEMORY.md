@@ -189,7 +189,8 @@
 - [feedback_auto_merge_pr.md](memory/feedback_auto_merge_pr.md) — makesense-ink 專案授權自動 merge PR + 部署，不需逐次確認
 - [feedback_vercel_envar_no_trailing_newline.md](memory/feedback_vercel_envar_no_trailing_newline.md) — 設 Vercel envar 用 echo -n + pipe 避免 \n 結尾造成 401
 - [feedback_thorough_analysis.md](memory/feedback_thorough_analysis.md) — 稽核結果不得說「快速分析」，要徹底不要快速
-- [feedback_corresponding_tag_open.md](memory/feedback_corresponding_tag_open.md) — 對應標籤家族都可寫；但新建 DB08 page 只有嗨嗨搜查、嗨嗨分析可以
+- [feedback_corresponding_tag_open.md](memory/feedback_corresponding_tag_open.md) — 對應標籤家族都可寫（**聯想除外**）；但新建 DB08 page 只有嗨嗨搜查、嗨嗨分析可以
+- [feedback_field_ownership_by_name.md](memory/feedback_field_ownership_by_name.md) — **欄位歸屬依名稱判定**：含「引用／被引」→ 嗨嗨聯想專屬；含「對應」→ 嗨嗨企劃為主責（對應標籤＝家族可寫但聯想除外、對應明細＝分析建憑證可掛）。2026/05/22 四九更正 2-2-2-欄位組合指南
 - [feedback_db07_no_commerce_restriction.md](memory/feedback_db07_no_commerce_restriction.md) — 對應庫存(→DB07)不限商品交易，內容提及 DB07 entity 即可連
 - [feedback_hihi_field_ownership.md](memory/feedback_hihi_field_ownership.md) — 嗨嗨管考寫「執行備註」、嗨嗨文案寫「簡介摘要」+ page content
 - [feedback_pipeline_gating.md](memory/feedback_pipeline_gating.md) — 嗨嗨家族 pipeline 工項間需總管/管考 verify 才放行下一項，不可自動連鎖
