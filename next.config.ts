@@ -65,5 +65,5 @@ export default withSentryConfig(withNextIntl(nextConfig), {
   autoInstrumentServerFunctions: true,
 
   // 不在前端 bundle 裡暴露 source maps
-  hideSourceMaps: true,
+  sourcemaps: { disable: true },
 });

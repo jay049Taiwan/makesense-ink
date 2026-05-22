@@ -189,8 +189,8 @@ export default function EventsPage() {
                     <SafeImage
                       src={event.cover_url}
                       alt={event.title}
-                      fill
-                      className="object-cover transition-transform duration-500 group-hover:scale-105"
+                      className="object-cover w-full h-full transition-transform duration-500 group-hover:scale-105"
+                      placeholderType="event"
                     />
                   ) : (
                     <div className="w-full h-full flex items-center justify-center">

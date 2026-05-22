@@ -10,7 +10,7 @@
  * 鐵律：工作台 UI 修改一律改這個檔案，不要在 page.tsx 內複製/分叉組件。
  *       新增 Tab、改 Tab 順序、調整子面板都改這裡，兩端自動同步。
  *
- * 五 Tab：動態 / 交接 / 庫存 / 紀錄 / 費用
+ * 七 Tab：動態 / 訂單 / 交接 / 庫存 / 紀錄 / 費用 / 績效
  */
 
 import React, { useState, useEffect, useRef } from "react";
@@ -21,10 +21,11 @@ import BarcodeScanner from "@/components/liff/BarcodeScanner";
 import ProductCreateModal, { type ProductDraft } from "./ProductCreateModal";
 import PagePreviewModal from "./PagePreviewModal";
 
-type StaffTab = "動態" | "交接" | "庫存" | "紀錄" | "費用" | "績效";
+type StaffTab = "動態" | "訂單" | "交接" | "庫存" | "紀錄" | "費用" | "績效";
 
 const tabIcons: Record<StaffTab, string> = {
   "動態": "📢",
+  "訂單": "🧾",
   "交接": "📋",
   "庫存": "📦",
   "紀錄": "📓",
@@ -53,6 +54,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
       {/* 工作台內容 */}
       <div className="mb-20 mt-4">
         {activeTab === "動態" && <ActivityFeed />}
+        {activeTab === "訂單" && <OrdersPanel />}
         {activeTab === "交接" && <TasksPanel userEmail={email} />}
         {activeTab === "庫存" && <InventoryPanel />}
         {activeTab === "紀錄" && <AttendancePanel />}
@@ -1620,6 +1622,257 @@ function MetricCard({ icon, label, value, hint, color }: { icon: string; label: 
       </div>
       <div className="text-lg font-bold" style={{ color }}>{value}</div>
       <div className="text-[10px] mt-0.5" style={{ color: "#aaa" }}>{hint}</div>
+    </div>
+  );
+}
+
+// ── 訂單管理面板 ──────────────────────────────────────────────────────────
+type OrderStatus = "all" | "pending" | "confirmed" | "cancelled";
+
+interface StaffOrder {
+  id: string;
+  status: string;
+  checkin_status: string | null;
+  total: number;
+  created_at: string;
+  source: string | null;
+  note: string | null;
+  refund_info: any;
+  members: { id: string; name: string; email: string; phone: string } | null;
+  order_items: { id: string; item_type: string; quantity: number; price: number; meta: any }[];
+}
+
+const ORDER_STATUS_MAP: Record<string, { label: string; color: string; bg: string }> = {
+  pending:   { label: "待確認", color: "#c05621", bg: "#fff4eb" },
+  confirmed: { label: "已確認", color: "#276749", bg: "#e6ffed" },
+  cancelled: { label: "已取消", color: "#718096", bg: "#f7f7f7" },
+};
+
+function orderNumber(id: string) { return `MS-${id.slice(0, 8).toUpperCase()}`; }
+function fmtDate(iso: string) {
+  try {
+    const d = new Date(iso);
+    return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+  } catch { return iso; }
+}
+
+function OrdersPanel() {
+  const [statusFilter, setStatusFilter] = useState<OrderStatus>("all");
+  const [orders, setOrders] = useState<StaffOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [actionId, setActionId] = useState<string | null>(null); // 正在操作的訂單 ID
+
+  const load = async (status: OrderStatus = statusFilter) => {
+    setLoading(true);
+    try {
+      const url = status === "all"
+        ? "/api/staff/orders?limit=60"
+        : `/api/staff/orders?status=${status}&limit=60`;
+      const res = await staffFetch(url);
+      const data = await res.json();
+      setOrders(data.orders || []);
+    } catch {
+      setOrders([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [statusFilter]);
+
+  const updateStatus = async (orderId: string, newStatus: "confirmed" | "cancelled") => {
+    setActionId(orderId);
+    try {
+      const res = await staffFetch("/api/staff/orders", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId, status: newStatus }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        alert(err.error || "操作失敗");
+        return;
+      }
+      // 樂觀更新本地狀態
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
+      );
+    } catch {
+      alert("操作失敗，請重試");
+    } finally {
+      setActionId(null);
+    }
+  };
+
+  const pendingCount = orders.filter((o) => o.status === "pending").length;
+
+  const statusTabs: { key: OrderStatus; label: string }[] = [
+    { key: "all", label: "全部" },
+    { key: "pending", label: `待確認${pendingCount > 0 && statusFilter !== "pending" ? ` (${pendingCount})` : ""}` },
+    { key: "confirmed", label: "已確認" },
+    { key: "cancelled", label: "已取消" },
+  ];
+
+  return (
+    <div>
+      {/* 狀態篩選 tabs */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        {statusTabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setStatusFilter(t.key)}
+            className="px-3 py-1.5 rounded-full text-xs font-medium transition-colors"
+            style={{
+              background: statusFilter === t.key ? "#1a1a2e" : "#f5f0e8",
+              color: statusFilter === t.key ? "#fff" : "#7a5c40",
+              border: "none",
+              cursor: "pointer",
+            }}
+          >
+            {t.label}
+          </button>
+        ))}
+        <button
+          onClick={() => load()}
+          className="ml-auto px-3 py-1.5 rounded-full text-xs transition-colors"
+          style={{ background: "transparent", border: "1px solid #e8e0d4", color: "#888", cursor: "pointer" }}
+        >
+          重新整理
+        </button>
+      </div>
+
+      {/* 訂單列表 */}
+      {loading ? (
+        <div className="py-12 text-center text-sm" style={{ color: "#999" }}>載入中...</div>
+      ) : orders.length === 0 ? (
+        <div className="py-12 text-center text-sm" style={{ color: "#999" }}>沒有符合條件的訂單</div>
+      ) : (
+        <div className="space-y-3">
+          {orders.map((order) => {
+            const s = ORDER_STATUS_MAP[order.status] || { label: order.status, color: "#666", bg: "#f0f0f0" };
+            const isActing = actionId === order.id;
+            const isPending = order.status === "pending";
+            const isConfirmed = order.status === "confirmed";
+            const member = order.members;
+
+            return (
+              <div
+                key={order.id}
+                className="rounded-xl overflow-hidden"
+                style={{ border: isPending ? "1px solid #f6ad55" : "1px solid #e8e0d4", background: "#fff" }}
+              >
+                {/* 訂單標頭 */}
+                <div
+                  className="flex flex-wrap items-center justify-between gap-2 px-4 py-3"
+                  style={{ background: isPending ? "#fffaf0" : "#fafaf8", borderBottom: "1px solid #f0ede8" }}
+                >
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-sm font-mono font-semibold" style={{ color: "#5c4a32" }}>
+                      {orderNumber(order.id)}
+                    </span>
+                    <span
+                      className="px-2 py-0.5 rounded-full text-xs font-medium"
+                      style={{ background: s.bg, color: s.color }}
+                    >
+                      {s.label}
+                    </span>
+                    {order.source && (
+                      <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: "#f0f0f0", color: "#888" }}>
+                        {order.source}
+                      </span>
+                    )}
+                  </div>
+                  <span className="text-xs" style={{ color: "#aaa" }}>{fmtDate(order.created_at)}</span>
+                </div>
+
+                {/* 顧客資訊 */}
+                {member && (
+                  <div className="px-4 py-2 text-xs" style={{ color: "#666", borderBottom: "1px solid #f5f5f5" }}>
+                    👤 {member.name || "（未命名）"}
+                    {member.email && <span className="ml-2">{member.email}</span>}
+                    {member.phone && <span className="ml-2">📞 {member.phone}</span>}
+                  </div>
+                )}
+
+                {/* 訂單明細 */}
+                <div className="divide-y" style={{ borderColor: "#f5f5f5" }}>
+                  {order.order_items.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between px-4 py-2.5 gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm font-medium truncate" style={{ color: "#3d2b1f" }}>
+                          {item.meta?.name || `（${item.item_type}）`}
+                        </p>
+                        {item.meta?.subtitle && (
+                          <p className="text-xs truncate" style={{ color: "#999" }}>{item.meta.subtitle}</p>
+                        )}
+                      </div>
+                      <span className="text-xs whitespace-nowrap" style={{ color: "#888" }}>
+                        × {item.quantity}
+                      </span>
+                      <span className="text-sm font-medium whitespace-nowrap" style={{ color: "#7a5c40" }}>
+                        NT$ {(item.price * item.quantity).toLocaleString()}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* 備註 */}
+                {order.note && (
+                  <div className="px-4 py-2 text-xs" style={{ background: "#fafaf8", color: "#888", borderTop: "1px solid #f5f5f5" }}>
+                    💬 {order.note}
+                  </div>
+                )}
+
+                {/* 總計 + 操作按鈕 */}
+                <div
+                  className="flex items-center justify-between px-4 py-3 gap-3 flex-wrap"
+                  style={{ background: "#fafaf8", borderTop: "1px solid #f0ede8" }}
+                >
+                  <span className="text-base font-bold" style={{ color: "#5c4a32" }}>
+                    NT$ {Number(order.total).toLocaleString()}
+                  </span>
+                  <div className="flex gap-2">
+                    {isPending && (
+                      <>
+                        <button
+                          onClick={() => updateStatus(order.id, "confirmed")}
+                          disabled={isActing}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium text-white"
+                          style={{ background: isActing ? "#aaa" : "#276749", border: "none", cursor: isActing ? "wait" : "pointer" }}
+                        >
+                          {isActing ? "處理中..." : "✓ 確認錄取"}
+                        </button>
+                        <button
+                          onClick={() => updateStatus(order.id, "cancelled")}
+                          disabled={isActing}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                          style={{ background: "transparent", border: "1px solid #e53e3e", color: "#e53e3e", cursor: isActing ? "wait" : "pointer" }}
+                        >
+                          ✕ 不錄取
+                        </button>
+                      </>
+                    )}
+                    {isConfirmed && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`確定要取消訂單 ${orderNumber(order.id)}？`)) {
+                            updateStatus(order.id, "cancelled");
+                          }
+                        }}
+                        disabled={isActing}
+                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                        style={{ background: "transparent", border: "1px solid #ccc", color: "#888", cursor: isActing ? "wait" : "pointer" }}
+                      >
+                        取消訂單
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
