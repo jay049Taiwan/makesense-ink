@@ -106,8 +106,10 @@ function MemberOverview() {
     setEditingPhone(true);
   };
   const [savingPhone, setSavingPhone] = useState(false);
+  const [phoneError, setPhoneError] = useState<string | null>(null);
   const handlePhoneSave = async () => {
     const next = phoneDraft.trim();
+    setPhoneError(null);
     setSavingPhone(true);
     try {
       const res = await fetch("/api/user/profile", {
@@ -120,10 +122,10 @@ function MemberOverview() {
         setProfilePhone(next);
         setEditingPhone(false);
       } else {
-        alert(`儲存失敗：${data.error || `HTTP ${res.status}`}`);
+        setPhoneError(`儲存失敗：${data.error || `HTTP ${res.status}`}`);
       }
     } catch (err: any) {
-      alert(`儲存失敗：${err?.message || "網路錯誤"}`);
+      setPhoneError(`儲存失敗：${err?.message || "網路錯誤"}`);
     } finally {
       setSavingPhone(false);
     }
@@ -225,6 +227,7 @@ function MemberOverview() {
   const [ratings, setRatings] = useState<Record<string, number>>({});
   const [comments, setComments] = useState<Record<string, string>>({});
   const [submitted, setSubmitted] = useState<Record<string, boolean>>({});
+  const [reviewError, setReviewError] = useState<string | null>(null);
 
   const pendingCount = purchases.filter((p) => p.rating === 0 && !submitted[p.id]).length;
 
@@ -248,7 +251,7 @@ function MemberOverview() {
         if (!res.ok) throw new Error("評價失敗");
       } catch (err) {
         console.error("送出評價失敗:", err);
-        alert("送出評價失敗，請稍後再試");
+        setReviewError("送出評價失敗，請稍後再試");
         return;
       }
     }
@@ -336,6 +339,7 @@ function MemberOverview() {
               />
               <button type="button" onClick={handlePhoneSave} disabled={savingPhone} style={{ background: "#4ECDC4", border: "none", borderRadius: 4, padding: "2px 8px", color: "#fff", fontSize: 11, cursor: savingPhone ? "wait" : "pointer", opacity: savingPhone ? 0.6 : 1 }}>{savingPhone ? "存中…" : "存"}</button>
               <button onClick={() => setEditingPhone(false)} style={{ background: "none", border: "1px solid rgba(255,255,255,0.3)", borderRadius: 4, padding: "2px 8px", color: "rgba(255,255,255,0.7)", fontSize: 11, cursor: "pointer" }}>取消</button>
+              {phoneError && <p className="text-xs mt-1" style={{color:"#e53935"}}>{phoneError}</p>}
             </span>
           ) : (
             <span className="flex items-center gap-1">
@@ -643,6 +647,7 @@ function MemberOverview() {
                           </div>
                         );
                       })}
+                      {reviewError && <p className="text-xs mt-1" style={{color:"#e53935"}}>{reviewError}</p>}
                     </div>
                   )}
                 </div>
@@ -707,6 +712,7 @@ function MemberOverview() {
                 </div>
               );
             })}
+            {reviewError && <p className="text-xs mt-1" style={{color:"#e53935"}}>{reviewError}</p>}
           </div>
         )}
       </div>

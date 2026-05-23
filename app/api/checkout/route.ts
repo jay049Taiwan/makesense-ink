@@ -317,6 +317,7 @@ export async function POST(req: NextRequest) {
         total,
         source: source || "web",
         refund_info: orderMode === "reservation" ? refundInfo : null,
+        points_used: validatedPointDiscount || 0,
       })
       .select("id")
       .single();

@@ -16,6 +16,21 @@ const N8N_MARKET_APPLY_WEBHOOK = process.env.N8N_MARKET_APPLY_WEBHOOK || "https:
 export async function POST(req: NextRequest) {
   const session = await auth();
   const email = normalizeEmail(session?.user?.email);
+
+  const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || req.headers.get("x-real-ip") || "unknown";
+  const rlWindow = new Date(Date.now() - 10 * 60 * 1000);
+  try {
+    const { count: rlCount } = await supabaseAdmin
+      .from("line_message_log")
+      .select("id", { count: "exact", head: true })
+      .eq("user_id", `ip:${ip}`)
+      .eq("message_type", "market_apply")
+      .gte("created_at", rlWindow.toISOString());
+    if ((rlCount ?? 0) >= 3) {
+      return NextResponse.json({ error: "送出次數過多，請稍後再試" }, { status: 429 });
+    }
+    supabaseAdmin.from("line_message_log").insert({ user_id: `ip:${ip}`, message_type: "market_apply", message_text: "apply_attempt" }).then(() => {});
+  } catch { /* 查詢失敗時放行 */ }
   if (!email) return NextResponse.json({ error: "請先登入" }, { status: 401 });
 
   const { data: member } = await supabaseAdmin

@@ -8,6 +8,7 @@ export default function CancelEventPage() {
   const [reason, setReason] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   // 從 URL 取得 orderId 和 eventName
   const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
@@ -16,6 +17,7 @@ export default function CancelEventPage() {
 
   const handleSubmit = async () => {
     if (!reason.trim()) return;
+    setSubmitError(null);
     setSubmitting(true);
     try {
       await fetch("/api/line/event-rsvp", {
@@ -29,7 +31,7 @@ export default function CancelEventPage() {
       });
       setDone(true);
     } catch {
-      alert("送出失敗，請稍後再試");
+      setSubmitError("送出失敗，請稍後再試");
     }
     setSubmitting(false);
   };
@@ -79,6 +81,10 @@ export default function CancelEventPage() {
         >
           {submitting ? "送出中..." : "確認取消報名"}
         </button>
+
+        {submitError && (
+          <p className="text-sm text-center mt-2" style={{ color: "#e53935" }}>{submitError}</p>
+        )}
 
         <p className="text-xs text-center mt-3" style={{ color: "#ccc" }}>
           送出後將由工作人員處理您的取消申請

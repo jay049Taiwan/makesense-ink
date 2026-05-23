@@ -148,6 +148,7 @@ function VendorPage({ notionId }: { notionId: string }) {
   const [note, setNote] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState<{ orderNumber: string } | null>(null);
+  const [buyError, setBuyError] = useState<string | null>(null);
 
   useEffect(() => {
     fetch(`/api/buy/vendor/${notionId}`)
@@ -179,7 +180,8 @@ function VendorPage({ notionId }: { notionId: string }) {
   const hasItems = Object.keys(cart).length > 0;
 
   const handleSubmit = async () => {
-    if (!name || !phone) { alert("請填姓名與電話"); return; }
+    setBuyError(null);
+    if (!name || !phone) { setBuyError("請填姓名與電話"); return; }
     setSubmitting(true);
     try {
       const res = await fetch("/api/buy/preorder", {
@@ -195,7 +197,7 @@ function VendorPage({ notionId }: { notionId: string }) {
       if (!res.ok) throw new Error(json.error || "預購失敗");
       setDone({ orderNumber: json.orderNumber });
     } catch (e: any) {
-      alert(e.message || "預購失敗");
+      setBuyError(e.message || "預購失敗");
     } finally {
       setSubmitting(false);
     }
@@ -402,6 +404,9 @@ function VendorPage({ notionId }: { notionId: string }) {
               style={{ background: submitting ? "var(--color-mist)" : "var(--color-moss)" }}>
               {submitting ? "處理中…" : "確認預購"}
             </button>
+            {buyError && (
+              <p className="text-sm text-center mt-2" style={{ color: "#e53935" }}>{buyError}</p>
+            )}
             <p className="text-xs text-center mt-2" style={{ color: "var(--color-mist)" }}>
               市集當天至攤位現場取貨付款
             </p>

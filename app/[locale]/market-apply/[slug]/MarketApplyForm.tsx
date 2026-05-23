@@ -54,6 +54,7 @@ export default function MarketApplyForm({
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [uploadError, setUploadError] = useState<string | null>(null);
 
   // 初次載入照片庫
   useEffect(() => {
@@ -100,6 +101,7 @@ export default function MarketApplyForm({
   }
 
   async function handleUpload(category: string, file: File) {
+    setUploadError(null);
     const formData = new FormData();
     formData.append("file", file);
     formData.append("category", category);
@@ -107,14 +109,14 @@ export default function MarketApplyForm({
       const res = await fetch("/api/vendor-photos", { method: "POST", body: formData });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        alert("上傳失敗：" + (err.error || res.statusText));
+        setUploadError("上傳失敗：" + (err.error || res.statusText));
         return;
       }
       const { photo } = await res.json();
       setPhotos((prev) => [photo, ...prev]);
       setSelected((prev) => new Set(prev).add(photo.id));
     } catch (e: any) {
-      alert("上傳失敗：" + e.message);
+      setUploadError("上傳失敗：" + e.message);
     }
   }
 
@@ -277,6 +279,10 @@ export default function MarketApplyForm({
         <p className="text-xs mb-4" style={{ color: "var(--color-mist)" }}>
           ✓ 勾選 = 這次提交時會用 ；📦 封存 = 平常不顯示，可隨時取出 ；以 Email 為記憶 key，下次申請會自動載入
         </p>
+
+        {uploadError && (
+          <p className="text-sm mt-1" style={{ color: "#e53935" }}>{uploadError}</p>
+        )}
 
         {loadingPhotos ? (
           <p className="text-sm py-4 text-center" style={{ color: "var(--color-mist)" }}>載入照片庫…</p>

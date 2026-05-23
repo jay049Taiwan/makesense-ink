@@ -1662,18 +1662,41 @@ function OrdersPanel() {
   const [orders, setOrders] = useState<StaffOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionId, setActionId] = useState<string | null>(null); // 正在操作的訂單 ID
+  const [panelError, setPanelError] = useState<string | null>(null);
 
   const markRefunded = async (orderId: string) => {
     setActionId(orderId);
+    setPanelError(null);
     try {
       const res = await staffFetch("/api/staff/orders", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ orderId }),
       });
-      if (!res.ok) { alert("標記失敗"); return; }
+      if (!res.ok) { setPanelError("標記退款失敗，請重試"); return; }
       setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, refund_status: "refunded" } : o));
-    } catch { alert("操作失敗"); }
+    } catch { setPanelError("操作失敗，請重試"); }
+    finally { setActionId(null); }
+  };
+
+  const toggleCheckin = async (orderId: string, currentStatus: string | null) => {
+    setActionId(orderId);
+    setPanelError(null);
+    const isCheckedIn = currentStatus === "checked_in";
+    try {
+      const res = await staffFetch("/api/staff/checkin", {
+        method: isCheckedIn ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setPanelError(err.error || "報到操作失敗");
+        return;
+      }
+      const newStatus = isCheckedIn ? null : "checked_in";
+      setOrders((prev) => prev.map((o) => o.id === orderId ? { ...o, checkin_status: newStatus } : o));
+    } catch { setPanelError("操作失敗，請重試"); }
     finally { setActionId(null); }
   };
 
@@ -1704,8 +1727,8 @@ function OrdersPanel() {
         body: JSON.stringify({ orderId, status: newStatus }),
       });
       if (!res.ok) {
-        const err = await res.json();
-        alert(err.error || "操作失敗");
+        const err = await res.json().catch(() => ({}));
+        setPanelError(err.error || "操作失敗");
         return;
       }
       // 樂觀更新本地狀態
@@ -1713,7 +1736,7 @@ function OrdersPanel() {
         prev.map((o) => (o.id === orderId ? { ...o, status: newStatus } : o))
       );
     } catch {
-      alert("操作失敗，請重試");
+      setPanelError("操作失敗，請重試");
     } finally {
       setActionId(null);
     }
@@ -1755,6 +1778,14 @@ function OrdersPanel() {
           重新整理
         </button>
       </div>
+
+      {/* 全域錯誤提示 */}
+      {panelError && (
+        <div className="mb-3 px-3 py-2 rounded-lg text-xs" style={{ background: "#fff0f0", color: "#c53030", border: "1px solid #feb2b2" }}>
+          {panelError}
+          <button onClick={() => setPanelError(null)} className="ml-2 underline">關閉</button>
+        </div>
+      )}
 
       {/* 訂單列表 */}
       {loading ? (
@@ -1898,18 +1929,36 @@ function OrdersPanel() {
                       </>
                     )}
                     {isConfirmed && (
-                      <button
-                        onClick={() => {
-                          if (confirm(`確定要取消訂單 ${orderNumber(order.id)}？`)) {
-                            updateStatus(order.id, "cancelled");
-                          }
-                        }}
-                        disabled={isActing}
-                        className="px-3 py-1.5 rounded-lg text-xs font-medium"
-                        style={{ background: "transparent", border: "1px solid #ccc", color: "#888", cursor: isActing ? "wait" : "pointer" }}
-                      >
-                        取消訂單
-                      </button>
+                      <>
+                        {/* 報到按鈕：有票券類品項才顯示 */}
+                        {order.order_items.some((i) => ["走讀", "講座", "市集", "空間", "諮詢"].includes(i.item_type)) && (
+                          <button
+                            onClick={() => toggleCheckin(order.id, order.checkin_status)}
+                            disabled={isActing}
+                            className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                            style={{
+                              background: order.checkin_status === "checked_in" ? "#276749" : "#ebf8f0",
+                              color: order.checkin_status === "checked_in" ? "#fff" : "#276749",
+                              border: `1px solid ${order.checkin_status === "checked_in" ? "#276749" : "#9ae6b4"}`,
+                              cursor: isActing ? "wait" : "pointer",
+                            }}
+                          >
+                            {isActing ? "處理中..." : order.checkin_status === "checked_in" ? "✓ 已報到" : "📍 報到"}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => {
+                            if (window.confirm(`確定要取消訂單 ${orderNumber(order.id)}？`)) {
+                              updateStatus(order.id, "cancelled");
+                            }
+                          }}
+                          disabled={isActing}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium"
+                          style={{ background: "transparent", border: "1px solid #ccc", color: "#888", cursor: isActing ? "wait" : "pointer" }}
+                        >
+                          取消訂單
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

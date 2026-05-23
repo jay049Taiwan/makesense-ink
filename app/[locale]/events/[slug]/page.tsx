@@ -557,6 +557,7 @@ function ExpiredEventPanel({
   const [submitted, setSubmitted] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [encoreCount, setEncoreCount] = useState(0);
+  const [encoreError, setEncoreError] = useState<string | null>(null);
 
   // 讀取敲碗人數
   useEffect(() => {
@@ -585,6 +586,7 @@ function ExpiredEventPanel({
 
   const handleSubmit = async () => {
     if (!name.trim() || !contact.trim()) return;
+    setEncoreError(null);
     setSubmitting(true);
     try {
       await supabase.from("encore_requests").insert({
@@ -597,7 +599,7 @@ function ExpiredEventPanel({
       });
       setSubmitted(true);
     } catch {
-      alert("送出失敗，請稍後再試");
+      setEncoreError("送出失敗，請稍後再試");
     }
     setSubmitting(false);
   };
@@ -691,6 +693,9 @@ function ExpiredEventPanel({
               style={{ background: submitting ? "var(--color-mist)" : "var(--color-teal)" }}>
               {submitting ? "送出中..." : "送出敲碗"}
             </button>
+            {encoreError && (
+              <p className="text-xs text-center mt-2" style={{ color: "#e53935" }}>{encoreError}</p>
+            )}
           </div>
         )}
       </div>
