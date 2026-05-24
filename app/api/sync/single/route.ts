@@ -329,7 +329,7 @@ async function syncSingleDB05(nid: string, props: any) {
   const copyDetail = sel(props["文案選項"]);
   const socialDetail = sel(props["社群細項"]);
   const registerCategory = sel(props["登記類別"]);
-  const registerOption = sel(props["報名選項"]);  // 活動 / 空間 / 意見
+  const registerOption = sel(props["報名選項"]);  // 參與活動 / 使用空間 / 意見問答 / 商品預購
 
   // 庫存批次：內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存選項有值（進貨/出貨/盤點）
   // 與寫入端一致（lib/staff-helper.ts inventory + lib/admission-notify.ts + checkout direct mode）
@@ -337,9 +337,9 @@ async function syncSingleDB05(nid: string, props: any) {
     return await syncStockBatch(nid, props);
   }
 
-  // V2：登記類別=填寫報名 + 報名選項=活動 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
+  // V2：登記類別=填寫報名 + 報名選項=參與活動 → 按「發佈更新」時檢查錄取狀態 → 推 LINE + 錄取時才建交易紀錄
   // （內容類型固定為「報名登記」；空間預約、意見回饋雖也走「填寫報名」但不走 admission flow）
-  if (registerCategory === "填寫報名" && registerOption === "活動") {
+  if (registerCategory === "填寫報名" && registerOption === "參與活動") {
     return await syncSingleReservation(nid, props);
   }
 

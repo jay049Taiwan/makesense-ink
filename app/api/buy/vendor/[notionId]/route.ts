@@ -33,7 +33,7 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ not
     const registerOption = st(props["報名選項"]);
     const formType = st(props["內容類型"]);
 
-    if (admissionStatus !== "錄取" || registerCategory !== "填寫報名" || registerOption !== "活動" || formType !== "報名登記") {
+    if (admissionStatus !== "錄取" || registerCategory !== "填寫報名" || registerOption !== "參與活動" || formType !== "報名登記") {
       return NextResponse.json({ available: false, reason: "not_accepted" }, { status: 404 });
     }
 

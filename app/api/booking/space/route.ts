@@ -74,7 +74,7 @@ export async function POST(request: NextRequest) {
         select: { name: "填寫報名" },
       },
       "報名選項": {
-        select: { name: "空間" },
+        select: { name: "使用空間" },
       },
     });
 

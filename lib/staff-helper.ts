@@ -29,7 +29,7 @@ export interface WriteDB05Args {
   /**
    * 子分類 option 值
    * - attendance: 會議 / 打卡 / 請假 / 日誌 / 加班（DB05 紀錄細項 select）
-   * - expense:    請購直匯 / 請款轉交（DB05 紀錄費用 select；自動設 內容類型=報名登記 + 登記類別=紀錄費用）
+   * - expense:    請購直匯 / 請款轉交（DB05 費用選項 select；自動設 內容類型=報名登記 + 登記類別=紀錄費用）
    * - inventory:  進貨 / 出貨 / 盤點（DB05 庫存選項 select；自動設 內容類型=報名登記 + 登記類別=紀錄庫存）
    */
   detail: string;
@@ -56,7 +56,7 @@ export async function writeStaffDB05Record(args: WriteDB05Args): Promise<{ id: s
   } else if (args.type === "expense") {
     props["內容類型"] = { select: { name: "報名登記" } };
     props["登記類別"] = { select: { name: "紀錄費用" } };
-    props["紀錄費用"] = { select: { name: args.detail } };
+    props["費用選項"] = { select: { name: args.detail } };
   } else if (args.type === "inventory") {
     props["內容類型"] = { select: { name: "報名登記" } };
     props["登記類別"] = { select: { name: "紀錄庫存" } };

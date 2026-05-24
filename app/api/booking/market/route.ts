@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
       "內容名稱": { title: [{ text: { content: `市集報名：${brand.name}` } }] },
       "內容類型": { select: { name: "報名登記" } },
       "登記類別": { select: { name: "填寫報名" } },
-      "報名選項": { select: { name: "活動" } },
+      "報名選項": { select: { name: "參與活動" } },
       "明細內容": { rich_text: [{ text: { content: brandSummaryLines.slice(0, 1900) } }] },
       "登記聯絡人": { rich_text: [{ text: { content: contact.name } }] },
       "登記電話": { rich_text: [{ text: { content: contact.phone } }] },

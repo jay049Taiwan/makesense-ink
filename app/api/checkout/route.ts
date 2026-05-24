@@ -563,7 +563,7 @@ export async function POST(req: NextRequest) {
         db05Props["庫存選項"] = { select: { name: "出貨" } };
       }
       if (orderMode === "reservation") {
-        db05Props["報名選項"] = { select: { name: "活動" } };
+        db05Props["報名選項"] = { select: { name: "參與活動" } };
       }
       // 訂單聯絡人（A）層級
       if (contact.name) db05Props["登記聯絡人"] = { rich_text: [{ text: { content: contact.name } }] };
