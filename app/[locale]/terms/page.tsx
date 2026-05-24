@@ -1,147 +1,86 @@
 import type { Metadata } from "next";
+import { queryDatabase, getPageContent, DB } from "@/lib/notion";
 
 export const metadata: Metadata = {
   title: "服務條款、退換貨政策與隱私政策",
   description: "現思文化創藝有限公司 — 服務條款、退換貨政策與隱私政策。",
 };
 
-export default function TermsPage() {
+// 每次請求重新 fetch（條款更新頻率低，不需要快取，但要確保拿到最新版）
+export const revalidate = 3600; // 1 小時 ISR
+
+export default async function TermsPage() {
+  let contentHtml = "";
+  let lastEdited: string | null = null;
+  let notionError = false;
+
+  try {
+    // 查 DB05：官網備項 = "服務條款"，取第一筆
+    const results = await queryDatabase(
+      DB.DB05_REGISTRATION,
+      { property: "官網備項", select: { equals: "服務條款" } },
+      [{ timestamp: "last_edited_time", direction: "descending" as const }],
+      1
+    );
+
+    const page = results[0];
+    if (page) {
+      lastEdited = page.last_edited_time || null;
+
+      // 把 Notion page ID 轉成有 dash 的格式（blocks API 需要）
+      const rawId: string = page.id || "";
+      const pageId = rawId.includes("-") ? rawId : rawId.replace(
+        /^(.{8})(.{4})(.{4})(.{4})(.{12})$/,
+        "$1-$2-$3-$4-$5"
+      );
+
+      contentHtml = await getPageContent(pageId);
+    }
+  } catch (e: any) {
+    console.error("[terms] Notion fetch failed:", e?.message);
+    notionError = true;
+  }
+
+  const lastEditedDisplay = lastEdited
+    ? new Date(lastEdited).toLocaleDateString("zh-TW", {
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      })
+    : null;
+
   return (
     <div className="mx-auto px-4 py-12" style={{ maxWidth: 800 }}>
-      <h1 className="text-3xl font-semibold mb-2"
-        style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
+      <h1
+        className="text-3xl font-semibold mb-2"
+        style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}
+      >
         服務條款、退換貨政策與隱私政策
       </h1>
-      <p className="text-sm mb-8" style={{ color: "var(--color-mist)" }}>
-        最後更新日期：2026 年 5 月 19 日
-      </p>
 
-      <div className="text-[0.9em] leading-[1.8] space-y-6" style={{ color: "var(--color-ink)" }}>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>一、服務內容</h2>
-          <p>本公司提供之服務包括：商品銷售、活動報名、空間預約、會員服務及內容服務。本公司保留隨時調整服務內容之權利。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>二、帳號註冊與管理</h2>
-          <p>本網站支援 Google 及 LINE 帳號登入。使用者需提供正確、完整之個人資料，並負責帳號安全。同一信箱將自動整合多種登入方式之帳號。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>三、商品購買與交易</h2>
-          <p>商品價格以下單時顯示為準。本公司得因庫存不足或價格標示錯誤取消訂單，並全額退款。配送範圍依結帳頁面說明為準。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>四、活動報名與預約</h2>
-          <p>活動報名經確認後，取消退款規則如下：</p>
-          <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-            <li>活動日 <strong>7 天前</strong>取消：全額退款</li>
-            <li>活動日 <strong>3–6 天前</strong>取消：退款 50%</li>
-            <li>活動日 <strong>2 天內</strong>取消：恕不退款</li>
-          </ul>
-          <p className="mt-2">本公司得因不可抗力因素取消活動，並全額退款。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>五、退換貨政策</h2>
-          <p>依消費者保護法規定，商品到貨後享有七日猶豫期。退換貨條件如下：</p>
-          <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-            <li>商品需保持全新、未拆封、未使用之狀態</li>
-            <li>客製化商品、食品類商品不適用七日猶豫期</li>
-            <li>退貨運費由消費者負擔（商品瑕疵除外）</li>
-            <li>退款將於收到退貨商品後 7 個工作天內處理</li>
-          </ul>
-          <p className="mt-2">如需退換貨，請透過 Email 或 LINE 官方帳號聯繫。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>六、集點與會員優惠</h2>
-          <p>探索點不可轉讓或兌換現金。本公司保留隨時調整集點規則之權利。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>七、智慧財產權</h2>
-          <p>本網站之所有內容均受中華民國著作權法保護，未經書面同意不得重製、轉載或作商業使用。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>八、使用者行為規範</h2>
-          <p>使用者不得冒用他人身份、干擾系統運作、侵害他人隱私或發布不當內容。違反者將遭暫停或終止帳號。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>九、免責聲明</h2>
-          <p>本服務以現況提供，不保證服務無中斷或無誤。因不可抗力導致之損害，本公司不負賠償責任。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>十、條款修訂</h2>
-          <p>本公司得隨時修訂本條款，修訂後於本頁面公告並更新日期。繼續使用本服務即視為同意修訂後之條款。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>十一、準據法與管轄</h2>
-          <p>本條款以中華民國法律為準據法，如因本條款發生爭議，以臺灣宜蘭地方法院為第一審管轄法院。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>十二、聯絡資訊</h2>
-          <ul className="list-disc pl-5 space-y-1 text-sm" style={{ color: "var(--color-bark)" }}>
-            <li>現思文化創藝有限公司</li>
-            <li>Email：travelerbookstore@gmail.com</li>
-            <li>電話：039-325957</li>
-            <li>LINE 官方帳號：@964ervay</li>
-            <li>地址：宜蘭縣羅東鎮文化街55號</li>
-          </ul>
-        </section>
-
-        {/* ── 隱私政策（併入同頁） ── */}
-        <div style={{ borderTop: "2px solid var(--color-dust)", paddingTop: "2rem", marginTop: "2rem" }}>
-          <h2 className="text-2xl font-semibold mb-1"
-            style={{ fontFamily: "var(--font-serif)", color: "var(--color-ink)" }}>
-            隱私政策
-          </h2>
-          <p className="text-sm mb-6" style={{ color: "var(--color-mist)" }}>
-            最後更新日期：2026 年 5 月 19 日
-          </p>
-        </div>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>一、個人資料之蒐集</h2>
-          <p>本公司蒐集之個人資料包括但不限於：姓名、電子信箱、電話號碼、通訊地址等，僅於您主動提供時蒐集（如會員註冊、購物結帳、活動報名等）。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>二、個人資料之利用</h2>
-          <p>您的個人資料僅用於本公司之營運目的，包括：訂單處理、活動通知、會員服務、客服聯繫等。未經您的同意，不會將個人資料提供予第三方。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>三、Cookie 與分析工具</h2>
-          <p>本網站使用以下 Cookie：</p>
-          <ul className="list-disc pl-5 mt-2 space-y-1 text-sm">
-            <li><strong>必要 Cookie</strong>（無需同意）：登入狀態維持（NextAuth session）、購物車資料、LINE LIFF 登入——這些是網站正常運作所必須的。</li>
-            <li><strong>分析 Cookie</strong>（可選擇拒絕）：本網站使用 Google Analytics（GA4）分析訪客流量，以改善使用體驗。GA 會記錄頁面瀏覽、停留時間等匿名統計資料，不會取得您的個人身份。</li>
-          </ul>
-          <p className="mt-2">首次造訪時，網站底部會出現 Cookie 同意橫幅，您可以選擇接受或拒絕分析 Cookie。選擇後可隨時清除瀏覽器的 LocalStorage（鍵值：<code className="text-xs bg-[#f0ebe3] px-1 py-0.5 rounded">cookie_consent</code>）以重置偏好設定。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>四、資料安全</h2>
-          <p>本公司採取適當之安全措施保護您的個人資料，包括 HTTPS 加密傳輸、存取權限控管等。</p>
-        </section>
-
-        <section>
-          <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--color-bark)" }}>五、您的權利</h2>
-          <p>您有權查詢、更正、刪除您的個人資料。如需行使上述權利，請透過本網站之聯絡方式與我們聯繫。</p>
-        </section>
-
-        <p className="text-xs pt-4" style={{ color: "var(--color-mist)", borderTop: "1px solid var(--color-dust)" }}>
-          現思文化創藝有限公司 © 2012–{new Date().getFullYear()}
+      {lastEditedDisplay && (
+        <p className="text-sm mb-8" style={{ color: "var(--color-mist)" }}>
+          最後更新日期：{lastEditedDisplay}
         </p>
-      </div>
+      )}
+
+      {notionError && (
+        <div className="mb-6 px-4 py-3 rounded-lg text-sm" style={{ background: "#fff3cd", color: "#856404" }}>
+          條款內容暫時無法載入，請稍後重試。
+        </div>
+      )}
+
+      {contentHtml ? (
+        <div
+          className="notion-content text-[0.9em] leading-[1.8] space-y-4"
+          style={{ color: "var(--color-ink)" }}
+          dangerouslySetInnerHTML={{ __html: contentHtml }}
+        />
+      ) : !notionError ? (
+        <p className="text-sm" style={{ color: "var(--color-mist)" }}>
+          條款內容尚未設定，請在 Notion DB05 建立「官網備項＝服務條款」的頁面。
+        </p>
+      ) : null}
     </div>
   );
 }
