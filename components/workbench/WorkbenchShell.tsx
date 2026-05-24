@@ -18,6 +18,7 @@ import { supabase } from "@/lib/supabase";
 import { staffFetch } from "@/lib/staff-fetch";
 import TasksPanel from "./TasksPanel";
 import BarcodeScanner from "@/components/liff/BarcodeScanner";
+import FeedPanel from "./FeedPanel";
 import ProductCreateModal, { type ProductDraft } from "./ProductCreateModal";
 import PagePreviewModal from "./PagePreviewModal";
 
@@ -36,10 +37,12 @@ const tabIcons: Record<StaffTab, string> = {
 interface WorkbenchShellProps {
   displayName?: string;
   email?: string;
+  memberId?: string;
 }
 
-export default function WorkbenchShell({ displayName = "員工", email = "—" }: WorkbenchShellProps) {
+export default function WorkbenchShell({ displayName = "員工", email = "—", memberId }: WorkbenchShellProps) {
   const [activeTab, setActiveTab] = useState<StaffTab>("動態");
+  const isAdmin = email === "jay.049@gmail.com";
 
   return (
     <div className="px-3 sm:px-0" style={{ maxWidth: 1200, margin: "0 auto" }}>
@@ -53,7 +56,7 @@ export default function WorkbenchShell({ displayName = "員工", email = "—" }
 
       {/* 工作台內容 */}
       <div className="mb-20 mt-4">
-        {activeTab === "動態" && <ActivityFeed />}
+        {activeTab === "動態" && <FeedPanel isAdmin={isAdmin} memberId={memberId} />}
         {activeTab === "訂單" && <OrdersPanel />}
         {activeTab === "交接" && <TasksPanel userEmail={email} />}
         {activeTab === "庫存" && <InventoryPanel />}
