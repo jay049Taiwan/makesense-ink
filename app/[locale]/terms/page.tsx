@@ -18,7 +18,7 @@ export default async function TermsPage() {
     // 查 DB05：官網備項 = "服務條款"，取第一筆
     const results = await queryDatabase(
       DB.DB05_REGISTRATION,
-      { property: "官網備項", select: { equals: "服務條款" } },
+      { property: "官網備項", select: { equals: "服務條款（footer）" } },
       [{ timestamp: "last_edited_time", direction: "descending" as const }],
       1
     );
@@ -78,7 +78,7 @@ export default async function TermsPage() {
         />
       ) : !notionError ? (
         <p className="text-sm" style={{ color: "var(--color-mist)" }}>
-          條款內容尚未設定，請在 Notion DB05 建立「官網備項＝服務條款」的頁面。
+          條款內容尚未設定，請在 Notion DB05 建立「官網備項＝服務條款（footer）」的頁面。
         </p>
       ) : null}
     </div>
