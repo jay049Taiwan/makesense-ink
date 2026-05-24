@@ -1,15 +1,48 @@
-import { useTranslations } from "next-intl";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/routing";
 import FloatingActions from "./FloatingActions";
+import { queryDatabase, DB, extractTitle, extractSelect } from "@/lib/notion";
 
-export default function Footer() {
-  const t = useTranslations("footer");
+/** 從 DB05 撈所有「官網備項」含（footer）的頁面，轉成連結清單 */
+async function fetchFooterPages(): Promise<{ label: string; slug: string }[]> {
+  try {
+    const results = await queryDatabase(
+      DB.DB05_REGISTRATION,
+      {
+        property: "官網備項",
+        select: { contains: "（footer）" },
+      },
+      [{ property: "內容名稱", direction: "ascending" as const }],
+      20
+    );
+
+    return results
+      .map((page: any) => {
+        const raw = extractSelect(page.properties["官網備項"]?.select) || "";
+        const label = raw.replace(/（footer）$/, "").trim();
+        if (!label) return null;
+        return { label, slug: encodeURIComponent(label) };
+      })
+      .filter(Boolean) as { label: string; slug: string }[];
+  } catch (e: any) {
+    console.warn("[Footer] Notion fetch failed:", e?.message);
+    return [];
+  }
+}
+
+export default async function Footer() {
+  const t = await getTranslations("footer");
+  const footerPages = await fetchFooterPages();
 
   const linkStyle: React.CSSProperties = {
     color: "#7a6248",
     letterSpacing: "0.02em",
     whiteSpace: "nowrap",
   };
+
+  const divider = (
+    <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
+  );
 
   return (
     <>
@@ -22,30 +55,26 @@ export default function Footer() {
         }}
       >
         <div className="mx-auto px-4 py-6" style={{ maxWidth: 1200 }}>
-          {/* Main row：桌機一行，手機自動換行 */}
+          {/* 主要導覽列 */}
           <div className="flex flex-wrap items-center justify-center gap-x-4 sm:gap-x-5 gap-y-2 text-xs sm:text-lg">
             <Link href="/sense" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("about")}
             </Link>
-            <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
+            {divider}
             <Link href="/market-booking" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("marketBooking")}
             </Link>
-            <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
+            {divider}
             <Link href="/reading-tour" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("readingTour")}
             </Link>
-            <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
+            {divider}
             <Link href="/space-experience" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("spaceExperience")}
             </Link>
-            <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
+            {divider}
             <Link href="/content-curation" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
               {t("contentCuration")}
-            </Link>
-            <span style={{ width: 1, height: 14, background: "#d0c8bc", display: "inline-block" }} />
-            <Link href="/terms" className="hover:text-[#1a1612] transition-colors" style={linkStyle}>
-              服務條款
             </Link>
 
             {/* 視覺分隔（只在桌機顯示，手機讓它自然換行）*/}
@@ -87,6 +116,25 @@ export default function Footer() {
               {" "}since 2012
             </span>
           </div>
+
+          {/* 政策連結列（從 Notion DB05 動態撈取） */}
+          {footerPages.length > 0 && (
+            <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 mt-3 text-xs"
+              style={{ color: "#a89070" }}>
+              {footerPages.map((page, i) => (
+                <span key={page.slug} className="flex items-center gap-3">
+                  {i > 0 && <span style={{ width: 1, height: 10, background: "#d0c8bc", display: "inline-block" }} />}
+                  <Link
+                    href={`/legal/${page.slug}`}
+                    className="hover:text-[#5c4a32] transition-colors"
+                    style={{ color: "#a89070" }}
+                  >
+                    {page.label}
+                  </Link>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </footer>
 
