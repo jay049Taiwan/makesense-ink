@@ -250,7 +250,7 @@ DB08「經營類型」select：**觀點 / 標籤 / 紀錄**
 ### 其他欄位
 - 行政區域（select；DB08）
 - 單價（number；DB04 活動）
-- 庫存異動規則：DB05 內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存選項=進/出/盤 → DB06（明細類型=庫存紀錄）→ DB07
+- 庫存異動規則：DB05 內容類型=報名登記 + 登記類別=紀錄庫存 + 庫存選項=進/出/盤/下架 → DB06（明細類型=備查紀錄，紀錄類別=採購進貨/維護庫存）→ DB07（下架→products.status=draft）
 
 ## Notion ↔ Supabase 同步
 - 狀態：**已建好同步 API，已完成首次同步（706 筆資料）**
@@ -488,15 +488,15 @@ npm run lint   # ESLint
 
 ### DB05 欄位補充（之前文件漂移漏記）
 - **紀錄細項**（select）— 工作台「考勤」用：會議 / 打卡 / 請假 / 日誌 / 加班
-- **紀錄費用**（select）— 工作台「費用」用：請購直匯 / 請款轉交
+- **費用選項**（select）— 工作台「費用」用：請購直匯 / 請款轉交（搭配 登記類別=紀錄費用；舊欄位名「紀錄費用」已改名為「費用選項」）
 - **登記單價**（number）— 金額欄位，DB05 與 DB06 都有
 - **責任執行**（people）— Notion users，工作台寫入時自動帶員工本人
 
 ### DB05 / DB06 cascade 機制（2026/04/29 釐清，2026/05/04 完工）
 - 不是 Notion automation，是 **code-driven**
 - 範例：`/api/staff/inventory/route.ts` 庫存異動由 Next.js API 同時寫 DB05+DB06
-- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存選項=進貨/出貨/盤點` + `對應明細→DB06`
-- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 紀錄費用 區分
+- 寫 DB05 時三層欄位齊全：`內容類型=報名登記` + `登記類別=紀錄庫存` + `庫存選項=進貨/出貨/盤點/下架` + `對應明細→DB06`
+- 紀錄（打卡/日誌/請假/加班）、費用（請款/請購）不需「報名登記」上游：內容類型留空，直接用紀錄細項 / 費用選項 區分
 - 統一封裝在 `lib/staff-helper.ts`：`getStaffNotionPageId` / `getStaffIdByEmail` / `writeStaffDB05Record({type, detail, title, staffEmail, amount?, content?, ...})`
 - 紀錄類同步到 Supabase `staff_activities`（task_type / notion_db05_id / detail jsonb），讀取走 Supabase 避免每次打 Notion API
 - 費用類只寫 DB05，不雙寫 DB06（一張收據 = 一筆 DB05）
