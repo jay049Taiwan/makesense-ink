@@ -99,9 +99,9 @@ export async function POST(req: NextRequest) {
     ) => {
       const props: Record<string, any> = {
         "明細名稱": { title: [{ text: { content: title } }] },
-        "明細類型": { select: { name: "報名登記" } },
+        "明細類型": { select: { name: "登記提供" } },
       };
-      // DB06 不寫 登記類別 / 報名選項 欄位（這兩個屬 DB05），DB06 只保留 明細類型=報名登記 + 數量價格
+      // DB06 不寫 登記類別 / 報名選項 欄位（這兩個屬 DB05），DB06 只保留 明細類型=登記提供 + 數量價格
       if (price !== null && !isNaN(price)) props["登記單價"] = { number: price };
       if (qty !== null && !isNaN(qty)) props["登記數量"] = { number: qty };
       if (details) props["明細內容"] = { rich_text: [{ text: { content: details.slice(0, 1900) } }] };

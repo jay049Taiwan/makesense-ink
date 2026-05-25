@@ -52,7 +52,7 @@ function fillAttendeeProps(p: Record<string, any>, reg: Record<string, any> | nu
  *
  * accepted：
  *   - 建立新 DB05（內容類型=報名登記，代表已確認交易）
- *   - 為每個 order_items 建 DB06（明細類型=庫存紀錄、出貨）+ 對應 attendee 資料
+ *   - 為每個 order_items 建 DB06（明細類型=登記提供、提供類別=訂單出貨）+ 對應 attendee 資料
  *   - 扣 Supabase products.stock
  *   - 推 LINE Flex 卡片
  *   - 回傳 confirmed_db05_notion_id 給呼叫端寫回 orders
@@ -174,7 +174,8 @@ async function createConfirmedEntries(args: {
 
     const db06Props: Record<string, any> = {
       "明細名稱": { title: [{ text: { content: itemName } }] },
-      "明細類型": { select: { name: "庫存紀錄" } },
+      "明細類型": { select: { name: "登記提供" } },
+      "提供類別": { select: { name: "訂單出貨" } },
       "登記數量": { number: oi.quantity },
       "登記單價": { number: oi.price },
     };

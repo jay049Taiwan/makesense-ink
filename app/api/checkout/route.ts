@@ -470,7 +470,7 @@ export async function POST(req: NextRequest) {
     // 7. 直接在 Notion 建 DB06（每件商品一筆）+ DB05（訂單標頭，對應明細指向 DB06）
     //    欄位名已對照 Notion live schema 確認：
     //      DB05: 內容名稱(title), 內容類型=報名登記, 登記類別=紀錄庫存（reservation 改用 填寫報名+報名選項=活動）, 庫存選項=出貨, 對應明細→DB06
-    //      DB06: 明細名稱(title), 明細類型=報名登記, 登記數量, 登記單價, 對應庫存→DB07
+    //      DB06: 明細名稱(title), 明細類型=登記提供（direct→提供類別=訂單出貨 / reservation→身份個資）, 登記數量, 登記單價, 對應庫存→DB07
     //    改用 await：Vercel serverless 會在 response 後終止執行，fire-and-forget 跑不完
     //    失敗不影響結帳回應（包 try/catch）
     try {
@@ -526,7 +526,8 @@ export async function POST(req: NextRequest) {
 
           const db06Props: Record<string, any> = {
             "明細名稱": { title: [{ text: { content: item.name + titleSuffix } }] },
-            "明細類型": { select: { name: "報名登記" } },
+            "明細類型": { select: { name: "登記提供" } },
+            "提供類別": { select: { name: orderMode === "direct" ? "訂單出貨" : "身份個資" } },
             "登記數量": { number: perPersonQty },
             "登記單價": { number: item.price },
           };

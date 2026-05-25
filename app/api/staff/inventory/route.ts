@@ -71,7 +71,8 @@ export async function POST(req: Request) {
     for (const item of items) {
       const props: Record<string, any> = {
         "明細名稱": { title: [{ text: { content: item.name || "庫存品項" } }] },
-        "明細類型": { select: { name: "庫存紀錄" } },
+        "明細類型": { select: { name: "備查紀錄" } },
+        "紀錄類別": { select: { name: operation === "進貨" ? "採購進貨" : "維護庫存" } },
         "登記數量": { number: item.quantity || 0 },
       };
       if (operation === "出貨" && item.price) {
@@ -97,7 +98,7 @@ export async function POST(req: Request) {
       if (!misc.amount || misc.amount <= 0) continue;
       const props: Record<string, any> = {
         "明細名稱": { title: [{ text: { content: misc.name || "雜支" } }] },
-        "明細類型": { select: { name: "庫存紀錄" } },
+        "明細類型": { select: { name: "備查紀錄" } },
         "登記數量": { number: 1 },
         "登記單價": { number: misc.amount },
       };
