@@ -3,7 +3,7 @@ import { Client } from "@notionhq/client";
 // Notion client singleton
 const notion = new Client({
   auth: process.env.NOTION_API_KEY,
-  timeoutMs: 120_000, // 2 分鐘，大量分頁查詢需要更長時間
+  timeoutMs: 10_000, // 10 秒；2 分鐘舊值會讓 Vercel function hang 並吃費用
 });
 
 // Database IDs from environment
@@ -32,8 +32,9 @@ export async function queryDatabase(
 
   do {
     let response: any;
-    // 最多重試 3 次，遇到 502/504/429/timeout 時指數退避重試
-    const RETRY_DELAYS = [5000, 15000, 30000]; // 5s, 15s, 30s
+    // 最多重試 3 次，遇到 502/504/429/timeout 時短暫退避重試
+    // 舊值 [5000, 15000, 30000] 讓 Vercel function 長時間 hang、吃費用；改短
+    const RETRY_DELAYS = [500, 1000, 2000]; // 0.5s, 1s, 2s
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         response = await notion.dataSources.query({

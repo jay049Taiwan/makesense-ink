@@ -1,34 +1,51 @@
 import { getTranslations } from "next-intl/server";
+import { unstable_cache } from "next/cache";
 import { Link } from "@/i18n/routing";
 import FloatingActions from "./FloatingActions";
 import { queryDatabase, DB, extractTitle, extractSelect } from "@/lib/notion";
 
-/** 從 DB05 撈所有「官網備項」含（footer）的頁面，轉成連結清單 */
-async function fetchFooterPages(): Promise<{ label: string; slug: string }[]> {
-  try {
-    const results = await queryDatabase(
-      DB.DB05_REGISTRATION,
-      {
-        property: "官網備項",
-        select: { contains: "（footer）" },
-      },
-      [{ property: "內容名稱", direction: "ascending" as const }],
-      20
+/** 從 DB05 撈所有「官網備項」select 不為空的頁面，
+ *  再用 JS 過濾 value 結尾含「（footer）」的項目。
+ *  select 不支援 contains，所以改用 is_not_empty + JS 過濾。
+ *
+ *  快取 1 小時，避免每次 SSR 都打 Notion API（降成本 + 避免 hang）
+ */
+const fetchFooterPages = unstable_cache(
+  async (): Promise<{ label: string; slug: string }[]> => {
+    // 用 Promise.race 限制 6 秒，避免 Notion 慢時讓 Vercel function hang
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Notion fetch timeout")), 6000)
     );
-
-    return results
-      .map((page: any) => {
-        const raw = extractSelect(page.properties["官網備項"]?.select) || "";
-        const label = raw.replace(/（footer）$/, "").trim();
-        if (!label) return null;
-        return { label, slug: encodeURIComponent(label) };
-      })
-      .filter(Boolean) as { label: string; slug: string }[];
-  } catch (e: any) {
-    console.warn("[Footer] Notion fetch failed:", e?.message);
-    return [];
-  }
-}
+    try {
+      const results = await Promise.race([
+        queryDatabase(
+          DB.DB05_REGISTRATION,
+          {
+            property: "官網備項",
+            select: { is_not_empty: true },
+          },
+          [{ property: "內容名稱", direction: "ascending" as const }],
+          50
+        ),
+        timeout,
+      ]);
+      return results
+        .map((page: any) => {
+          const raw = extractSelect(page.properties["官網備項"]?.select) || "";
+          if (!raw.includes("（footer）")) return null;
+          const label = raw.replace(/（footer）$/, "").trim();
+          if (!label) return null;
+          return { label, slug: encodeURIComponent(label) };
+        })
+        .filter(Boolean) as { label: string; slug: string }[];
+    } catch (e: any) {
+      console.warn("[Footer] Notion fetch failed:", e?.message);
+      return [];
+    }
+  },
+  ["footer-pages"],
+  { revalidate: 3600 } // 1 小時快取
+);
 
 export default async function Footer() {
   const t = await getTranslations("footer");
