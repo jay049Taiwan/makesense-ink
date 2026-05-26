@@ -61,7 +61,7 @@ function analyze(page: any) {
   const titleArr = props["對象名稱"]?.title || [];
   const title = titleArr.map((x: any) => x.plain_text).join("").trim();
   const hasCJK = /[぀-ヿ㐀-䶿一-鿿ｦ-ﾟ]/.test(title);
-  const bizType = props["經營類型"]?.select?.name || null;
+  const bizType = props["標籤狀態"]?.status?.name || null;
   const memberStatus = props["會員狀態"]?.status?.name || null;
   let relCount = 0;
   for (const k of Object.keys(props)) {
@@ -228,11 +228,11 @@ export async function GET(req: NextRequest) {
       breakdown: {
         名稱含中日韓字: cjk,
         名稱純英數: noCJK,
-        有經營類型: hasBiz,
+        有標籤狀態: hasBiz,
         有會員狀態: hasMember,
         有任一relation: hasRel,
       },
-      依經營類型: byBizType,
+      依標籤狀態: byBizType,
       依會員狀態: byMemberStatus,
       全量依建立者: allByCreator,
       全量依月份: allByMonth,

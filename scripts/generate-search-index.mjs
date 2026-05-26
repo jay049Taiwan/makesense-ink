@@ -51,11 +51,11 @@ async function main() {
     query(DB04, { property: "活動選項", select: { is_not_empty: true } }, [{ property: "執行時間", direction: "descending" }]),
     // 文章：文案選項=網頁社群 + 社群細項=Sense官網
     query(DB05, { and: [{ property: "文案選項", select: { equals: "網頁社群" } }, { property: "社群細項", select: { equals: "Sense官網" } }] }, [{ property: "建立時間", direction: "descending" }]),
-    // 觀點與標籤：經營類型 IN (觀點, 標籤)（DB08，2026/04/22 新 select 選項，取代舊「主題標籤」）
+    // 觀點與追蹤：標籤狀態 IN (觀點, 追蹤)（DB08，status 型）
     query(DB08, {
       or: [
-        { property: "經營類型", select: { equals: "觀點" } },
-        { property: "經營類型", select: { equals: "標籤" } },
+        { property: "標籤狀態", status: { equals: "觀點" } },
+        { property: "標籤狀態", status: { equals: "追蹤" } },
       ],
     }, [{ property: "更新時間", direction: "descending" }]),
   ]);

@@ -241,7 +241,7 @@ export async function fetchTransactions(limit = 50): Promise<TransactionItem[]> 
 export interface KeywordItem {
   id: string;
   name: string;
-  type: string;        // 經營類型：觀點 / 標籤
+  type: string;        // 標籤狀態：觀點 / 追蹤
   summary: string;     // 簡介摘要
   slug: string;
 }
@@ -252,8 +252,8 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
       DB.DB08_RELATIONSHIP,
       {
         or: [
-          { property: "經營類型", select: { equals: "觀點" } },
-          { property: "經營類型", select: { equals: "標籤" } },
+          { property: "標籤狀態", status: { equals: "觀點" } },
+          { property: "標籤狀態", status: { equals: "追蹤" } },
         ],
       },
       [{ property: "更新時間", direction: "descending" as const }],
@@ -264,7 +264,7 @@ export async function fetchKeywords(limit = 20): Promise<KeywordItem[]> {
       return {
         id: page.id,
         name: extractTitle(props["對象名稱"]?.title),
-        type: extractSelect(props["經營類型"]?.select) || "",
+        type: extractSelect(props["標籤狀態"]?.status) || "",
         summary: extractText(props["簡介摘要"]?.rich_text),
         slug: page.id.replace(/-/g, ""),
       };
@@ -289,7 +289,7 @@ export async function fetchPersonByEmail(email: string): Promise<KeywordItem | n
     return {
       id: page.id,
       name: extractTitle(props["對象名稱"]?.title),
-      type: extractSelect(props["經營類型"]?.select) || "",
+      type: extractSelect(props["標籤狀態"]?.status) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };
@@ -344,7 +344,7 @@ export async function fetchPersonByLineUid(lineUid: string): Promise<KeywordItem
     return {
       id: page.id,
       name: extractTitle(props["對象名稱"]?.title),
-      type: extractSelect(props["經營類型"]?.select) || "",
+      type: extractSelect(props["標籤狀態"]?.status) || "",
       summary: extractText(props["簡介摘要"]?.rich_text),
       slug: page.id.replace(/-/g, ""),
     };

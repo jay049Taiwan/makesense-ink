@@ -256,12 +256,12 @@ async function syncPersons() {
   return result;
 }
 
-// ── DB08 → topics（經營類型 IN 觀點, 標籤） ──
+// ── DB08 → topics（標籤狀態 IN 觀點, 追蹤） ──
 async function syncTopics() {
   const pages = await queryDatabase(DB.DB08_RELATIONSHIP, {
     or: [
-      { property: "經營類型", select: { equals: "觀點" } },
-      { property: "經營類型", select: { equals: "標籤" } },
+      { property: "標籤狀態", status: { equals: "觀點" } },
+      { property: "標籤狀態", status: { equals: "追蹤" } },
     ],
   });
 
@@ -304,7 +304,7 @@ async function syncTopics() {
 
   const rows = pages.map(page => {
     const props = p(page);
-    const category = extractSelect(props["經營類型"]?.select);
+    const category = extractSelect(props["標籤狀態"]?.status);
     // 地址：(a) DB08「地址」rich_text 優先（手填，已是繁體）→ (b) 否則用 Notion Place 抽，opencc 簡轉繁
     const handAddr = extractText(props["地址"]?.rich_text);
     let addressText: string | null = handAddr || null;
@@ -331,7 +331,7 @@ async function syncTopics() {
     return {
       notion_id: nid(page),
       name: extractTitle(props["對象名稱"]?.title) || "未命名",
-      tag_type: category === "觀點" ? "viewpoint" : "tag",
+      tag_type: category === "觀點" ? "viewpoint" : "tag", // 觀點→viewpoint，追蹤→tag
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       address_text: addressText,
@@ -429,7 +429,7 @@ async function syncStaff() {
   return result;
 }
 
-// ── DB08 → db08_places（不限經營類型，只要「地點」property 有座標就 upsert）──
+// ── DB08 → db08_places（不限標籤狀態，只要「地點」property 有座標就 upsert）──
 // 這張表是全工作區的地點權威，給走讀路線、地圖功能用
 async function syncDb08Places() {
   // 拉所有 DB08 page，沒 filter（紀錄類也要）
@@ -446,7 +446,7 @@ async function syncDb08Places() {
         name: extractTitle(props["對象名稱"]?.title) || "未命名",
         place,
         region: extractSelect(props["行政區域"]?.select) || null,
-        category: extractSelect(props["經營類型"]?.select) || null,
+        category: extractSelect(props["標籤狀態"]?.status) || null,
         updated_at: new Date().toISOString(),
       };
     })

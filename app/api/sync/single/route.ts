@@ -834,21 +834,21 @@ async function syncSingleProduct(nid: string, props: any) {
 
 // ── DB08 → persons / topics / partners / members / staff ──
 // 新規則（2026/04/22）：
-// - topics:   經營類型 IN (觀點, 標籤)
+// - topics:   標籤狀態 IN (觀點, 追蹤)
 // - persons:  會員狀態=會員 AND 關係選項=個人
 // - partners: 會員狀態=會員 AND 關係選項=合作夥伴
 // - staff:    會員狀態=會員 AND 關係選項=工作團隊
 // - members:  會員狀態=會員（不論 關係選項）
-// 同一筆 DB08 page 可能同時滿足多個條件（例如帶路老師：經營類型=觀點 + 關係選項=個人），一起寫
+// 同一筆 DB08 page 可能同時滿足多個條件（例如帶路老師：標籤狀態=觀點 + 關係選項=個人），一起寫
 async function syncSingleRelation(nid: string, props: any) {
-  const category = sel(props["經營類型"]);           // 觀點 / 標籤 / 紀錄
+  const category = st(props["標籤狀態"]);           // 觀點 / 追蹤 / 紀錄（status 型）
   const relation = sel(props["關係選項"]);           // 個人 / 合作夥伴 / 工作團隊
   const isMember = st(props["會員狀態"]) === "會員";
   const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });
 
   const results: any[] = [];
 
-  // ── 寫入 db08_places（不限經營類型，只要「地點」property 有座標就 upsert）──
+  // ── 寫入 db08_places（不限標籤狀態，只要「地點」property 有座標就 upsert）──
   // 這張表是全工作區的地點權威，給走讀路線、地圖功能用
   const placeProp = props["地點"];
   if (placeProp?.type === "place" && placeProp.place?.lat != null && placeProp.place?.lon != null) {
@@ -865,8 +865,8 @@ async function syncSingleRelation(nid: string, props: any) {
     else results.push({ table: "db08_places", title: placeRow.name });
   }
 
-  // ── 寫入 topics（經營類型 IN 觀點, 標籤）──
-  if (category === "觀點" || category === "標籤") {
+  // ── 寫入 topics（標籤狀態 IN 觀點, 追蹤）──
+  if (category === "觀點" || category === "追蹤") {
     let content: string | null = null;
     try {
       const pageId = nid.replace(/^(.{8})(.{4})(.{4})(.{4})(.{12})$/, "$1-$2-$3-$4-$5");
@@ -909,7 +909,7 @@ async function syncSingleRelation(nid: string, props: any) {
     const row: Record<string, any> = {
       notion_id: nid,
       name: t(props["對象名稱"]) || "未命名",
-      tag_type: category === "觀點" ? "viewpoint" : "tag",
+      tag_type: category === "觀點" ? "viewpoint" : "tag", // 觀點→viewpoint，追蹤→tag
       summary: tx(props["簡介摘要"]),
       cover_url: fileUrl(props["上傳檔案"]),
       address_text: addressText,
@@ -1012,7 +1012,7 @@ async function syncSingleRelation(nid: string, props: any) {
   }
 
   if (results.length === 0) {
-    return { table: "unknown", note: `經營類型=${category}, 關係選項=${relation}, 會員狀態=${isMember ? "會員" : "非會員"}，無對應同步邏輯`, nid };
+    return { table: "unknown", note: `標籤狀態=${category}, 關係選項=${relation}, 會員狀態=${isMember ? "會員" : "非會員"}，無對應同步邏輯`, nid };
   }
   // 返回第一筆結果（向下相容），並在 note 裡列出所有寫入的表
   return results.length === 1 ? results[0] : { ...results[0], also: results.slice(1).map(r => r.table) };
