@@ -37,7 +37,7 @@ export default async function SearchPage({ searchParams }: SearchPageProps) {
     supabase
       .from("products")
       .select("id, notion_id, name, description, price, images, category, stock, updated_at")
-      .eq("status", "active")
+      .eq("publish_status", "已發佈")
       .or(`name.ilike.${like},description.ilike.${like}`)
       .limit(120),
     supabase

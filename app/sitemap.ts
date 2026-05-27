@@ -48,11 +48,11 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.6,
   }));
 
-  // Dynamic: active products
+  // Dynamic: 已發佈 products
   const { data: products } = await supabase
     .from("products")
     .select("notion_id, updated_at")
-    .eq("status", "active")
+    .eq("publish_status", "已發佈")
     .eq("page_status", "有頁面");
 
   const productPages: MetadataRoute.Sitemap = (products ?? []).map((product) => ({

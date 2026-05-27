@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
   const [products, events, articles, topics] = await Promise.all([
     supabase.from("products")
       .select("notion_id, name, price, images, category, description, updated_at")
-      .eq("status", "active")
+      .eq("publish_status", "已發佈")
       .eq("page_status", "有頁面")
       .or(`name.ilike.${like},description.ilike.${like}`)
       .limit(40),

@@ -82,10 +82,13 @@ export async function POST(req: NextRequest) {
       // DB07（products）頁面狀態由使用者控制、不回寫
       if (table !== "articles" && table !== "products") {
         const statusField = "發佈狀態";
-        if (urlMap[table] && result.status !== "draft" && result.status !== null) {
-          await writebackPublish(cleanId, urlMap[table], statusField);
-        } else if (result.status === "draft") {
+        if (result.status === "draft") {
           await writebackUnpublish(cleanId, statusField);
+        } else if (result.noWriteUrl && result.status !== null) {
+          // 類別等無公開頁的對象：只翻發佈狀態，不寫對應連結
+          await writebackPublishNoUrl(cleanId, statusField);
+        } else if (urlMap[table] && result.status !== "draft" && result.status !== null) {
+          await writebackPublish(cleanId, urlMap[table], statusField);
         }
       }
 
@@ -823,6 +826,7 @@ async function syncSingleProduct(nid: string, props: any) {
     related_topic_ids: JSON.stringify(relatedTopicIds),
     related_article_ids: JSON.stringify(relatedArticleIds),
     status: mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" }),
+    publish_status: st(props["發佈狀態"]) || null,
     page_status: st(props["頁面狀態"]) || "無頁面",
   };
   if (row.status === null) return { table: "products", title: row.name, status: null, skipped: true };
@@ -934,6 +938,34 @@ async function syncSingleRelation(nid: string, props: any) {
       results.push({ table: "topics", title: row.name, status, hasContent: !!content });
     } else {
       results.push({ table: "topics", title: row.name, status: null, skipped: true });
+    }
+  }
+
+  // ── 寫入 topics（對象類型=類別 → tag_type=category，商品分類）──
+  // 類別的會員商品掛在「對應類別商品」relation；related_product_ids 存對應 Supabase product id
+  if (sel(props["對象類型"]) === "類別") {
+    const catProdRels = rel(props["對應類別商品"]).map((id: string) => id.replace(/-/g, ""));
+    let catProductIds: string[] = [];
+    if (catProdRels.length > 0) {
+      const { data } = await supabase.from("products").select("id, notion_id").in("notion_id", catProdRels);
+      const byNid = new Map((data || []).map((r: any) => [r.notion_id, r.id]));
+      catProductIds = catProdRels.map((c) => byNid.get(c)).filter(Boolean) as string[];
+    }
+    const catRow: Record<string, any> = {
+      notion_id: nid,
+      name: t(props["對象名稱"]) || "未命名",
+      tag_type: "category",
+      summary: tx(props["簡介摘要"]),
+      cover_url: fileUrl(props["上傳檔案"]),
+      related_product_ids: catProductIds,
+      status,
+    };
+    if (status !== null) {
+      const { error } = await supabase.from("topics").upsert(catRow, { onConflict: "notion_id" });
+      if (error) throw new Error(`topics(category) upsert: ${error.message}`);
+      results.push({ table: "topics", title: catRow.name, status, tagType: "category", noWriteUrl: true });
+    } else {
+      results.push({ table: "topics", title: catRow.name, status: null, skipped: true });
     }
   }
 

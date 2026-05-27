@@ -54,7 +54,7 @@ export default async function CultureClubPage() {
   });
 
   const [prodsRes, eventsRes, artsRes, tagsRes] = await Promise.all([
-    prodIds.size ? supabase.from("products").select("id, notion_id, name, price, images, updated_at").in("id", [...prodIds]).eq("status", "active") : Promise.resolve({ data: [] as any[] }),
+    prodIds.size ? supabase.from("products").select("id, notion_id, name, price, images, updated_at").in("id", [...prodIds]).eq("publish_status", "已發佈") : Promise.resolve({ data: [] as any[] }),
     eventIds.size ? supabase.from("events").select("id, notion_id, title, cover_url, event_date, updated_at").in("id", [...eventIds]).eq("status", "active") : Promise.resolve({ data: [] as any[] }),
     articleIds.size ? supabase.from("articles").select("id, notion_id, title, cover_url, updated_at, web_tag").in("id", [...articleIds]).eq("status", "published") : Promise.resolve({ data: [] as any[] }),
     tagIds.size ? supabase.from("topics").select("id, notion_id, name, updated_at").in("id", [...tagIds]).eq("tag_type", "tag").eq("status", "active") : Promise.resolve({ data: [] as any[] }),

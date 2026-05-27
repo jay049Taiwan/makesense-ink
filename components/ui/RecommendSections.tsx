@@ -118,7 +118,7 @@ export function MightAlsoLike() {
       const { data } = await supabase
         .from("products")
         .select("id, notion_id, name, price, images, stock")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
         .gt("stock", 0)  // 只推薦有庫存的
         .order("updated_at", { ascending: false })

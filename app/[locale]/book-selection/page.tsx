@@ -30,7 +30,7 @@ export default function BookSelectionPage() {
       const { data } = await supabase
         .from("products")
         .select("id, notion_id, name, price, stock, category, images, status, author_id, publisher_id")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
         .gt("stock", 0)
         .ilike("category", "%選書%")

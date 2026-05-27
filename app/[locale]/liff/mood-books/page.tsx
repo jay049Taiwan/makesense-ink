@@ -114,7 +114,7 @@ export default function MoodBooksPage() {
       const { data: products } = await supabase
         .from("products")
         .select("id, notion_id, name, price, images")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
         .gt("stock", 0)
         .limit(20);

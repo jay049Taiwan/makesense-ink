@@ -626,3 +626,36 @@ npm run lint   # ESLint
 - 表格全部改為 `sm:hidden` card list + `hidden sm:block` 桌面版 table 雙版本
 - 按鈕最小高度 40px
 - 容器 padding 行動版縮小
+
+---
+
+## 📌 補充更新（2026/05/27 商品發佈狀態 + 商品分類）
+
+### products.publish_status 欄位（新增）
+- 存「發佈狀態」原始值：`已發佈` / `待發佈` / `不發佈`
+- 原因：`status` 欄把 `已發佈` 和 `待發佈` 都映射成 `active`，導致「待發佈」商品會外露到官網
+- **公開商品展示一律改用 `.eq("publish_status", "已發佈")` 把關**（取代舊 `.eq("status", "active")`）
+- 已套用：fetchSBProducts / fetchSBOwnProducts、goods-selection、book-selection、bookstore、cultureclub、viewpoint/[slug]、RecommendSections、search、search-index、sitemap、liff/shop、liff/mood-books
+- 不套用（管理/交易情境，需看全部商品）：dashboard/partner、dashboard/products、workbench、checkout、barcode-lookup、partner QR、liff/partner
+- 同步：全量 /api/sync 與單筆 /api/sync/single 的 products 都寫入 `publish_status`
+- 既有 active 商品已回填 `publish_status='已發佈'`（migration backfill）
+
+### 商品分類（DB08 對象類型=類別）
+- **DB08「對象類型」select 使用「類別」** → 同步成 `topics.tag_type='category'`
+- 類別底下的會員商品掛在 DB08「對應類別商品」relation（→ DB07）
+- 同步時把該 relation 解析成 Supabase product id 陣列，存 `topics.related_product_ids`（jsonb）
+- syncTopics 的 query 已納入 `對象類型=類別`，cleanup 用同一份 validRows 不會誤刪類別
+- 單筆同步：DB08 page `對象類型=類別` 走新分支寫 topics(category)；因類別無公開頁，回寫只翻發佈狀態（writebackPublishNoUrl），不寫對應連結
+- 類別也走「發佈更新」流程（需設發佈狀態才同步），與其他內容一致
+
+### fetchSBProductCategories(kind)（lib/fetch-supabase.ts）
+- kind = `選書` / `選物`（對應 products.sub_category）
+- 回傳「至少有 1 個已發佈 + 有庫存、同 kind 商品」的分類：`{ id, name, productIds }`
+- productIds = 該分類底下、已發佈、有庫存的 Supabase product UUID 子集
+- goods-selection「商品分類」chip/側欄改用此 helper（取代舊的把 category 字串當分類）
+- 前端用 `categoryMap[分類名]`（Set<product UUID>）比對 `product.id` 做篩選（故商品物件需保留 Supabase UUID = rawId）
+
+### 商品顯示規則（沿用 2026/04/15，未改）
+- 列表頁（主題選書 / 風格選物 / 推薦區）：`publish_status=已發佈` + `stock>0`，庫存 0 不顯示
+- 搜尋 / 文化觀點：`publish_status=已發佈`，不過濾庫存
+- 商品單頁：用 notion_id 直查，庫存 0 顯示紅色「無庫存」色塊

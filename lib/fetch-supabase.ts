@@ -86,7 +86,7 @@ export async function fetchSBProducts(subCategory?: string, limit = 12) {
   let query = supabase
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, author_id, publisher_id")
-    .eq("status", "active")
+    .eq("publish_status", "已發佈")  // 只顯示已發佈（待發佈不外露）
     .eq("page_status", "有頁面")  // 只顯示獨立商品（票券/加購等隱藏）
     .gt("stock", 0)  // 只顯示有庫存的
     .order("updated_at", { ascending: false })
@@ -143,7 +143,7 @@ export async function fetchSBOwnProducts(limit = 24) {
   const { data, error } = await supabase
     .from("products")
     .select("id, notion_id, name, price, stock, category, description, images, status, publisher_id")
-    .eq("status", "active")
+    .eq("publish_status", "已發佈")  // 只顯示已發佈（待發佈不外露）
     .eq("page_status", "有頁面")
     .gt("stock", 0)  // 只顯示有庫存的
     .in("publisher_id", brandIds)
@@ -166,6 +166,38 @@ export async function fetchSBOwnProducts(limit = 24) {
     publisher: p.publisher_id ? (brandMap[p.publisher_id] || "—") : "—",
     slug: p.notion_id || p.id,
   }));
+}
+
+/**
+ * 商品分類（DB08 對象類型=類別 → topics tag_type='category'）
+ * 只回傳「至少有 1 個已發佈、同 kind 商品」的分類。
+ * @param kind 商品選項 sub_category：「選書」或「選物」
+ * 回傳 productIds 為該分類底下、已發佈、同 kind 的 Supabase product UUID 子集
+ */
+export async function fetchSBProductCategories(kind: string) {
+  const { data: prods } = await supabase
+    .from("products")
+    .select("id")
+    .eq("publish_status", "已發佈")
+    .eq("page_status", "有頁面")
+    .eq("sub_category", kind)
+    .gt("stock", 0);
+  const publishedIds = new Set((prods || []).map((p: any) => p.id));
+  if (publishedIds.size === 0) return [];
+
+  const { data: cats } = await supabase
+    .from("topics")
+    .select("notion_id, name, related_product_ids")
+    .eq("tag_type", "category")
+    .eq("status", "active");
+
+  return (cats || [])
+    .map((c: any) => {
+      const ids = (Array.isArray(c.related_product_ids) ? c.related_product_ids : [])
+        .filter((id: string) => publishedIds.has(id));
+      return { id: c.notion_id, name: cleanTitle(c.name), productIds: ids as string[] };
+    })
+    .filter((c) => c.productIds.length > 0);
 }
 
 // ═══════════════════════════════════════════

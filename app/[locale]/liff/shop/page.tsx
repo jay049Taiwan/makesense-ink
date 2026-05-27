@@ -170,7 +170,7 @@ export default function LiffShopPage() {
       let query1 = supabase
         .from("products")
         .select("id, notion_id, name, price, images, author_id, category, description")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
         .gt("stock", 0)
         .or(catOrClause);
@@ -193,7 +193,7 @@ export default function LiffShopPage() {
         const { data: fallback } = await supabase
           .from("products")
           .select("id, notion_id, name, price, images, author_id, category, description")
-          .eq("status", "active")
+          .eq("publish_status", "已發佈")
           .gt("stock", 0)
           .or(catOrClause)
           .order("updated_at", { ascending: false })
@@ -213,7 +213,7 @@ export default function LiffShopPage() {
         const { data: topicProds } = await supabase
           .from("products")
           .select("id, notion_id, name, price, images, author_id, related_topic_ids")
-          .eq("status", "active")
+          .eq("publish_status", "已發佈")
           .gt("stock", 0)
           .or(catOrClause)
           .limit(20);
@@ -236,7 +236,7 @@ export default function LiffShopPage() {
       const { data: random } = await supabase
         .from("products")
         .select("id, notion_id, name, price, images, author_id")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
         .gt("stock", 0)
         .or(catOrClause)

@@ -103,7 +103,7 @@ export default function ViewpointPage({ params }: { params: Promise<{ locale: st
         const { data: prods } = await supabase
           .from("products")
           .select("id, notion_id, name, price, images, status")
-          .eq("status", "active")
+          .eq("publish_status", "已發佈")
           .eq("page_status", "有頁面")
           .limit(5);
 

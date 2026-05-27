@@ -262,6 +262,7 @@ async function syncTopics() {
     or: [
       { property: "標籤狀態", status: { equals: "觀點" } },
       { property: "標籤狀態", status: { equals: "追蹤" } },
+      { property: "對象類型", select: { equals: "類別" } },
     ],
   });
 
@@ -274,6 +275,7 @@ async function syncTopics() {
   for (const page of pages) {
     const props = p(page);
     extractRelation(props["對應標籤庫存"]?.relation).forEach((id: string) => needProdNids.add(id.replace(/-/g, "")));
+    extractRelation(props["對應類別商品"]?.relation).forEach((id: string) => needProdNids.add(id.replace(/-/g, "")));
     extractRelation(props["對應標籤協作"]?.relation).forEach((id: string) => needEventNids.add(id.replace(/-/g, "")));
     extractRelation(props["對應標籤內容"]?.relation).forEach((id: string) => needArticleNids.add(id.replace(/-/g, "")));
     extractRelation(props["自對標籤"]?.relation).forEach((id: string) => needTopicNids.add(id.replace(/-/g, "")));
@@ -305,6 +307,7 @@ async function syncTopics() {
   const rows = pages.map(page => {
     const props = p(page);
     const category = extractSelect(props["標籤狀態"]?.status);
+    const isCategory = extractSelect(props["對象類型"]?.select) === "類別"; // 對象類型=類別 → 商品分類
     // 地址：(a) DB08「地址」rich_text 優先（手填，已是繁體）→ (b) 否則用 Notion Place 抽，opencc 簡轉繁
     const handAddr = extractText(props["地址"]?.rich_text);
     let addressText: string | null = handAddr || null;
@@ -331,7 +334,7 @@ async function syncTopics() {
     return {
       notion_id: nid(page),
       name: extractTitle(props["對象名稱"]?.title) || "未命名",
-      tag_type: category === "觀點" ? "viewpoint" : "tag", // 觀點→viewpoint，追蹤→tag
+      tag_type: isCategory ? "category" : (category === "觀點" ? "viewpoint" : "tag"), // 類別→category，觀點→viewpoint，追蹤→tag
       summary: extractText(props["簡介摘要"]?.rich_text) || null,
       cover_url: fileUrl(props["上傳檔案"]) || null,
       address_text: addressText,
@@ -345,7 +348,7 @@ async function syncTopics() {
         const s = extractSelect(props["行政區域"]?.select);
         return s ? [s] : [];
       })(),
-      related_product_ids: resolveRel(props["對應標籤庫存"], productIdByNid),
+      related_product_ids: resolveRel(isCategory ? props["對應類別商品"] : props["對應標籤庫存"], productIdByNid),
       related_event_ids: resolveRel(props["對應標籤協作"], eventIdByNid),
       related_article_ids: resolveRel(props["對應標籤內容"], articleIdByNid),
       related_tag_ids: resolveRel(props["自對標籤"], topicIdByNid),
@@ -495,6 +498,7 @@ async function syncProducts(wb = false, skipImages = false) {
       sub_category: sub || null,
       supplier_type: extractSelect(props["進貨屬性"]?.select) || null,
       status: ms(extractStatus(props["發佈狀態"]?.status), { "已發佈": "active", "待發佈": "active" }),
+      publish_status: extractStatus(props["發佈狀態"]?.status) || null,
       page_status: extractStatus(props["頁面狀態"]?.status) || "無頁面",
     };
   });

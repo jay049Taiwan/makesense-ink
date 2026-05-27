@@ -2,10 +2,12 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "@/lib/supabase";
+import { fetchSBProductCategories } from "@/lib/fetch-supabase";
 import SafeImage from "@/components/ui/SafeImage";
 import AddToCartButton from "@/components/ui/AddToCartButton";
 
 interface GoodsItem {
+  rawId: string;       // Supabase product UUID（用於分類比對）
   id: string;
   title: string;
   brand: string;
@@ -23,19 +25,20 @@ export default function GoodsSelectionPage() {
   const [activeSort, setActiveSort] = useState("預設");
   const [goods, setGoods] = useState<GoodsItem[]>([]);
   const [topics, setTopics] = useState<string[]>(["不分主題"]);
+  const [categoryMap, setCategoryMap] = useState<Record<string, Set<string>>>({});
   const [brands, setBrands] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     async function load() {
-      // Fetch products with category containing "選物"
+      // 已發佈、有庫存的選物商品（列表頁庫存 0 不顯示，見 CLAUDE.md 商品顯示規則）
       const { data } = await supabase
         .from("products")
         .select("id, notion_id, name, price, stock, category, images, status, publisher_id")
-        .eq("status", "active")
+        .eq("publish_status", "已發佈")
         .eq("page_status", "有頁面")
+        .eq("sub_category", "選物")
         .gt("stock", 0)
-        .eq("category", "商品/選物")
         .order("updated_at", { ascending: false })
         .limit(60);
 
@@ -52,6 +55,7 @@ export default function GoodsSelectionPage() {
         }
 
         const items: GoodsItem[] = data.map(p => ({
+          rawId: p.id,
           id: p.notion_id || p.id,
           title: p.name,
           brand: p.publisher_id ? (pubMap[p.publisher_id] || "—") : "—",
@@ -64,9 +68,13 @@ export default function GoodsSelectionPage() {
 
         setGoods(items);
 
-        // Extract unique categories and brands
-        const cats = [...new Set(items.map(i => i.category).filter(Boolean))] as string[];
-        setTopics(["不分主題", ...cats]);
+        // 商品分類：DB08 對象類型=類別（topics tag_type='category'）
+        const cats = await fetchSBProductCategories("選物");
+        const map: Record<string, Set<string>> = {};
+        for (const c of cats) map[c.name] = new Set(c.productIds);
+        setCategoryMap(map);
+        setTopics(["不分主題", ...cats.map(c => c.name)]);
+
         const bNames = [...new Set(items.map(i => i.brand).filter(b => b !== "—"))];
         setBrands(bNames);
       }
@@ -77,7 +85,7 @@ export default function GoodsSelectionPage() {
 
   const filtered = activeTopic === "不分主題"
     ? goods
-    : goods.filter(g => g.category?.includes(activeTopic));
+    : goods.filter(g => categoryMap[activeTopic]?.has(g.rawId));
 
   return (
     <div className="mx-auto max-w-[1200px] px-4 py-8">
