@@ -11,8 +11,8 @@ export const maxDuration = 30;
  * PUT /api/staff/db06/[id]/ai
  * body: { aiMode?: string, aiStatus?: string }
  *
- * 更新 DB06 清單明細的 ai模式（select）與 ai狀態（status）。
- * ai狀態 → 待執行 時，額外觸發 n8n webhook（N8N_DB06_AI_WEBHOOK）。
+ * 更新 DB06 清單明細的 智動模式（select）與 智動狀態（status）。
+ * 智動狀態 → 待執行 時，額外觸發 n8n webhook（N8N_DB06_AI_WEBHOOK）。
  * 僅限 L2 工作人員。
  */
 export async function PUT(
@@ -33,10 +33,10 @@ export async function PUT(
   const properties: Record<string, any> = {};
   if (aiMode !== undefined) {
     // 空字串代表清空 select
-    properties["ai模式"] = aiMode ? { select: { name: aiMode } } : { select: null };
+    properties["智動模式"] = aiMode ? { select: { name: aiMode } } : { select: null };
   }
   if (aiStatus !== undefined) {
-    properties["ai狀態"] = { status: { name: aiStatus } };
+    properties["智動狀態"] = { status: { name: aiStatus } };
   }
 
   try {
