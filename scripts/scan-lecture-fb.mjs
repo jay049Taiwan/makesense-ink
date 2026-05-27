@@ -93,7 +93,7 @@ async function queryAll(dataSourceId, filter, label) {
 
 async function scan() {
   const outArg = process.argv.indexOf("--out");
-  const outPath = outArg > -1 ? process.argv[outArg + 1] : "lecture-fb-report.json";
+  const outPath = outArg > -1 ? process.argv[outArg + 1] : "/tmp/lecture-fb-report.json";
 
   console.error("① 抓 DB04 講座課程活動…");
   const events = await queryAll(

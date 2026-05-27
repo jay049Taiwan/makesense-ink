@@ -146,6 +146,8 @@ DB05 的每個對外 relation 有**三條獨立鏈**，語意完全不同：
 | 對應建立/起算/執行/截止日期 | DB09 | 時間軸關聯 |
 | ai_對應對象 / ai_對應標籤（DB08）| AI 自動建議的對應 |
 
+> **patch 用 property id 校正（2026-05-27 線上實測）**：DB05 `對應協作`（→DB04）的 property id 是 **`WDxNQw`**；DB04 `對應內容`（→DB05）的 property id 是 **`Astz`**（base64 `QXN0eg`）。兩者是同一組 dual-sync 的兩端。⚠️ 過去交接 brief 曾把「DB05 對應協作」誤記成 `Astz`——那其實是 **DB04 端**的 id。用 raw API patch DB05 貼文時，properties key 要用**名稱 `對應協作`** 或 **id `WDxNQw`**，**不要用 `Astz`**（DB05 page 沒有這個 property，Notion 會回 400）。
+
 ### X引用（引用提及，非上下游）— 9 個（2026/05/06 補建完成）
 | 欄位 | → DB | 語意 |
 |---|---|---|
