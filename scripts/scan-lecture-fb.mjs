@@ -2,8 +2,11 @@
  * 講座課程 FB 覆蓋掃描（Method B）
  *
  * 目的：掃 DB04「活動選項=講座課程」的每一場，對照 DB05 的 FB 貼文
- * （素材類別=文案 + 社群細項=Facebook，經 對應協作 relation 連到 DB04），
- * 算出哪幾場已有 FB 貼文、哪幾場是缺口（0 篇）。
+ * （素材類別=文案 且「社群細項=Facebook 或 登記連結含 facebook.com」，
+ *  經 對應協作 relation 連到 DB04），算出哪幾場已有 FB 貼文、哪幾場是缺口（0 篇）。
+ *
+ * 註：FB 判斷放寬到「登記連結含 facebook.com」——實測發現部分真 FB 貼文沒填
+ *     社群細項，只用 社群細項=Facebook 會漏算、把已覆蓋場次誤報成缺口。
  *
  * 必須在「能直連 api.notion.com」的環境執行（本機，或網路政策放行 Notion 的雲端環境）。
  * 雲端 web session 預設無對外網路，跑不動。
@@ -108,7 +111,12 @@ async function scan() {
     {
       and: [
         { property: "素材類別", select: { equals: "文案" } },
-        { property: "社群細項", select: { equals: "Facebook" } },
+        {
+          or: [
+            { property: "社群細項", select: { equals: "Facebook" } },
+            { property: "登記連結", url: { contains: "facebook.com" } },
+          ],
+        },
       ],
     },
     "DB05_FB"
@@ -120,9 +128,12 @@ async function scan() {
 
   // 同時記錄沒連到任何講座活動的 FB 貼文（phase 2 配對候選）
   const unlinkedPosts = [];
+  // 資料品質：FB 貼文但沒填 社群細項=Facebook（只靠 facebook.com 連結認出來）
+  let fbMissingChannel = 0;
 
   for (const post of posts) {
     const linkedEventIds = relationIds(post.properties["對應協作"]);
+    if (selectName(post.properties["社群細項"]) !== "Facebook") fbMissingChannel++;
     const postInfo = {
       id: post.id,
       url: post.url,
@@ -158,6 +169,7 @@ async function scan() {
     totals: {
       lecture_events: events.length,
       fb_posts_scanned: posts.length,
+      fb_posts_missing_社群細項: fbMissingChannel,
       covered_events: covered.length,
       gap_events: gaps.length,
       fb_posts_unlinked_to_lectures: unlinkedPosts.length,
@@ -174,7 +186,7 @@ async function scan() {
   console.log(`講座課程活動總數：${events.length}`);
   console.log(`已連 FB 貼文：${covered.length}`);
   console.log(`缺口（0 篇 FB）：${gaps.length}`);
-  console.log(`掃到的 FB 貼文：${posts.length}（其中 ${unlinkedPosts.length} 篇未連到任何講座場）`);
+  console.log(`掃到的 FB 貼文：${posts.length}（其中 ${unlinkedPosts.length} 篇未連到任何講座場；${fbMissingChannel} 篇沒填社群細項，靠 facebook.com 連結認出）`);
   console.log(`完整報告：${outPath}`);
   console.log("\n── 缺口清單（前 60 筆）──");
   for (const g of gaps.slice(0, 60)) {
