@@ -845,7 +845,7 @@ async function syncSingleProduct(nid: string, props: any) {
 // - members:  會員狀態=會員（不論 關係選項）
 // 同一筆 DB08 page 可能同時滿足多個條件（例如帶路老師：標籤狀態=觀點 + 關係選項=個人），一起寫
 async function syncSingleRelation(nid: string, props: any) {
-  const category = st(props["標籤狀態"]);           // 觀點 / 追蹤 / 紀錄（status 型）
+  const category = st(props["標籤狀態"]);           // 觀點 / 追蹤（status 型）
   const relation = sel(props["關係選項"]);           // 個人 / 合作夥伴 / 工作團隊
   const isMember = st(props["會員狀態"]) === "會員";
   const status = mapStatus(st(props["發佈狀態"]), { "已發佈": "active", "待發佈": "active" });

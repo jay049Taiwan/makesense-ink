@@ -239,8 +239,8 @@ LayoutShell（沒 Telegram 環境會有 Header）
 |-------------|------|------|
 | `articles` | DB05（文案選項=網頁社群 + 社群細項=Sense官網） | 文章 / 通訊 |
 | `events` | DB04（協作類別=辦理活動） | 活動 |
-| `products` | DB07 | 商品 / 票券 |
-| `topics` | DB08（經營類型=觀點/標籤） | 觀點 / 標籤 |
+| `products` | DB07（publish_status 存發佈狀態：已發佈/待發佈/不發佈，公開展示用「已發佈」把關） | 商品 / 票券 |
+| `topics` | DB08（標籤狀態=觀點/追蹤；對象類型=類別→tag_type=category 商品分類） | 觀點 / 追蹤 / 類別 |
 | `persons` | DB08（會員狀態=會員 + 關係選項=個人） | 帶路老師 / 創作者 |
 | `partners` | DB08（會員狀態=會員 + 關係選項=合作夥伴） | 廠商 |
 | `members` | DB08（會員狀態=會員） | 會員 |

@@ -5,10 +5,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const { slug } = await params;
   const { data } = await supabase
     .from("products")
-    .select("name, description, images, price, page_status, status")
+    .select("name, description, images, price, page_status, publish_status")
     .or(`notion_id.eq.${slug},id.eq.${slug}`)
     .eq("page_status", "有頁面")
-    .eq("status", "active")
+    .eq("publish_status", "已發佈")
     .maybeSingle();
 
   if (!data) return { title: "商品 | 旅人書店", robots: { index: false, follow: false } };
