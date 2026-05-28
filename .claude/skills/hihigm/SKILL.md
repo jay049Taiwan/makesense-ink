@@ -1,31 +1,40 @@
 ---
 name: hihigm
 description: |
-  嗨嗨總管巡查入口。觸發詞：`/hihigm`、「hihigm」、「嗨嗨巡查」「巡查嗨嗨」「嗨嗨家族健檢」
-  「巡查管線」「找萃取的地方」「嗨嗨 pipeline 檢查」。
-  本檔只是入口；嗨嗨總管的工作定義與巡查職責一律以 Notion 指南頁為單一真相來源。
+  嗨嗨總管顧問模式入口。觸發詞：`/hihigm`、「總管」開頭、「總管:」「總管：」開頭、「@總管」開頭。
+  四九丟任何素材（純文字／一般網頁網址／YouTube 連結／Podcast 連結）→ 嗨嗨總管讀懂 →
+  同時查 Notion 既有資料 → 跟四九對談給判斷與建議 → 必要時拍板後幫忙整理進系統。
+  本檔僅為路由；完整執行指示一律以 Notion 指南頁為單一真相來源。
 ---
 
-# 嗨嗨總管巡查（/hihigm）
+# hihigm — 嗨嗨總管顧問模式
 
-**嗨嗨總管的工作內容、巡查職責、巡邏訊號 一律以 Notion 為單一真相來源，不寫在本檔。**
-（四九要能直接在 Notion 查改，所以校正過的工作規則一律寫進下列 Notion 頁，不寫 hihigm.md。）
+## 觸發
 
-載入此 skill 後：
+當四九的訊息符合以下任一形式，立即載入此 skill：
 
-1. 先用 Notion MCP `fetch` 抓 **「4-2-1-1 嗨嗨總管工作指示」**
-   （id `3639ff25fdab806f9710e1e676d4ab0d`）—— 嗨嗨總管全部工作規則的真相來源。
-2. 巡邏訊號細節再 fetch **巡邏訊號頁**（id `ae64587214664fdcaff008c3574112f3`）。
-3. 依該頁「核心任務 3：主動巡邏與洞察」的巡邏訊號執行巡查（眼睛看 Notion DB01-09 與 DB06 觸發 page）。
+- `/hihigm <輸入>`
+- `總管 <輸入>` / `總管: <輸入>` / `總管：<輸入>`
+- `@總管 <輸入>`
+
+輸入可以是：純文字、一般網頁網址、YouTube 連結、Podcast 連結、多者混合。
+
+## 行為
+
+**唯一執行指示來源**：Notion 頁面
+<https://www.notion.so/049/hihigm-36e9ff25fdab800c9374f3d418a85c6b>
+
+載入後第一件事：用 Notion MCP `fetch` 上面那個 page id（`36e9ff25fdab800c9374f3d418a85c6b`），讀取完整指示，然後**完全照那頁的內容執行**。
+
+本檔不重複定義行為。Notion 指南頁是 single source of truth（單一真相來源），日後調整顧問流程只改那一頁，不動本檔。
 
 ## 鐵律
 
-- **校正嗨嗨總管工作內容 → 寫進上述 Notion 指南頁，不寫本檔。** 本檔永遠只當入口。
-- `/hihigm` 巡查「報告」只輸出在 claude session 聊天，**不寫進 Notion**（四九對 Notion AI 沒信心，巡查結論不落 Notion）。
-- 只巡查與回報，不自動改 Notion page / 不改 workflow。要動手等四九明說。
+- **校正顧問流程 → 寫進上述 Notion 指南頁，不寫本檔。** 本檔永遠只當入口。
+- **不要憑記憶執行** —— 每次觸發都要 fetch 最新 Notion 內容，因為頁面可能已被更新。
+- **不要把「巡查」職責放回來** —— 已正式廢除；DB01-09 全域變動感知改由「神經」處理，歸屬嗨嗨檢核，不屬於總管。
 
 ## 速查（會變動，以 Notion 為準）
 
-- DB06 細部流程 = 觸發 page；target = 名稱含「對應」的 relation 指向的 DB01-09 任一 page。
-- n8n v4 workflow（credential-free）：嗨嗨 Kickoff / Runner / Reply Handler / 搜查棒 / 聯想棒 v4。
-- flow_state data table `33eRHCPvnKB1df7g`；四九 Telegram chat id `8523155253`。
+- Notion 指南頁 id：`36e9ff25fdab800c9374f3d418a85c6b`
+- 四九 Telegram chat id：`8523155253`（顧問模式不主動推播，僅於必要時提示）
