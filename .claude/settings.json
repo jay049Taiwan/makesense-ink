@@ -10,6 +10,17 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__.*__notion-update-page|mcp__.*__notion-create-pages|Edit|Write|NotebookEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 .claude/hooks/check_writing_rules.py"
+          }
+        ]
+      }
     ]
   }
 }
