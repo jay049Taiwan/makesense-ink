@@ -52,7 +52,7 @@ description: 嗨嗨檢核 — 手動觸發的驗收檢查。接 Notion URL 跑 p
 
 ## 模式 1:Pipeline 檢核(Notion URL)
 
-對 target page 跑 **4-2-7-1 嗨嗨檢核 §二 檢核清單(5 項)**:
+對 target page 跑 **4-2-7-1 嗨嗨檢核 §三 5 項清單檢核**:
 
 | 項 | 應寫欄位 | 檢查 |
 |---|---|---|

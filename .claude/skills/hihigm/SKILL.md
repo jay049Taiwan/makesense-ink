@@ -164,7 +164,7 @@ Target URL: <TARGET_URL>
 ## 邊界
 
 - ✅ 寫:target page 的「執行構想」欄位(append 帶日期戳)
-- ❌ 不寫:其他任何欄位、page content、relation、ai狀態、別的 page
+- ❌ 不寫:其他任何欄位、page content、relation、智動狀態、別的 page
 - ❌ 不蓋:「── 四九修正 ──」標記、其他既有 append 段落
 - ❌ 不在四九未確認最終寫入內容前寫
 - ❌ 不腦補答案 — 四九答模糊就追問或標「待四九補」
