@@ -218,3 +218,5 @@ skill
 fallback
 history
 sub-agent
+call
+replace
