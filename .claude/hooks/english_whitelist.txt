@@ -197,3 +197,6 @@ row
 database
 review
 select
+Explore
+context
+session
