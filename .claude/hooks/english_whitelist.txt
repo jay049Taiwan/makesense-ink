@@ -213,3 +213,4 @@ delete
 filter
 template
 view
+ToolSearch
