@@ -214,3 +214,5 @@ filter
 template
 view
 ToolSearch
+skill
+fallback
