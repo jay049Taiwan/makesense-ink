@@ -216,3 +216,5 @@ view
 ToolSearch
 skill
 fallback
+history
+sub-agent
