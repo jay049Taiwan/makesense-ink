@@ -45,15 +45,15 @@
 ## 嗨嗨家族
 - **2026/05 重整**：執行架構改 n8n + Claude + Telegram reviewer-in-the-loop（見 [hihi_n8n_pipeline.md](memory/hihi_n8n_pipeline.md)）。**嗨嗨構想已退役、併入嗨嗨企劃**（企劃變 stage-aware 規劃師）。家族從 7 → **6 成員**：企劃／搜查／分析／聯想／文案／檢核 ＋ 元層總管。
 - 執行順序由 DB06「排序」決定，非固定鏈；「企劃→搜查→分析→聯想→文案→檢核」只是建議預設順序。
-- 嗨嗨聯想核心能力：**跨類資料引用**；特殊權限：**家族中唯一可寫名稱含「引用」的欄位**（「被引」由 Notion dual-sync 自動鏡射、無人手動寫；2026/05/17 四九 明示）
+- 嗨嗨聯想核心能力：雙層引用 / 跨域聯想；特殊權限：**家族中唯一可寫名稱含「引用」、「聯想」的欄位**（DB01-09 各 9 個聯想 relation，2026/05/30 新增；「被引」由 Notion dual-sync 自動鏡射、無人手動寫）
 - 嗨嗨搜查 2 模式（2026/05/18 重整→2）：專題研究（別人 URL→抓網頁內容+合法檔案）/ 數據紀錄（自家 URL→抓數字指標）。界線＝對應連結是不是自家的
 - 嗨嗨搜查特殊權限：可新建 DB08 page；**也可新建 DB01 page** — 採集到值得推薦的提案時把提案名稱新建進 DB01（2026/05/17 四九 明示）
 - [hihi_scout_toolkit.md](memory/hihi_scout_toolkit.md) — 嗨嗨搜查工具箱 scout_lib.py（Playwright/cookie/R2/批次續跑），位於 hihi_scout/
 - [dedao_knowledge_archive.md](memory/dedao_knowledge_archive.md) — 劉潤兩門 5分鐘商學院 681 篇全文已封存進 DB06
-- 嗨嗨企劃核心能力（規劃師,含原嗨嗨構想職責）：把任何 target 輪廓變可執行架構;stage-aware 每次登場先盤點素材推進規劃;內容類產出章節架構/活動流程/空間場域/視覺版面,提案類產出提案大綱,採購類產出建檔規劃
+- 嗨嗨企劃核心能力：**向下開展**（唯一可往 DB02-06 建子頁）+ **構想企劃**（唯一可寫「執行構想」執行層、「企劃備註」欄位）。「企劃備註」依 target 所在 DB 寫不同內容：DB01-05 寫章節架構、DB06-09 寫資料筆記（2026/05/30 重整：原 stage-aware/章節架構獨立 page/資料筆記獨立 page 設計退役、改寫進企劃備註欄位）
 - 嗨嗨文案核心能力：依文案選項自動套對應子類指南（地方通訊/網頁社群/新聞稿/提案/報告/腳本/簡報/訪查/行政）+ 四九 voice profile；特殊權限：**家族中唯一可動 target page 的 page content**（2026/05/17 四九 明示，與既有「文案寫簡介摘要+page content」一致）
 - 嗨嗨分析核心能力：外部檔案分析 + 內部資訊分析（從 page content 抽具名詞彙建 DB08 紀錄）。家族「認識/鑑定」棒 —— 輸入端獨佔：**唯一可處理照片/外部檔案（多模態）**；輸出端獨佔：**唯一可寫分析備註**（每張 page 的身份 metadata）
-- 嗨嗨檢核核心能力：各項產出完整性檢查 + 文案語意對應檢查；特殊權限：**家族中唯一可寫「檢核備註」欄位**。輸出 4 處：target 的 執行備註+檢核備註、DB06 觸發 page 的 執行備註+檢核備註；**不再寫 分析備註**（分析備註為嗨嗨分析專屬，2026/05/17 四九 明示）；chain 末端、不修其他欄位
+- 嗨嗨檢核核心能力：成果驗收 / 神經系統；特殊權限：**家族中唯一可寫「檢核備註」欄位、唯一可寫「對應標籤」relation、唯一可合併 page**（對應標籤改由檢核獨佔寫入，2026/05/30 重整；分析備註為嗨嗨分析專屬，2026/05/17 四九 明示）。輸出 4 處：target 的 執行備註+檢核備註、DB06 觸發 page 的 執行備註+檢核備註；chain 末端、不修其他欄位
 - 嗨嗨總管元職責：突發任務派工 / 家族協調仲裁 / 主動巡邏與洞察
 - [hihi_4-2-x_migration.md](memory/hihi_4-2-x_migration.md) — 家族工作指示遷移到各類指南 4-2-X 子頁；4-2-1 總管已完成、4-2-2~4-2-7 空頁已建；skill .md 剝薄成載入器
 - [hihi_archive_extraction.md](memory/hihi_archive_extraction.md) — 封存萃取＝總管工作模式（不新增第 7 成員），triage + merge-write 累積教訓庫養文案
@@ -63,7 +63,7 @@
 ### 嗨嗨家族架構（2026/05/14 重整）
 - **共通規則住「工作導覽地圖」**：[4-1-1 嗨嗨家族工作導覽地圖 §共通鍵規區](https://www.notion.so/049/3459ff25fdab81aeab9ff3c8281805e5) 含 5 個共通段落（欄位字典導引 / 分析備註範本規範 / 欄位組合規則合集 / DB08 建檔分工鐵律 / 動手前 checklist）
 - **欄位字典 §1.D**：[2-2-1 欄位名稱指南](https://www.notion.so/049/32b9ff25fdab81caadd5e016cced1efe) 是 分析備註範本格式的 single source of truth。**統一 3-token 範本**（9 個 DB 都一樣）：`[類型]｜[執行時間]｜[關聯 DB]`。[類型] 依 [2-2-2 欄位組合指南](https://www.notion.so/049/35e9ff25fdab80269dc4f65a7ce83305) 位階組合 AI 自拼，不依 formula 值。
-- **分析備註／檢核備註 權限（2026/05/17）**：`ai備註` 欄位 9 DB 全部改名為 `分析備註`，**唯一由嗨嗨分析寫**；分析備註為空 = 該 page 尚未被分析鑑定過。`檢核備註` **唯一由嗨嗨檢核寫**。`核銷備註`（text，DB01-09 共用，核銷紀錄用，2026/05/17 新增）。其他棒要留訊息一律寫自己的 `執行備註`。
+- **備註與標籤權限（2026/05/30 重整）**：`分析備註` **唯一由嗨嗨分析寫**；`檢核備註` **唯一由嗨嗨檢核寫**；`對應標籤` relation **唯一由嗨嗨檢核寫**（2026/05/30 改由檢核獨佔，不再家族都可寫）；`執行構想` 執行層 + `企劃備註` **唯一由嗨嗨企劃寫**（2026/05/30 新增企劃備註欄位）；`核銷備註`（text，DB01-09 共用，核銷紀錄用，2026/05/17 新增）。其他成員留訊息一律寫自己的 `執行備註`。
 - 各 skill 不再重複共通規則，改成連結到工作導覽地圖（2026/05/14 全家族精簡：825 → 658 行）
 - 嗨嗨分析四種工作模式：文字分析 / 照片視覺 / 素材篩選 / 實體建檔（不再用 A/B/C/D 字母）
 - 嗨嗨分析建 DB08 不分類人物/品牌/地點，一律「經營類型=紀錄」
@@ -187,7 +187,7 @@
 - [feedback_auto_merge_pr.md](memory/feedback_auto_merge_pr.md) — makesense-ink 專案授權自動 merge PR + 部署，不需逐次確認
 - [feedback_vercel_envar_no_trailing_newline.md](memory/feedback_vercel_envar_no_trailing_newline.md) — 設 Vercel envar 用 echo -n + pipe 避免 \n 結尾造成 401
 - [feedback_thorough_analysis.md](memory/feedback_thorough_analysis.md) — 稽核結果不得說「快速分析」，要徹底不要快速
-- [feedback_corresponding_tag_open.md](memory/feedback_corresponding_tag_open.md) — 對應標籤家族都可寫；但新建 DB08 page 只有嗨嗨搜查、嗨嗨分析可以
+- ~~[feedback_corresponding_tag_open.md]~~ **2026/05/30 退役**（對應標籤改由嗨嗨檢核獨佔寫入，不再家族都可寫；新建 DB08 page 仍是嗨嗨搜查、嗨嗨分析可以）
 - [feedback_db07_no_commerce_restriction.md](memory/feedback_db07_no_commerce_restriction.md) — 對應庫存(→DB07)不限商品交易，內容提及 DB07 entity 即可連
 - [feedback_hihi_field_ownership.md](memory/feedback_hihi_field_ownership.md) — 嗨嗨管考寫「執行備註」、嗨嗨文案寫「簡介摘要」+ page content
 - [feedback_pipeline_gating.md](memory/feedback_pipeline_gating.md) — 嗨嗨家族 pipeline 工項間需總管/管考 verify 才放行下一項，不可自動連鎖
