@@ -206,3 +206,10 @@ match
 silent
 skip
 workflow
+changelog
+repo
+Brief
+delete
+filter
+template
+view
