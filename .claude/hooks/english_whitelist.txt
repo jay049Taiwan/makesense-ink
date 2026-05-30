@@ -168,3 +168,12 @@ SIMPLIFIED_CHARS
 BANNED_PHRASES_FILE
 BANNED_CHARS_FILE
 WHITELIST_FILE
+
+# === 補：常見詞 ===
+settings
+append
+timestamp
+hash
+agent
+AI
+pipeline
