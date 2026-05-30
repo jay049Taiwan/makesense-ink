@@ -46,14 +46,33 @@ function extractSummary(page) {
 
 const md5 = (s) => crypto.createHash('md5').update(s).digest('hex');
 
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
 async function notionAll(dsId) {
   const out = [];
   let cursor = undefined;
+  let pageSize = 50;
   while (true) {
-    const body = { page_size: 100 };
+    const body = { page_size: pageSize };
     if (cursor) body.start_cursor = cursor;
-    const r = await fetch(`https://api.notion.com/v1/data_sources/${dsId}/query`, { method: 'POST', headers: NH, body: JSON.stringify(body) });
-    if (!r.ok) throw new Error(`Notion ${dsId} ${r.status}: ${await r.text()}`);
+    let r, attempt = 0, ok = false;
+    while (attempt < 5) {
+      r = await fetch(`https://api.notion.com/v1/data_sources/${dsId}/query`, { method: 'POST', headers: NH, body: JSON.stringify(body) });
+      if (r.ok) { ok = true; break; }
+      const status = r.status;
+      if ([502, 503, 504, 429].includes(status)) {
+        attempt++;
+        // 503 縮 page_size、其他維持
+        if (status === 503 && pageSize > 5) pageSize = Math.max(5, Math.floor(pageSize / 2));
+        const wait = Math.min(30000, 2000 * Math.pow(2, attempt));
+        process.stdout.write(`(${status} retry ${attempt} wait ${wait}ms ps=${pageSize})`);
+        await sleep(wait);
+        body.page_size = pageSize;
+        continue;
+      }
+      break;
+    }
+    if (!ok) throw new Error(`Notion ${dsId} ${r.status}: ${await r.text()}`);
     const j = await r.json();
     out.push(...j.results);
     if (!j.has_more) break;
