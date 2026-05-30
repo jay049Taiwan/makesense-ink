@@ -177,3 +177,16 @@ hash
 agent
 AI
 pipeline
+schema
+stage-aware
+
+# === DB 範圍表示法（DBxx-xx 組合） ===
+DB01-05
+DB01-06
+DB01-09
+DB02-06
+DB06-09
+DB05-08
+DB07-09
+DB01-04
+DB04-06
