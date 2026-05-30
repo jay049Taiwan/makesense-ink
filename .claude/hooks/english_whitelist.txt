@@ -220,3 +220,8 @@ history
 sub-agent
 call
 replace
+domain
+bucket
+hihi_scout
+path
+webhook
