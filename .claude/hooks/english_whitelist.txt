@@ -192,3 +192,8 @@ DB01-04
 DB04-06
 revert
 checklist
+rename
+row
+database
+review
+select
