@@ -200,3 +200,5 @@ select
 Explore
 context
 session
+name
+property
