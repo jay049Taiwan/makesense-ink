@@ -87,11 +87,12 @@ const modeKey = $json.modeKey;
 if (!pageId) throw new Error('缺 pageId');
 if (!modeKey) throw new Error('缺 modeKey');
 
-const resp = await $helpers.httpRequest({
+const resp = await this.helpers.httpRequest({
   method: 'POST',
   url: 'https://makesense.zeabur.app/webhook/db06-' + modeKey,
   headers: { 'Content-Type': 'application/json' },
   body: { page_id: pageId, mode: mode },
+  json: true,
 });
 
 return [{ json: { batonCalled: true, pageId, modeKey } }];
@@ -108,7 +109,7 @@ const token = $env.NOTION_INTEGRATION_TOKEN;
 if (!token) throw new Error('缺 NOTION_INTEGRATION_TOKEN env');
 if (!pageId) throw new Error('缺 pageId');
 
-await $helpers.httpRequest({
+await this.helpers.httpRequest({
   method: 'PATCH',
   url: 'https://api.notion.com/v1/pages/' + pageId,
   headers: {
@@ -117,6 +118,7 @@ await $helpers.httpRequest({
     'Content-Type': 'application/json',
   },
   body: { properties: { '外掛狀態': { status: { name: '完成' } } } },
+  json: true,
 });
 
 return [{ json: { patched: true, pageId } }];
