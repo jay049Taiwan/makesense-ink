@@ -88,21 +88,35 @@ const body = {
       },
       continueOnFail: true },
 
-    // d6: PATCH 外掛狀態=完成（防重複觸發）
-    { id: 'd6', name: 'PATCH 外掛狀態=完成', type: 'n8n-nodes-base.httpRequest', typeVersion: 4, position: [1640, 300],
+    // d6: PATCH 外掛狀態=完成（Code 節點用 fetch，繞開 HTTP Request 參數命名問題）
+    { id: 'd6', name: 'PATCH 外掛狀態=完成', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1640, 300],
       parameters: {
-        method: 'PATCH',
-        url: '={{ "https://api.notion.com/v1/pages/" + $(\'解析模式\').first().json.pageId }}',
-        sendHeaders: true,
-        headerParameters: { parameters: [
-          { name: 'Authorization', value: '={{ "Bearer " + $env.NOTION_INTEGRATION_TOKEN }}' },
-          { name: 'Notion-Version', value: '2022-06-28' }
-        ]},
-        sendBody: true,
-        rawContentType: 'application/json',
-        body: '{"properties":{"外掛狀態":{"select":{"name":"完成"}}}}',
-        options: {}
-      } }
+        language: 'javaScript',
+        jsCode: `
+const pageId = $('解析模式').first().json.pageId;
+const token = $env.NOTION_INTEGRATION_TOKEN;
+if (!token) throw new Error('缺 NOTION_INTEGRATION_TOKEN env');
+if (!pageId) throw new Error('缺 pageId');
+
+const resp = await fetch('https://api.notion.com/v1/pages/' + pageId, {
+  method: 'PATCH',
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Notion-Version': '2022-06-28',
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({ properties: { '外掛狀態': { select: { name: '完成' } } } }),
+});
+
+if (!resp.ok) {
+  const err = await resp.text();
+  throw new Error('Notion PATCH 失敗 ' + resp.status + ': ' + err);
+}
+
+return [{ json: { patched: true, pageId } }];
+`.trim()
+      }
+    }
   ],
   connections: {
     'Webhook':       { main: [[{ node: '解析頁面ID',      type: 'main', index: 0 }]] },
