@@ -328,6 +328,16 @@ context 緊時優先 commit 進度文件再切 session。
 
 ## 連動 PR / commit 紀錄
 
+Session H(2026-06-01):
+- DB08 `被引總數 1` rename bug 修正：RENAME `被引總數 1` → `被引總數`，DROP `舊_被引總數`
+- `舊_` 備份欄位清理 18 個：成功刪除 13 個，5 個 DB05 欄位因 DB04 rollup 依賴而暫擱置
+  - ✅ 已刪：DB01×1(被引總數), DB02×3(被引總數/資料檢核/預算總計), DB03×2(被引總數/資料檢核)
+  - ✅ 已刪：DB04×1(被引總數), DB05×4(觀看總計/編輯紀錄/被引總數/資料檢核), DB07×2(被引總數/資料檢核)
+  - ⏸ 暫擱：DB05 `舊_按讚總計` / `舊_留言總計` / `舊_分享總計` / `舊_觸及總計` / `舊_預算總計`
+    - 原因：DB04 的 按讚總計/留言總計/分享總計/協作觸及總計/預算總計 rollup 仍以這 5 個 DB05 formula 為 target
+    - 解法：將 DB04 這 5 個 rollup 改為直接 target DB06 number 欄位（按讚=Sl9MXQ, 留言=e2txRw, 分享=P05oTw），然後才能 DROP
+- 本次 session 沒改 repo 程式碼，只動 Notion live + 更新本 progress 文件
+
 Session A(2026-05-29 前半):
 - DB01 加 4 條 🆕 + 砍 4 條毛利 + rename
 - DB06 加 5 條 🆕(尚未 rename)
