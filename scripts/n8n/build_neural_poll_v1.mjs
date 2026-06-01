@@ -1,5 +1,4 @@
-// 嗨嗨派發輪詢 v1 — cron 1 分鐘掛 DB06 智動狀態=執行中 → 派發並 claim
-// 不用 Notion Automation，n8n 自己去看 Notion
+// 嗨嗨派發輪詢 v1 — cron 1 分鐘掛 DB06 外掛狀態=進行中 → 派發並 claim
 // 用法：N8N_API_KEY=xxx node scripts/n8n/build_neural_poll_v1.mjs
 
 const N8N = 'https://makesense.zeabur.app/api/v1';
@@ -46,13 +45,13 @@ const body = {
   nodes: [
     { id: 'p1', name: 'Cron 1min', type: 'n8n-nodes-base.scheduleTrigger', typeVersion: 1, position: [240, 300],
       parameters: { rule: { interval: [{ field: 'minutes', minutesInterval: 1 }] } } },
-    { id: 'p2', name: '查 DB06 執行中', type: 'n8n-nodes-base.httpRequest', typeVersion: 4, position: [520, 300],
+    { id: 'p2', name: '查 DB06 進行中', type: 'n8n-nodes-base.httpRequest', typeVersion: 4, position: [520, 300],
       parameters: {
         method: 'POST',
         url: `https://api.notion.com/v1/data_sources/${DB06_DSID}/query`,
         sendHeaders: true, headerParameters: NH,
         sendBody: true, contentType: 'json',
-        jsonBody: '{"filter":{"property":"智動狀態","status":{"equals":"執行中"}},"page_size":10}',
+        jsonBody: '{"filter":{"property":"外掛狀態","status":{"equals":"進行中"}},"page_size":10}',
         options: {}
       } },
     { id: 'p3', name: '拆分成多筆', type: 'n8n-nodes-base.code', typeVersion: 2, position: [800, 300],
@@ -63,7 +62,7 @@ const body = {
         url: '={{ "https://api.notion.com/v1/pages/" + $json.id }}',
         sendHeaders: true, headerParameters: NH,
         sendBody: true, contentType: 'json',
-        jsonBody: '{"properties":{"智動狀態":{"status":{"name":"完成"}}}}',
+        jsonBody: '{"properties":{"外掛狀態":{"status":{"name":"完成"}}}}',
         options: {}
       },
       continueOnFail: true },
@@ -78,8 +77,8 @@ const body = {
       continueOnFail: true }
   ],
   connections: {
-    'Cron 1min': { main: [[{ node: '查 DB06 執行中', type: 'main', index: 0 }]] },
-    '查 DB06 執行中': { main: [[{ node: '拆分成多筆', type: 'main', index: 0 }]] },
+    'Cron 1min': { main: [[{ node: '查 DB06 進行中', type: 'main', index: 0 }]] },
+    '查 DB06 進行中': { main: [[{ node: '拆分成多筆', type: 'main', index: 0 }]] },
     '拆分成多筆': { main: [[{ node: 'PATCH claim=完成', type: 'main', index: 0 }]] },
     'PATCH claim=完成': { main: [[{ node: '呼叫 dispatch', type: 'main', index: 0 }]] }
   },
@@ -92,6 +91,5 @@ const created = await cr.json();
 console.log(`✅ 建立: ${created.id}  ${NAME}`);
 await fetch(`${N8N}/workflows/${created.id}/activate`, { method: 'POST', headers: H });
 console.log(`\n輪詢頻率：每 1 分鐘`);
-console.log(`監控條件：DB06 智動狀態 = 執行中 AND 智動模式 有值`);
-console.log(`動作：PATCH 智動狀態=完成（防重複）→ 呼叫 dispatch`);
-console.log(`\n🚫 不需 Notion Automation，n8n 自己輪詢`);
+console.log(`監控條件：DB06 外掛狀態 = 進行中 AND 智動模式 有值`);
+console.log(`動作：PATCH 外掛狀態=完成（claim防重複）→ 呼叫 dispatch`);
