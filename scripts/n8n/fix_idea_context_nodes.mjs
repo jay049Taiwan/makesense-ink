@@ -86,6 +86,42 @@ await this.helpers.httpRequest({
 return [{ json: { updated: true, trigger_page_id: pageId } }];
 `.trim();
 
+// ── 替換「更新明細引用」（PATCH target page relation）──
+const updateRelationCode = `
+const data = $input.first().json;
+const token = $env.NOTION_INTEGRATION_TOKEN;
+if (!token) throw new Error('缺 NOTION_INTEGRATION_TOKEN');
+
+const pageId = data.target_page_id;
+if (!pageId) throw new Error('缺 target_page_id，請確認 b12「組 relation」有輸出此欄位');
+
+// b12 可能輸出 patchBody（完整 properties）、properties、或 relationField+relationIds
+let bodyProps;
+if (data.patchBody?.properties) {
+  bodyProps = data.patchBody.properties;
+} else if (data.properties) {
+  bodyProps = data.properties;
+} else if (data.relationField && data.relationIds) {
+  bodyProps = { [data.relationField]: { relation: data.relationIds.map(id => ({ id })) } };
+} else {
+  throw new Error('無法建 PATCH body，缺 properties / patchBody / relationField+relationIds，input=' + JSON.stringify(data).slice(0,200));
+}
+
+await this.helpers.httpRequest({
+  method: 'PATCH',
+  url: 'https://api.notion.com/v1/pages/' + pageId,
+  headers: {
+    'Authorization': 'Bearer ' + token,
+    'Notion-Version': '2022-06-28',
+    'Content-Type': 'application/json',
+  },
+  body: { properties: bodyProps },
+  json: true,
+});
+
+return [{ json: { updated: true, target_page_id: pageId } }];
+`.trim();
+
 let changed = 0;
 for (const node of fullWf.nodes) {
   if (node.name === '建 DB06 明細' && node.type === 'n8n-nodes-base.httpRequest') {
@@ -93,6 +129,13 @@ for (const node of fullWf.nodes) {
     node.type = 'n8n-nodes-base.code';
     node.typeVersion = 2;
     node.parameters = { language: 'javaScript', jsCode: buildDb06Code };
+    changed++;
+  }
+  if (node.name === '更新明細引用' && node.type === 'n8n-nodes-base.httpRequest') {
+    console.log(`\n🔧 替換「更新明細引用」: ${node.id}`);
+    node.type = 'n8n-nodes-base.code';
+    node.typeVersion = 2;
+    node.parameters = { language: 'javaScript', jsCode: updateRelationCode };
     changed++;
   }
   if (node.name === '更新執行備註' && node.type === 'n8n-nodes-base.httpRequest') {
