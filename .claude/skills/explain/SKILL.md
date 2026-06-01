@@ -14,9 +14,9 @@ description: |
 
 每次載入此 skill，**先用 Notion MCP 抓取主版頁**：
 
-- 主版 page ID：`3729ff25fdab81c18cadd01b4cb53752`
-- 主版標題：`explain`
-- 父頁：「Claude skill 指南」（`3239ff25fdab81519db5df856e0477f0`）
+- 主版 page ID：`3729ff25fdab80958c49e5100d256d49`
+- 主版標題：`Skill-15.explain`
+- 父頁：「各類指南」（`2799ff25fdab80fea78ee261b4e792a2`）
 
 **以該頁內容為準**。六條核心原則、技術詞對照表、解說模板都寫在 Notion。
 
