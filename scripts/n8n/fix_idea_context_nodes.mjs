@@ -12,12 +12,15 @@ const NAME = '嗨嗨構想 時事補充 v1';
 
 // 找工作流
 const r = await fetch(N8N + '/workflows?limit=250', { headers: H });
-const allWfs = (await r.json()).data || [];
+const raw = await r.json();
+if (!r.ok) { console.error('API 錯誤', r.status, JSON.stringify(raw)); process.exit(1); }
+const allWfs = raw.data || [];
 const wf = allWfs.find(w => w.name === NAME);
 if (!wf) {
-  console.error(`找不到「${NAME}」`);
+  console.error(`找不到「${NAME}」（共 ${allWfs.length} 個 WF）`);
   console.log('\n現有 workflows:');
   for (const w of allWfs) console.log(`  [${w.id}] ${w.name}  active=${w.active}`);
+  if (allWfs.length === 0) console.log('  （清單空，請確認 N8N_API_KEY 是否正確）');
   process.exit(1);
 }
 console.log(`找到 WF: ${wf.id}  ${NAME}`);
