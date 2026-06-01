@@ -99,7 +99,7 @@ if (!token) throw new Error('缺 NOTION_INTEGRATION_TOKEN env');
 if (!pageId) throw new Error('缺 pageId');
 
 const https = require('https');
-const payload = JSON.stringify({ properties: { '外掛狀態': { select: { name: '完成' } } } });
+const payload = JSON.stringify({ properties: { '外掛狀態': { status: { name: '完成' } } } });
 
 await new Promise((resolve, reject) => {
   const req = https.request({
