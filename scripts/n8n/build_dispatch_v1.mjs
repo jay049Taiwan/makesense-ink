@@ -69,7 +69,7 @@ const body = {
       typeVersion: 4, position: [800, 300],
       parameters: {
         method: 'POST',
-        url: '=https://makesense.zeabur.app/webhook/db06-{{ $json.modeKey }}',
+        url: '={{ "https://makesense.zeabur.app/webhook/db06-" + $json.modeKey }}',
         sendBody: true,
         contentType: 'json',
         jsonBody: '={{ JSON.stringify({ page_id: $json.pageId, mode: $json.mode }) }}',
@@ -82,17 +82,17 @@ const body = {
       typeVersion: 4, position: [1080, 300],
       parameters: {
         method: 'PATCH',
-        url: '=https://api.notion.com/v1/pages/{{ $(\'解析模式\').item.json.pageId }}',
+        url: '={{ "https://api.notion.com/v1/pages/" + $(\'解析模式\').item.json.pageId }}',
         sendHeaders: true,
         headerParameters: {
           parameters: [
-            { name: 'Authorization', value: '=Bearer {{$env.NOTION_INTEGRATION_TOKEN}}' },
-            { name: 'Notion-Version', value: '2025-09-03' },
+            { name: 'Authorization', value: '={{ "Bearer " + $env.NOTION_INTEGRATION_TOKEN }}' },
+            { name: 'Notion-Version', value: '2022-06-28' },
           ],
         },
         sendBody: true,
         contentType: 'json',
-        jsonBody: '={{ JSON.stringify({ properties: { "外掛狀態": { status: { name: "完成" } } } }) }}',
+        jsonBody: '{"properties":{"外掛狀態":{"status":{"name":"完成"}}}}',
         options: {},
       },
     },
