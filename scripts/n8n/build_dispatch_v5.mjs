@@ -88,7 +88,7 @@ const body = {
       },
       continueOnFail: true },
 
-    // d6: PATCH 外掛狀態=完成（Code 節點用 fetch，繞開 HTTP Request 參數命名問題）
+    // d6: PATCH 外掛狀態=完成（Code 節點用 require('https')，task runner 沙箱無全域 fetch）
     { id: 'd6', name: 'PATCH 外掛狀態=完成', type: 'n8n-nodes-base.code', typeVersion: 2, position: [1640, 300],
       parameters: {
         language: 'javaScript',
@@ -98,20 +98,31 @@ const token = $env.NOTION_INTEGRATION_TOKEN;
 if (!token) throw new Error('缺 NOTION_INTEGRATION_TOKEN env');
 if (!pageId) throw new Error('缺 pageId');
 
-const resp = await fetch('https://api.notion.com/v1/pages/' + pageId, {
-  method: 'PATCH',
-  headers: {
-    'Authorization': 'Bearer ' + token,
-    'Notion-Version': '2022-06-28',
-    'Content-Type': 'application/json',
-  },
-  body: JSON.stringify({ properties: { '外掛狀態': { select: { name: '完成' } } } }),
-});
+const https = require('https');
+const payload = JSON.stringify({ properties: { '外掛狀態': { select: { name: '完成' } } } });
 
-if (!resp.ok) {
-  const err = await resp.text();
-  throw new Error('Notion PATCH 失敗 ' + resp.status + ': ' + err);
-}
+await new Promise((resolve, reject) => {
+  const req = https.request({
+    hostname: 'api.notion.com',
+    path: '/v1/pages/' + pageId,
+    method: 'PATCH',
+    headers: {
+      'Authorization': 'Bearer ' + token,
+      'Notion-Version': '2022-06-28',
+      'Content-Type': 'application/json',
+      'Content-Length': Buffer.byteLength(payload),
+    },
+  }, (res) => {
+    let body = '';
+    res.on('data', d => body += d);
+    res.on('end', () => res.statusCode < 400
+      ? resolve()
+      : reject(new Error('Notion PATCH ' + res.statusCode + ': ' + body)));
+  });
+  req.on('error', reject);
+  req.write(payload);
+  req.end();
+});
 
 return [{ json: { patched: true, pageId } }];
 `.trim()
