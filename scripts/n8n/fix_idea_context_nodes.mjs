@@ -117,10 +117,19 @@ if (wasActive) {
   console.log('暫停 WF...');
 }
 
+// n8n PUT 只接受必要欄位，去掉 createdAt/updatedAt/meta 等多餘屬性
+const payload = {
+  name: fullWf.name,
+  nodes: fullWf.nodes,
+  connections: fullWf.connections,
+  settings: fullWf.settings || {},
+  ...(fullWf.pinData ? { pinData: fullWf.pinData } : {}),
+  ...(fullWf.staticData !== undefined ? { staticData: fullWf.staticData } : {}),
+};
 const ur = await fetch(N8N + `/workflows/${wf.id}`, {
   method: 'PUT',
   headers: H,
-  body: JSON.stringify(fullWf),
+  body: JSON.stringify(payload),
 });
 if (!ur.ok) { console.error('更新失敗:', ur.status, await ur.text()); process.exit(1); }
 console.log(`\n✅ 成功替換 ${changed} 個節點`);
