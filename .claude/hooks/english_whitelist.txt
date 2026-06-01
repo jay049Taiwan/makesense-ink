@@ -226,3 +226,74 @@ hihi_scout
 path
 webhook
 code
+
+# === 2026/06/01 批次新增 ===
+# 技術術語
+LLM
+OCR
+bug
+condition
+race
+prompt
+profile
+Profile
+voice
+Voice
+list
+checkbox
+emoji
+hashtag
+archived
+restore
+unsubscribe
+workspace
+pull
+command
+plugin
+Phase
+phase
+Mac
+Already
+date
+Unknown
+general
+step-by-step
+stock
+task
+cascade
+dial
+# Notion 規格詞
+Rollup
+rollup
+Should
+Must
+May
+loadPage
+mention-page
+querySql
+web_search
+# 時間格式
+YYYY-MM-DD
+# 人名 / 品牌 / 系列名
+Noah
+HereWeStay
+Footer
+N8n-
+N8n01
+WF-A
+session-start-hook
+explain
+hihiidea
+hihiplan
+# Notion 頁編號
+DB05-3
+DB05-1-1-1
+DB05-1-1-2
+DB05-1-1-3
+DB05-1-1-8
+DB05-1-2-1-1
+DB05-1-2-2-1-2
+DB05-1-2-2-2-1
+DB05-1-3-1
+Skill-17
+X-1
