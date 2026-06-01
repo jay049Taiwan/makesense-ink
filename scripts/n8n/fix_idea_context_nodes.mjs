@@ -12,8 +12,14 @@ const NAME = '嗨嗨構想 時事補充 v1';
 
 // 找工作流
 const r = await fetch(N8N + '/workflows?limit=250', { headers: H });
-const wf = ((await r.json()).data || []).find(w => w.name === NAME);
-if (!wf) { console.error(`找不到「${NAME}」`); process.exit(1); }
+const allWfs = (await r.json()).data || [];
+const wf = allWfs.find(w => w.name === NAME);
+if (!wf) {
+  console.error(`找不到「${NAME}」`);
+  console.log('\n現有 workflows:');
+  for (const w of allWfs) console.log(`  [${w.id}] ${w.name}  active=${w.active}`);
+  process.exit(1);
+}
 console.log(`找到 WF: ${wf.id}  ${NAME}`);
 
 // 取完整 JSON
